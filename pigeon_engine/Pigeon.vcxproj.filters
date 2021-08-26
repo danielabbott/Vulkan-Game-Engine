@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\wgi\Textures.c">
+      <Filter>src\wgi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pigeon.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkdescriptor.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkimage.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkphysDevice.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkpipeline.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkqueue.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkrenderPass.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vksampler.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkswapchain.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vulkan.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\Pipeline.c">
+      <Filter>src\wgi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\wgi.c">
+      <Filter>src\wgi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\Window.c">
+      <Filter>src\wgi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkmemory.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkfence.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkcommand.c">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\pigeon\wgi\image_formats.h">
+      <Filter>include\wgi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\pipeline.h">
+      <Filter>include\wgi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\textures.h">
+      <Filter>include\wgi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\pigeon.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\descriptor.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\pipeline.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\renderPass.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\sampler.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\vulkan.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\swapchain.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\util.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\wgi.h">
+      <Filter>include\wgi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\window.h">
+      <Filter>include\wgi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\wgi\singleton.h">
+      <Filter>src\wgi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\memory.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="src\wgi\vulkan\singleton.h">
+      <Filter>src\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\image.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\fence.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\command.h">
+      <Filter>include\wgi\vulkan</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{44e4bdf6-deab-4ace-8760-1d4e98fecb37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{395dc3c8-9242-4cde-89e9-f1b0d8202dc1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\wgi">
+      <UniqueIdentifier>{55b35990-b908-4b48-9bf2-b5cc4fc80fcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\wgi\vulkan">
+      <UniqueIdentifier>{229c3ddb-c720-4036-b9d7-f48af2c721f5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\wgi">
+      <UniqueIdentifier>{ec52e3bf-3011-4dec-9f29-b11974418420}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\wgi\vulkan">
+      <UniqueIdentifier>{406a1899-426e-4a09-b3db-300e59433ead}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

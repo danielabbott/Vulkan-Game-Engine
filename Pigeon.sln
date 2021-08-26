@@ -1,0 +1,71 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31424.327
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test1", "tests\1\Test1.vcxproj", "{E2D0B40A-C682-4D42-953B-B126C4F9D22F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C103CE21-5388-4462-AF92-9EEBCB393589} = {C103CE21-5388-4462-AF92-9EEBCB393589}
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043} = {7E18BC5E-DF73-4B40-B41F-194188ABF043}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PigeonEngine", "pigeon_engine\PigeonEngine.vcxproj", "{C103CE21-5388-4462-AF92-9EEBCB393589}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043} = {7E18BC5E-DF73-4B40-B41F-194188ABF043}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConfigParser", "config_parser\config_parser.vcxproj", "{7E18BC5E-DF73-4B40-B41F-194188ABF043}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageAssetConverter", "image_asset_converter\image_asset_converter.vcxproj", "{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043} = {7E18BC5E-DF73-4B40-B41F-194188ABF043}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Debug|x64.ActiveCfg = Debug|x64
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Debug|x64.Build.0 = Debug|x64
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Debug|x86.ActiveCfg = Debug|Win32
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Debug|x86.Build.0 = Debug|Win32
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Release|x64.ActiveCfg = Release|x64
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Release|x64.Build.0 = Release|x64
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Release|x86.ActiveCfg = Release|Win32
+		{E2D0B40A-C682-4D42-953B-B126C4F9D22F}.Release|x86.Build.0 = Release|Win32
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Debug|x64.ActiveCfg = Debug|x64
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Debug|x64.Build.0 = Debug|x64
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Debug|x86.ActiveCfg = Debug|Win32
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Debug|x86.Build.0 = Debug|Win32
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Release|x64.ActiveCfg = Release|x64
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Release|x64.Build.0 = Release|x64
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Release|x86.ActiveCfg = Release|Win32
+		{C103CE21-5388-4462-AF92-9EEBCB393589}.Release|x86.Build.0 = Release|Win32
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Debug|x64.ActiveCfg = Debug|x64
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Debug|x64.Build.0 = Debug|x64
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Debug|x86.ActiveCfg = Debug|Win32
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Debug|x86.Build.0 = Debug|Win32
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Release|x64.ActiveCfg = Release|x64
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Release|x64.Build.0 = Release|x64
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Release|x86.ActiveCfg = Release|Win32
+		{7E18BC5E-DF73-4B40-B41F-194188ABF043}.Release|x86.Build.0 = Release|Win32
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Debug|x64.ActiveCfg = Debug|x64
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Debug|x64.Build.0 = Debug|x64
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Debug|x86.ActiveCfg = Debug|Win32
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Debug|x86.Build.0 = Debug|Win32
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Release|x64.ActiveCfg = Release|x64
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Release|x64.Build.0 = Release|x64
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Release|x86.ActiveCfg = Release|Win32
+		{DAA50CBA-8DD5-425E-B976-CE13FFD0A160}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {23370079-2584-4F10-8E97-B3CE08D56A59}
+	EndGlobalSection
+EndGlobal
