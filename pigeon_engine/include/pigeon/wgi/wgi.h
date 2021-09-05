@@ -17,8 +17,11 @@ bool pigeon_wgi_close_requested(void);
 
 // Returns 1 on error, 2 if not ready yet, 3 if swapchain must be recreated
 // If returns 3, call pigeon_wgi_recreate_swapchain()
-// max_game_objects and max_materials determine the maximum size of the uniform data
-ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls);
+// max_draw_calls determines the minimum size of the draw calls ssbo
+// max_multidraw_draw_calls = maximum number of drawcalls within multidraw draws
+// Instancing counts as multiple draw calls
+ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, uint32_t max_draw_calls,
+    uint32_t max_multidraw_draw_calls);
 
 ERROR_RETURN_TYPE pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
     PigeonWGIDrawCallObject *, unsigned int num_draw_calls);
@@ -34,15 +37,20 @@ PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
 
 ERROR_RETURN_TYPE pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);
 void pigeon_wgi_draw_without_mesh(PigeonWGICommandBuffer*, PigeonWGIPipeline*, unsigned int vertices);
-// pigeon_wgi_upload_mesh
+// pigeon_wgi_upload_multimesh
 
 // first and count are either offsets into vertices or indices array depending on whether
 //  the mesh has indices or not
 // Requires 'instances' number of draw call objects, starting at 'draw_call_index'
 void pigeon_wgi_draw(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMultiMesh*, 
-    uint64_t mesh_offset, PigeonWGIMeshMeta * meta, uint32_t draw_call_index, uint32_t instances,
-    unsigned int first, unsigned int count);
+    uint32_t start_vertex, uint32_t draw_call_index, uint32_t instances,
+    uint32_t first, unsigned int count);
 
+void pigeon_wgi_multidraw_draw(PigeonWGICommandBuffer*, unsigned int start_vertex,
+	uint32_t instances, uint32_t first, uint32_t count);
+
+void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMultiMesh*,
+    uint32_t first_multidraw_index, uint32_t drawcalls, uint32_t first_drawcall_index);
 
 ERROR_RETURN_TYPE pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 

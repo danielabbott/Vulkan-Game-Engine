@@ -102,6 +102,12 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 	singleton_data.depth_clamp_supported = singleton_data.device_features.depthClamp;
 	singleton_data.anisotropy_supported = singleton_data.device_features.samplerAnisotropy && singleton_data.device_properties.limits.maxSamplerAnisotropy >= 16;
 
+	if(!singleton_data.device_features.multiDrawIndirect) {
+		fputs("Multidraw unsupported\n", stderr);
+		return false;
+	}
+
+
 	singleton_data.timer_multiplier = ((double)singleton_data.device_properties.limits.timestampPeriod / 1000.0) / 1000.0;
 
 	singleton_data.uniform_buffer_min_alignment = (unsigned)singleton_data.device_properties.limits.minUniformBufferOffsetAlignment;

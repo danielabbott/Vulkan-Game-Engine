@@ -127,6 +127,9 @@ typedef struct SingletonData
 	PigeonVulkanFramebuffer * post_framebuffers;
 
 	unsigned int max_draw_calls;
+	unsigned int max_multidraw_draw_calls;
+
+	unsigned int multidraw_draw_index; // reset to 0 each frame
 
 	unsigned int swapchain_image_index;
 	unsigned int previous_frame_index_mod;

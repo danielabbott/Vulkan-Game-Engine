@@ -24,9 +24,27 @@ uint64_t pigeon_wgi_mesh_meta_size_requirements(PigeonWGIMeshMeta *meta)
     return sz*(uint64_t)meta->vertex_count + (uint64_t)(index_size*meta->index_count);
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_mesh(PigeonWGIMultiMesh *mesh, uint64_t size, void **mapping)
+ERROR_RETURN_TYPE pigeon_wgi_create_multimesh(PigeonWGIMultiMesh *mesh, 
+    PigeonWGIVertexAttributeType attribute_types[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES],
+    unsigned int vertex_count, unsigned int index_count, bool big_indices,
+    uint64_t* size, void **mapping)
 {
-    ASSERT_1(mesh);
+    ASSERT_1(mesh && attribute_types[0]);
+    *size = 0;
+
+    mesh->vertex_count = vertex_count;
+    mesh->index_count = index_count;
+    mesh->big_indices = big_indices;
+
+    memcpy(mesh->attribute_types, attribute_types, sizeof *attribute_types * PIGEON_WGI_MAX_VERTEX_ATTRIBUTES);
+    for (unsigned int i = 0; i < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; i++) {
+        if(!attribute_types[i]) break;
+        mesh->attribute_start_offsets[i] = *size;
+        *size += pigeon_wgi_get_vertex_attribute_type_size(attribute_types[i]) * vertex_count;
+    }
+    mesh->index_data_offset = *size;
+    *size += index_count * (big_indices ? 4 : 2);
+
 
     mesh->staged_buffer = calloc(1, sizeof *mesh->staged_buffer);
     ASSERT_1(mesh->staged_buffer);
@@ -39,8 +57,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_mesh(PigeonWGIMultiMesh *mesh, uint64_t size
     }
 
     PigeonVulkanBufferUsages usages = {0};
-    usages.vertices = usages.indices = true;
-    if (pigeon_vulkan_create_staged_buffer(mesh->staged_buffer, size, usages)) {
+    usages.vertices = true;
+    usages.indices = index_count > 0;
+    if (pigeon_vulkan_create_staged_buffer(mesh->staged_buffer, *size, usages)) {
         OOPS();
     }
 
@@ -53,7 +72,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_mesh(PigeonWGIMultiMesh *mesh, uint64_t size
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_mesh_unmap(PigeonWGIMultiMesh *mesh)
+ERROR_RETURN_TYPE pigeon_wgi_multimesh_unmap(PigeonWGIMultiMesh *mesh)
 {
     assert(mesh && mesh->staged_buffer);
 
@@ -62,7 +81,7 @@ ERROR_RETURN_TYPE pigeon_wgi_mesh_unmap(PigeonWGIMultiMesh *mesh)
 }
 
 
-void pigeon_wgi_upload_mesh(PigeonWGICommandBuffer* cmd, PigeonWGIMultiMesh* mesh)
+void pigeon_wgi_upload_multimesh(PigeonWGICommandBuffer* cmd, PigeonWGIMultiMesh* mesh)
 {
     assert(mesh && mesh->staged_buffer);
 
@@ -71,7 +90,7 @@ void pigeon_wgi_upload_mesh(PigeonWGICommandBuffer* cmd, PigeonWGIMultiMesh* mes
     }
 }
 
-void pigeon_wgi_mesh_transfer_done(PigeonWGIMultiMesh* mesh)
+void pigeon_wgi_multimesh_transfer_done(PigeonWGIMultiMesh* mesh)
 {
     assert(mesh && mesh->staged_buffer);
 
@@ -80,7 +99,7 @@ void pigeon_wgi_mesh_transfer_done(PigeonWGIMultiMesh* mesh)
     }
 }
 
-void pigeon_wgi_destroy_mesh(PigeonWGIMultiMesh *mesh)
+void pigeon_wgi_destroy_multimesh(PigeonWGIMultiMesh *mesh)
 {
     if (mesh && mesh->staged_buffer)
     {

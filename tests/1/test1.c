@@ -84,7 +84,7 @@ static ERROR_RETURN_TYPE start(void)
 		.window_mode = PIGEON_WINDOW_MODE_WINDOWED,
 		.title = "Test 1"};
 
-	if (pigeon_wgi_init(window_parameters, false))
+	if (pigeon_wgi_init(window_parameters, true))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -155,6 +155,13 @@ static ERROR_RETURN_TYPE load_model_assets(void)
 			}
 		}
 		ASSERT_1(model_assets[i].type == PIGEON_ASSET_TYPE_MODEL);
+		ASSERT_1(model_assets[i].mesh_meta.attribute_types[0] == PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED &&
+			model_assets[i].mesh_meta.attribute_types[1] == PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL &&
+			model_assets[i].mesh_meta.attribute_types[2] == PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT &&
+			model_assets[i].mesh_meta.attribute_types[3] == PIGEON_WGI_VERTEX_ATTRIBUTE_UV &&
+			!model_assets[i].mesh_meta.attribute_types[4] &&
+			!model_assets[i].mesh_meta.big_indices
+		);
 		ASSERT_1(!pigeon_load_asset_data(&model_assets[i], model_file_paths[i][1]));
 	}
 	return 0;
@@ -327,6 +334,8 @@ static void free_assets(void)
 static ERROR_RETURN_TYPE create_meshes(void)
 {
 	uint64_t size = 0;
+    unsigned int vertex_count = 0;
+	unsigned int index_count = 0;
 
 	for (unsigned int i = 0; i < NUM_MODELS; i++)
 	{
@@ -337,32 +346,49 @@ static ERROR_RETURN_TYPE create_meshes(void)
 			full_size += model_assets[i].compression[j].decompressed_data_length;
 		}
 		ASSERT_1(full_size == sz);
-		size += full_size;
+
+		model_assets[i].mesh_meta.multimesh_start_vertex = vertex_count;
+		model_assets[i].mesh_meta.multimesh_start_index = index_count;
+		vertex_count += model_assets[i].mesh_meta.vertex_count;
+		index_count += model_assets[i].mesh_meta.index_count ?
+			model_assets[i].mesh_meta.index_count :
+			model_assets[i].mesh_meta.vertex_count;
 	}
 
 	uint8_t *mapping;
-	ASSERT_1(!pigeon_wgi_create_mesh(&mesh, size, (void **)&mapping));
+	ASSERT_1(!pigeon_wgi_create_multimesh(&mesh,
+		model_assets[0].mesh_meta.attribute_types, vertex_count, index_count, false,
+		&size, (void **)&mapping));
 
+	PigeonWGIVertexAttributeType * attributes = model_assets[0].mesh_meta.attribute_types;
 	uint64_t offset = 0;
-	for (unsigned int i = 0; i < NUM_MODELS; i++)
-	{
-		model_assets[i].mesh_meta.start_offset = offset;
-		uint64_t sz = pigeon_wgi_mesh_meta_size_requirements(&model_assets[i].mesh_meta);
+	unsigned int j = 0;
+	for (; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; j++) {
+		if(!attributes[j]) break;
 
-
-		for(unsigned int j = 0; j < PIGEON_ASSET_MAX_SUBRESOURCES; j++) {
-			if(model_assets[i].compression[j].decompressed_data_length) {
-				sz = model_assets[i].compression[j].decompressed_data_length;
-				ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
-				offset += sz;
-			}
-			else break;
+		for (unsigned int i = 0; i < NUM_MODELS; i++) {
+			uint64_t sz = pigeon_wgi_get_vertex_attribute_type_size(attributes[j]) * model_assets[i].mesh_meta.vertex_count;
+			ASSERT_1(sz == model_assets[i].compression[j].decompressed_data_length);
+			ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
+			offset += sz;
 		}
-
+	}
+	for (unsigned int i = 0; i < NUM_MODELS; i++) {
+		if(j < model_assets[i].compression[j].decompressed_data_length) {
+			ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
+			offset += 2 * model_assets[i].mesh_meta.index_count;
+		}
+		else {
+			// Flat shaded model- create indices
+			for(unsigned int k = 0; k < model_assets[i].mesh_meta.vertex_count; k++) {
+				mapping[offset++] = (uint8_t)k;
+				mapping[offset++] = (uint8_t)(k>>8);
+			}
+		}
 	}
 	assert(offset == size);
 
-	ASSERT_1(!pigeon_wgi_mesh_unmap(&mesh));
+	ASSERT_1(!pigeon_wgi_multimesh_unmap(&mesh));
 	mapping = NULL;
 
 	return 0;
@@ -370,13 +396,13 @@ static ERROR_RETURN_TYPE create_meshes(void)
 
 static void upload_meshes(PigeonWGICommandBuffer *cmd)
 {
-	pigeon_wgi_upload_mesh(cmd, &mesh);
+	pigeon_wgi_upload_multimesh(cmd, &mesh);
 }
 
 static void destroy_meshes(void)
 {
 	if (mesh.staged_buffer)
-		pigeon_wgi_destroy_mesh(&mesh);
+		pigeon_wgi_destroy_multimesh(&mesh);
 }
 
 static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
@@ -513,7 +539,7 @@ static void destroy_pipelines(void)
 		pigeon_wgi_destroy_pipeline(&render_pipeline);
 }
 
-static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only)
+static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only, unsigned int multidraw_draw_count)
 {
 	assert(command_buffer);
 
@@ -523,32 +549,28 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 		pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
 	}
 
-	// if (depth_only) {
-		// pigeon_wgi_start_multidraw();
-
-		unsigned int draw_call_index = 0;
+	if (depth_only) {
+		unsigned int draw_calls = 0;
 		for (unsigned int i = 0; i < NUM_MODELS; i++) {
 			PigeonAsset *model = &model_assets[i];
-			PigeonWGIMeshMeta *meta = &model->mesh_meta;
 
 			for (unsigned int j = 0; j < model->materials_count; j++) {
 				unsigned int obj_count = 0;
 				for (unsigned int k = 0; k < NUM_GAME_OBJECTS; k++) {
 					if (game_objects[k].model_index == i) obj_count++;
-				}
+				}			
 
-				pigeon_wgi_draw(command_buffer, &render_pipeline, &mesh, UINT64_MAX, meta, 
-					draw_call_index, obj_count,
-					model->materials[j].first, model->materials[j].count);
-				draw_call_index += obj_count;	
+				pigeon_wgi_multidraw_draw(command_buffer, model->mesh_meta.multimesh_start_vertex,
+					obj_count, model->mesh_meta.multimesh_start_index + model->materials[j].first, model->materials[j].count);
+				draw_calls += obj_count;	
 			}
 		}
-
-		// pigeon_wgi_end_multidraw();
-	// }
-	// else {
-//			pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh);
-	// }
+		ASSERT_1(draw_calls == multidraw_draw_count);
+		pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh, 0, multidraw_draw_count, 0);
+	}
+	else {
+		pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh, 0, multidraw_draw_count, 0);
+	}
 
 	ASSERT_1(!pigeon_wgi_end_command_buffer(command_buffer));
 	return 0;
@@ -812,11 +834,11 @@ static void game_loop(void)
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
 
-		int start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls);
+		int start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls);
 		if (start_frame_err == 3)
 		{
 			if(recreate_swapchain()) return;
-			start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls);
+			start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls);
 		}
 		if (start_frame_err)
 		{
@@ -854,7 +876,7 @@ static void game_loop(void)
 		{
 			pigeon_wgi_grid_texture_transfer_done(&normal_grid_texture);
 			pigeon_wgi_grid_texture_transfer_done(&grid_texture);
-			pigeon_wgi_mesh_transfer_done(&mesh);
+			pigeon_wgi_multimesh_transfer_done(&mesh);
 		}
 
 		// TODO don't rebind every time if possible-
@@ -862,9 +884,9 @@ static void game_loop(void)
 		pigeon_wgi_bind_grid_texture(0, &grid_texture);
 		pigeon_wgi_bind_grid_texture(1, &normal_grid_texture);
 
-		if (render_frame(depth_command_buffer, true))
+		if (render_frame(depth_command_buffer, true, total_draw_calls))
 			return;
-		if (render_frame(render_command_buffer, false))
+		if (render_frame(render_command_buffer, false, total_draw_calls))
 			return;
 
 		int present_frame_error = pigeon_wgi_present_frame();

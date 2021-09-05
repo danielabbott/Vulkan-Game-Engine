@@ -63,7 +63,7 @@ $(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard tests/1/*.c) config_pars
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 
 
-DEPS = $(OBJECTS:%.o=%.d) $(OBJECTS_GLSL:%.spv=%.d)
+DEPS = $(OBJECTS:%.o=%.d) $(OBJECTS_GLSL:%=%.d)
 
 ASSETS_SRC = \
 $(wildcard test_assets/textures/*.jpg) \

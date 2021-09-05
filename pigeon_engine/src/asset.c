@@ -519,7 +519,6 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 contains_normalised_position = true;
             }
 
-            asset->mesh_meta.attribute_offsets[i] = offset;
             offset += pigeon_wgi_get_vertex_attribute_type_size(type) * asset->mesh_meta.vertex_count;
         }
 

@@ -82,8 +82,14 @@ void pigeon_vulkan_draw(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	unsigned int first, unsigned int vertices, unsigned int instances,
 	PigeonVulkanPipeline*, unsigned int push_constants_size, void * push_constants_data);
 void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool*, unsigned int buffer_index, 
-	unsigned int first, unsigned int indices, unsigned int instances, PigeonVulkanPipeline*,
-	unsigned int push_constants_size, void * push_constants_data);
+	uint32_t start_vertex,
+	uint32_t first, uint32_t indices, uint32_t instances, PigeonVulkanPipeline*,
+	uint32_t push_constants_size, void * push_constants_data);
+
+void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool*, unsigned int buffer_index, 
+	PigeonVulkanPipeline*, unsigned int push_constants_size, void * push_constants_data,
+	PigeonVulkanBuffer*, uint64_t buffer_offset,
+	uint32_t first_multidraw_index, uint32_t drawcalls);
 
 void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 		PigeonVulkanBuffer * dst, uint64_t dst_offset,

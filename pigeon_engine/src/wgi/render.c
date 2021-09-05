@@ -189,7 +189,7 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
 
     unsigned int minimum_size = ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
     minimum_size += ((sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls + align-1) / align) * align;
-    minimum_size += pigeon_vulkan_get_multidraw_struct_size() * singleton_data.max_draw_calls;
+    minimum_size += sizeof(PigeonVulkanDrawIndexedIndirectCommand) * singleton_data.max_multidraw_draw_calls;
 
     
     if(objects->uniform_buffer.size < minimum_size) {
@@ -223,12 +223,19 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls)
+ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls,
+    uint32_t max_multidraw_draw_calls)
 {
     ASSERT_1(max_draw_calls <= 65536);
+    ASSERT_1(max_multidraw_draw_calls <= max_draw_calls);
 
     if(max_draw_calls > singleton_data.max_draw_calls) singleton_data.max_draw_calls = max_draw_calls;
     if(!singleton_data.max_draw_calls) singleton_data.max_draw_calls = 128;
+    if(max_multidraw_draw_calls > singleton_data.max_multidraw_draw_calls)
+        singleton_data.max_multidraw_draw_calls = max_multidraw_draw_calls;
+    if(!singleton_data.max_multidraw_draw_calls) singleton_data.max_multidraw_draw_calls = 128;
+
+    singleton_data.multidraw_draw_index = 0;
 
 
     pigeon_wgi_poll_events();
@@ -351,64 +358,122 @@ void pigeon_wgi_draw_without_mesh(PigeonWGICommandBuffer* command_buffer, Pigeon
         command_buffer->depth_only ? pipeline->pipeline_depth_only : pipeline->pipeline, 0, NULL);
 }
 
-void pigeon_wgi_draw(PigeonWGICommandBuffer* command_buffer, PigeonWGIPipeline* pipeline, 
-    PigeonWGIMultiMesh* mesh, uint64_t mesh_offset, PigeonWGIMeshMeta * meta,
-    uint32_t draw_call_index, uint32_t instances, unsigned int first, unsigned int count)
+static void draw_setup_common(PigeonWGICommandBuffer* command_buffer, PigeonWGIPipeline* pipeline, 
+    PigeonVulkanPipeline ** vpipeline, PigeonWGIMultiMesh* mesh)
 {
-    assert(command_buffer && pipeline && pipeline->pipeline && mesh && mesh->staged_buffer && meta);
-    if(!instances) instances = 1;
-
-    PigeonVulkanPipeline * vpipeline = command_buffer->depth_only ?
+    *vpipeline = command_buffer->depth_only ?
         pipeline->pipeline_depth_only : pipeline->pipeline;
 
-    pigeon_vulkan_bind_pipeline(&command_buffer->command_pool, 0, vpipeline);
-    pigeon_vulkan_bind_descriptor_set(&command_buffer->command_pool, 0, vpipeline, 
+    pigeon_vulkan_bind_pipeline(&command_buffer->command_pool, 0, *vpipeline);
+    pigeon_vulkan_bind_descriptor_set(&command_buffer->command_pool, 0, *vpipeline, 
         command_buffer->depth_only ?
         &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].depth_descriptor_pool :
         &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].render_descriptor_pool, 0);
 
-    if(mesh_offset == UINT64_MAX) {
-        mesh_offset = meta->start_offset;
+    unsigned int attribute_count = 0;
+    for (; attribute_count < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; attribute_count++) {
+        if (!mesh->attribute_types[attribute_count]) break;
     }
-    
-    uint64_t off = mesh_offset;
-    uint64_t offsets[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES];
-    unsigned int attribute_i = 0;
-
-    for (; attribute_i < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; attribute_i++)
-    {
-        PigeonWGIVertexAttributeType type = meta->attribute_types[attribute_i];
-        if (!type)
-            break;
-
-        offsets[attribute_i] = off;
-        off += pigeon_wgi_get_vertex_attribute_type_size(type) * meta->vertex_count;
-    }
-    const unsigned int attribute_count = attribute_i;
-
 
     pigeon_vulkan_bind_vertex_buffers(&command_buffer->command_pool, 0, &mesh->staged_buffer->buffer,
-        attribute_count, offsets);
-    
-    if(meta->index_count) {
+        attribute_count, mesh->attribute_start_offsets);
+        
+    if(mesh->index_count) {
         pigeon_vulkan_bind_index_buffer(&command_buffer->command_pool, 0, 
-            &mesh->staged_buffer->buffer, off, meta->big_indices);
+            &mesh->staged_buffer->buffer, mesh->index_data_offset, mesh->big_indices);
+    }
+}
 
+void pigeon_wgi_draw(PigeonWGICommandBuffer* command_buffer, PigeonWGIPipeline* pipeline, 
+    PigeonWGIMultiMesh* mesh, uint32_t start_vertex,
+    uint32_t draw_call_index, uint32_t instances, uint32_t first, uint32_t count)
+{
+    assert(command_buffer && pipeline && pipeline->pipeline && mesh && mesh->staged_buffer);
+    if(!instances) instances = 1;
+    if(!count) return;
+
+    PigeonVulkanPipeline * vpipeline;
+    draw_setup_common(command_buffer, pipeline, &vpipeline, mesh);
+    
+    if(mesh->index_count) {
         if(count == UINT32_MAX) {
-            count = meta->index_count - first;
+            count = mesh->index_count - first;
         }
 
         pigeon_vulkan_draw_indexed(&command_buffer->command_pool, 0, 
-            first, count, instances, vpipeline, sizeof draw_call_index, &draw_call_index);
+            start_vertex, first, count, instances, vpipeline, sizeof draw_call_index, &draw_call_index);
     }
     else {
         if(count == UINT32_MAX) {
-            count = meta->vertex_count - first;
+            count = mesh->vertex_count - first;
         }
+
+        assert(!start_vertex);
 
         pigeon_vulkan_draw(&command_buffer->command_pool, 0, 
             first, count, instances, vpipeline, sizeof draw_call_index, &draw_call_index);
     }
+}
+
+
+
+void pigeon_wgi_multidraw_draw(PigeonWGICommandBuffer* command_buffer, unsigned int start_vertex,
+	uint32_t instances, uint32_t first, uint32_t count)
+{
+    assert(command_buffer);
+    if(!instances) instances = 1;
+    if(!count) return;
+
+    PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
+    const unsigned int align = pigeon_vulkan_get_uniform_buffer_min_alignment();
+
+    unsigned int o = ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
+    o += ((sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls + align-1) / align) * align;
+
+    PigeonVulkanDrawIndexedIndirectCommand* indirect_cmds =
+        (PigeonVulkanDrawIndexedIndirectCommand*)((uintptr_t)objects->uniform_buffer_memory.mapping + o);
+
+    PigeonVulkanDrawIndexedIndirectCommand * cmd = &indirect_cmds[singleton_data.multidraw_draw_index++];
+    assert(singleton_data.multidraw_draw_index <= singleton_data.max_multidraw_draw_calls);
+
+    
+    cmd->indexCount = count;
+    cmd->instanceCount = instances;
+    cmd->firstIndex = first;
+    cmd->vertexOffset = (int32_t)start_vertex;
+    cmd->firstInstance = 0;    
+
+    // 0 out extra structs when doing instanced rendering
+    for(unsigned int i = 1; i < instances; i++) {
+        cmd = &indirect_cmds[singleton_data.multidraw_draw_index++];
+        assert(singleton_data.multidraw_draw_index <= singleton_data.max_multidraw_draw_calls);
+        memset(cmd, 0, sizeof *cmd);
+    }
+}
+
+void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer* command_buffer,
+    PigeonWGIPipeline* pipeline, PigeonWGIMultiMesh* mesh,
+    uint32_t first_multidraw_index, uint32_t drawcalls, uint32_t first_drawcall_index)
+{
+    assert(command_buffer && pipeline && pipeline->pipeline && mesh && mesh->staged_buffer);
+    assert(first_drawcall_index + drawcalls <= singleton_data.max_draw_calls);
+    assert(first_multidraw_index + drawcalls <= singleton_data.max_multidraw_draw_calls);
+    assert(mesh->index_count && mesh->vertex_count);
+
+    PigeonVulkanPipeline * vpipeline;
+    draw_setup_common(command_buffer, pipeline, &vpipeline, mesh);
+
+    PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
+    
+    const unsigned int align = pigeon_vulkan_get_uniform_buffer_min_alignment();
+    unsigned int o = ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
+    o += ((sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls + align-1) / align) * align;
+
+
+    pigeon_vulkan_multidraw_indexed(&command_buffer->command_pool, 0, 
+        vpipeline, sizeof first_drawcall_index, &first_drawcall_index,
+        &objects->uniform_buffer, o,
+        first_multidraw_index, drawcalls);
 }
 
 ERROR_RETURN_TYPE pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer * command_buffer)

@@ -18,10 +18,11 @@ typedef struct PigeonWGIDrawCallObject {
     float rsvd;
 
     vec4 texture_uv_base_and_range; // .xy = base, .zw = range
+    vec4 normal_map_uv_base_and_range;
+    
     uint32_t texture_sampler_index_plus1; // into array of glsl samplers
     float texture_index; // into array texture
     
-    vec4 normal_map_uv_base_and_range;
     uint32_t normal_map_sampler_index_plus1;
     float normal_map_index;
 } PigeonWGIDrawCallObject;

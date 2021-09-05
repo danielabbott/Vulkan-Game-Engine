@@ -36,9 +36,11 @@ struct DrawCallObject {
 
     vec4 colour;
     vec4 texture_uv_base_and_range; // .xy = base, .zw = range
+    vec4 normal_map_uv_base_and_range;
+
     uint texture_sampler_index_plus1; // into array of glsl samplers
     float texture_index; // into array texture
-    vec4 normal_map_uv_base_and_range;
+
     uint normal_map_sampler_index_plus1;
     float normal_map_index;
 };

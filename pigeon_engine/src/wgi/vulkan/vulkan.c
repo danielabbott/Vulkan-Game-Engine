@@ -42,11 +42,6 @@ unsigned int pigeon_vulkan_get_uniform_buffer_min_alignment(void)
 }
 
 
-unsigned int pigeon_vulkan_get_multidraw_struct_size(void)
-{
-	return sizeof(VkDrawIndirectCommand);
-}
-
 void pigeon_vulkan_wait_idle(void)
 {
 	if(vkdev) vkDeviceWaitIdle(vkdev);

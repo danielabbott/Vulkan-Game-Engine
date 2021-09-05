@@ -29,6 +29,7 @@ ERROR_RETURN_TYPE pigeon_create_vulkan_logical_device_and_queues(void)
 	VkPhysicalDeviceFeatures physical_device_features = {0};
 	physical_device_features.depthClamp = singleton_data.depth_clamp_supported;
 	physical_device_features.samplerAnisotropy = singleton_data.anisotropy_supported;
+	physical_device_features.multiDrawIndirect = 1;
 
 	VkDeviceCreateInfo device_create_info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 	device_create_info.pQueueCreateInfos = queue_create_infos;

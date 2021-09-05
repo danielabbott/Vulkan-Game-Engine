@@ -552,6 +552,7 @@ void pigeon_vulkan_draw(PigeonVulkanCommandPool* command_pool, unsigned int buff
 }
 
 void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	uint32_t start_vertex,
 	unsigned int first, unsigned int indices, unsigned int instances, PigeonVulkanPipeline* pipeline, 
 	unsigned int push_constants_size, void * push_constants_data)
 {
@@ -563,7 +564,26 @@ void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool* command_pool, unsigned 
 
 	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
 	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data);
-	vkCmdDrawIndexed(cmd_buf, indices, instances, first, 0, 0);
+	vkCmdDrawIndexed(cmd_buf, indices, instances, first, (int32_t)start_vertex, 0);
+}
+
+void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	PigeonVulkanPipeline* pipeline, unsigned int push_constants_size, void * push_constants_data,
+	PigeonVulkanBuffer* buffer, uint64_t buffer_offset,
+	uint32_t first_multidraw_index, uint32_t drawcalls)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(buffer_index < command_pool->buffer_count);
+	assert(!push_constants_size || push_constants_data);
+	assert(pipeline && pipeline->vk_pipeline_layout);
+	
+	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
+	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data);
+
+	vkCmdDrawIndexedIndirect(cmd_buf, buffer->vk_buffer,
+		buffer_offset + first_multidraw_index * sizeof(VkDrawIndexedIndirectCommand),
+		drawcalls, sizeof(VkDrawIndexedIndirectCommand)
+	);
 }
 
 void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
