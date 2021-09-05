@@ -704,23 +704,24 @@ static void fps_camera_mouse_input(vec2 rotation)
 {
 	if (!mouse_grabbed)
 		return;
+
 	static int last_mouse_x = -1;
 	static int last_mouse_y = -1;
 
-	unsigned int mouse_x, mouse_y;
+	int mouse_x, mouse_y;
 	pigeon_wgi_get_mouse_position(&mouse_x, &mouse_y);
 
 	if (last_mouse_x == -1)
 	{
-		last_mouse_x = (int)mouse_x;
-		last_mouse_y = (int)mouse_y;
+		last_mouse_x = mouse_x;
+		last_mouse_y = mouse_y;
 	}
 
-	rotation[0] -= (float)((int)mouse_y - last_mouse_y) * 0.001f;
-	rotation[1] += (float)((int)mouse_x - last_mouse_x) * 0.001f;
+	rotation[0] -= (float)(mouse_y - last_mouse_y) * 0.001f;
+	rotation[1] += (float)(mouse_x - last_mouse_x) * 0.001f;
 
-	last_mouse_x = (int)mouse_x;
-	last_mouse_y = (int)mouse_y;
+	last_mouse_x = mouse_x;
+	last_mouse_y = mouse_y;
 
 	if (rotation[0] > glm_rad(80.0f))
 	{
@@ -746,7 +747,7 @@ static void fps_camera_input(float delta_time, vec2 rotation, vec3 position)
 	vec3 right = {1, 0, 0};
 	glm_vec3_rotate_m4(rotation_matrix, right, right);
 
-	float speed = pigeon_wgi_is_key_down(PIGEON_WGI_KEY_RIGHT_SHIFT) ? 30 : 5;
+	float speed = pigeon_wgi_is_key_down(PIGEON_WGI_KEY_RIGHT_SHIFT) ? 30.0f : 5.0f;
 
 	if (pigeon_wgi_is_key_down(PIGEON_WGI_KEY_W))
 	{
@@ -910,7 +911,7 @@ static void mouse_callback(PigeonWGIMouseEvent e)
 	if (e.button == PIGEON_WGI_MOUSE_BUTTON_RIGHT && !e.pressed)
 	{
 		mouse_grabbed = !mouse_grabbed;
-		pigeon_wgi_set_mouse_grabbed(mouse_grabbed);
+		pigeon_wgi_set_cursor_type(mouse_grabbed ? PIGEON_WGI_CURSOR_TYPE_FPS_CAMERA : PIGEON_WGI_CURSOR_TYPE_NORMAL);
 	}
 }
 

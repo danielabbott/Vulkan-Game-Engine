@@ -4,12 +4,17 @@
 #include <stdbool.h>
 
 bool pigeon_wgi_is_key_down(PigeonWGIKey);
-void pigeon_wgi_get_mouse_position(unsigned int * mouse_x, unsigned int * mouse_y);
-float pigeon_wgi_get_stylus_pressure(void); // TODO EASYTAB
+void pigeon_wgi_get_mouse_position(int * mouse_x, int * mouse_y);
+float pigeon_wgi_get_stylus_pressure(void);
 
 
-// Hide the mouse cursor
-void pigeon_wgi_set_mouse_grabbed(bool);
+typedef enum {
+    PIGEON_WGI_CURSOR_TYPE_NORMAL,
+    PIGEON_WGI_CURSOR_TYPE_FPS_CAMERA,
+    PIGEON_WGI_CURSOR_TYPE_CUSTOM // Hides cursor for custom cursor rendering
+} PigeonWGICursorType;
+
+void pigeon_wgi_set_cursor_type(PigeonWGICursorType);
 
 typedef struct PigeonWGIKeyEvent
 {

@@ -1,6 +1,19 @@
+#if defined(__linux__)
+#define GLFW_EXPOSE_NATIVE_X11
+#define EASYTAB_IMPLEMENTATION
+#include <easytab.h>
+
+#elif defined(_WIN32)
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define EASYTAB_IMPLEMENTATION
+#include <easytab.h>
+#endif
+
 #define GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
 #include <stdbool.h>
 #include <pigeon/util.h>
 #include <pigeon/wgi/window.h>
@@ -53,7 +66,18 @@ ERROR_RETURN_TYPE pigeon_create_window(PigeonWindowParameters window_parameters)
 
 	ASSERT__1(pigeon_wgi_glfw_window, "glfwCreateWindow error");
 
-
+	if(
+		#if defined(__linux__)
+			EasyTab_Load(glfwGetX11Display(), glfwGetX11Window(pigeon_wgi_glfw_window))
+		#elif defined(_WIN32)
+			EasyTab_Load(glfwGetWin32Window(pigeon_wgi_glfw_window))
+		#endif
+	!= EASYTAB_OK) {
+		if(EasyTab) {
+			free(EasyTab);
+			EasyTab = NULL;
+		}
+	}
 
 	return 0;
 }
@@ -72,13 +96,63 @@ bool pigeon_wgi_close_requested(void)
 	return false;
 }
 
+#if defined(__linux__)
+
+static Bool is_tablet_event (Display *display, XEvent *event, XPointer arg0)
+{
+	(void)display;
+	(void)arg0;
+
+	return event->type == (int)EasyTab->MotionType;
+}
+
+static void check_tablet_events(void)
+{
+	if(EasyTab) {
+		XEvent event;
+		while(XCheckIfEvent(glfwGetX11Display(), &event, is_tablet_event, NULL)) {
+			EasyTab_HandleEvent(&event);
+		}
+	}
+}
+#elif defined(_WIN32)
+static void check_tablet_events(void)
+{
+	if(EasyTab) {
+		MSG msg;
+		while (PeekMessageW(&msg, NULL, 0, 0, PM_NOREMOVE) &&
+			EasyTab_HandleEvent(msg.hwnd, msg.message, msg.lParam, msg.wParam) == EASYTAB_OK) 
+		{
+			PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE);
+		}
+	}
+}
+#endif
+
 void pigeon_wgi_poll_events(void)
 {
+	check_tablet_events();
 	glfwPollEvents();
+	check_tablet_events();
+}
+
+float pigeon_wgi_get_stylus_pressure(void)
+{
+	return EasyTab ? EasyTab->Pressure : -1;
 }
 
 void pigeon_wgi_destroy_window(void)
 {
+#ifdef EASYTAB_IMPLEMENTATION
+	if(EasyTab) {
+#if defined(__linux__)
+		EasyTab_Unload(glfwGetX11Display());
+#elif defined(_WIN32)
+		EasyTab_Unload();
+#endif
+	}
+#endif
+
 	if (pigeon_wgi_glfw_window) {
 		glfwDestroyWindow(pigeon_wgi_glfw_window);
 		pigeon_wgi_glfw_window = NULL;
@@ -112,15 +186,15 @@ double pigeon_wgi_get_time_seconds_double()
 	return glfwGetTime();
 }
 
-void pigeon_wgi_get_mouse_position(unsigned int * mouse_x, unsigned int * mouse_y)
+void pigeon_wgi_get_mouse_position(int * mouse_x, int * mouse_y)
 {
 	assert(pigeon_wgi_glfw_window && mouse_x && mouse_y);
 
 	double x,y;
 	glfwGetCursorPos(pigeon_wgi_glfw_window, &x, &y);
 	
-	*mouse_x = (unsigned int)x;
-	*mouse_y = (unsigned int)y;
+	*mouse_x = (int)x;
+	*mouse_y = (int)y;
 }
 
 bool pigeon_wgi_is_key_down(PigeonWGIKey key)
@@ -186,8 +260,24 @@ void pigeon_wgi_set_mouse_button_callback(PigeonWGIMouseButtonCallback c)
 	glfwSetMouseButtonCallback(pigeon_wgi_glfw_window, c ? mouse_callback_f : NULL);
 }
 
-void pigeon_wgi_set_mouse_grabbed(bool grabbed)
+void pigeon_wgi_set_cursor_type(PigeonWGICursorType type)
 {
 	assert(pigeon_wgi_glfw_window);
-	glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_CURSOR, grabbed ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);	
+
+	switch(type) {
+		case PIGEON_WGI_CURSOR_TYPE_NORMAL:
+			glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);	
+   			glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+			break;
+		case PIGEON_WGI_CURSOR_TYPE_FPS_CAMERA:
+			glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+			if (glfwRawMouseMotionSupported())
+				glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);	
+			break;
+		case PIGEON_WGI_CURSOR_TYPE_CUSTOM:
+			glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);	
+   			glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+			break;
+	}
 }
