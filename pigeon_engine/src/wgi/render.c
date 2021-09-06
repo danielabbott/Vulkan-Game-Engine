@@ -85,6 +85,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
         ASSERT_1(!pigeon_vulkan_create_semaphore(&objects->render_done_semaphore2));
         ASSERT_1(!pigeon_vulkan_create_semaphore(&objects->post_processing_done_semaphore2));
 
+        
+        ASSERT_1(!pigeon_vulkan_create_timer_query_pool(&objects->timer_query_pool, PIGEON_WGI_TIMERS_COUNT));
+
 
         // Framebuffer is specific to swapchain image - NOT current frame index mod
 
@@ -103,6 +106,9 @@ void pigeon_wgi_destroy_per_frame_objects()
         if(singleton_data.post_framebuffers[i].vk_framebuffer) pigeon_vulkan_destroy_framebuffer(&singleton_data.post_framebuffers[i]);
 
         PerFrameData * objects = &singleton_data.per_frame_objects[i];
+
+        if(objects->timer_query_pool.vk_query_pool)
+            pigeon_vulkan_destroy_timer_query_pool(&objects->timer_query_pool);
 
         if(objects->pre_processing_done_semaphore.vk_semaphore) 
             pigeon_vulkan_destroy_semaphore(&objects->pre_processing_done_semaphore);
@@ -224,7 +230,7 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
 }
 
 ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls,
-    uint32_t max_multidraw_draw_calls)
+    uint32_t max_multidraw_draw_calls, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT])
 {
     ASSERT_1(max_draw_calls <= 65536);
     ASSERT_1(max_multidraw_draw_calls <= max_draw_calls);
@@ -265,6 +271,11 @@ ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls
                 return 2;
             }
         }
+
+    }
+
+    if(!objects->first_frame_submitted || pigeon_vulkan_get_timer_results(&objects->timer_query_pool, delayed_timer_values)) {        
+        memset(delayed_timer_values, 0, sizeof(double) * PIGEON_WGI_TIMERS_COUNT);
     }
 
     int swapchain_err = pigeon_vulkan_next_swapchain_image(&singleton_data.swapchain_image_index, 
@@ -417,10 +428,9 @@ void pigeon_wgi_draw(PigeonWGICommandBuffer* command_buffer, PigeonWGIPipeline* 
 
 
 
-void pigeon_wgi_multidraw_draw(PigeonWGICommandBuffer* command_buffer, unsigned int start_vertex,
+void pigeon_wgi_multidraw_draw(unsigned int start_vertex,
 	uint32_t instances, uint32_t first, uint32_t count)
 {
-    assert(command_buffer);
     if(!instances) instances = 1;
     if(!count) return;
 
@@ -576,6 +586,10 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_image.image);
 
 
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 2, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE);
+    }
+
     // Gaussian blur bloom image
 
     float blur_pushc[2] = {0, 1/((float)sc_info.height/16.0f)};
@@ -603,6 +617,10 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_image.image); 
 
 
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 2, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE);
+    }
+
 
     // Post-process
     
@@ -613,6 +631,10 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_post, &singleton_data.post_process_descriptor_pool, 0);
     pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_post, 16, pushc);
     pigeon_vulkan_end_render_pass(p, 2);
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 2, &objects->timer_query_pool, PIGEON_WGI_TIMER_POST_PROCESS_DONE);
+    }
 
     return 0;
 }
@@ -633,13 +655,23 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(void)
     PerFrameData * prev_objects = first_frame ? NULL : &singleton_data.per_frame_objects[singleton_data.previous_frame_index_mod];
 
     ASSERT_1(objects->depth_command_buffer.has_been_recorded && objects->render_command_buffer.has_been_recorded);
+    objects->first_frame_submitted = true;
     
     ASSERT_1 (!pigeon_vulkan_start_submission(&objects->primary_command_pool, 0));
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_reset_query_pool(&objects->primary_command_pool, 0, &objects->timer_query_pool);
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_START);
+    }
 
     if(objects->upload_command_buffer.has_been_recorded) {
         use_secondary_command_buffer(&objects->primary_command_pool, 0,
             &objects->upload_command_buffer, NULL,  NULL, 0, 0);
         objects->upload_command_buffer.has_been_recorded = false;
+    }
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_UPLOAD_DONE);
     }
 
     pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, sc_info.width, sc_info.height);
@@ -648,9 +680,23 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(void)
         &objects->depth_command_buffer, &singleton_data.rp_depth,
         &singleton_data.depth_framebuffer, sc_info.width, sc_info.height);
 
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE);
+    }
+
     
     do_ssao(objects, sc_info, &pushc);
+
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE);
+    }
+
     do_ssao_blur(objects, sc_info);
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_BLUR_DONE);
+    }
 
     ASSERT_1(!pigeon_vulkan_submit3(&objects->primary_command_pool, 0, &objects->pre_render_done_fence, 
         first_frame ? NULL : &prev_objects->render_done_semaphore2, NULL,
@@ -666,6 +712,10 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(void)
     use_secondary_command_buffer(&objects->primary_command_pool, 1,
         &objects->render_command_buffer, &singleton_data.rp_render,
         &singleton_data.render_framebuffer, sc_info.width, sc_info.height);
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 1, &objects->timer_query_pool, PIGEON_WGI_TIMER_RENDER_DONE);
+    }
 
 
     ASSERT_1(!pigeon_vulkan_submit3(&objects->primary_command_pool, 1, NULL, 

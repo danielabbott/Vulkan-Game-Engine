@@ -10,6 +10,7 @@
 #include "pipeline.h"
 #include "descriptor.h"
 #include "buffer.h"
+#include "query.h"
 
 
 struct VkCommandPool_T;
@@ -94,6 +95,10 @@ void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool*, unsigned int buff
 void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 		PigeonVulkanBuffer * dst, uint64_t dst_offset,
 		PigeonVulkanBuffer * src, uint64_t src_offset, uint64_t size);
+
+
+void pigeon_vulkan_reset_query_pool(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanTimerQueryPool*);
+void pigeon_vulkan_set_timer(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanTimerQueryPool*, unsigned int n);
 
 ERROR_RETURN_TYPE pigeon_vulkan_end_submission(PigeonVulkanCommandPool*, unsigned int buffer_index);
 

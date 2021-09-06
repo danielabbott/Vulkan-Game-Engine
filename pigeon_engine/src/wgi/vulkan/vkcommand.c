@@ -603,6 +603,32 @@ void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool* command_pool, unsign
 }
 
 
+void pigeon_vulkan_reset_query_pool(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	PigeonVulkanTimerQueryPool* pool)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(pool && pool->vk_query_pool);
+	
+	vkCmdResetQueryPool(get_cmd_buf(command_pool, buffer_index), pool->vk_query_pool,
+		0, pool->num_query_objects);
+}
+
+void pigeon_vulkan_set_timer(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	PigeonVulkanTimerQueryPool* pool, unsigned int n)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(pool && pool->vk_query_pool && n <= pool->num_query_objects);
+
+	if(!command_pool->use_transfer_queue && singleton_data.general_queue_timestamp_bits_valid) {
+		vkCmdWriteTimestamp(get_cmd_buf(command_pool, buffer_index), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 
+			pool->vk_query_pool, n);
+	}
+	if(command_pool->use_transfer_queue && singleton_data.transfer_queue_timestamp_bits_valid) {
+		vkCmdWriteTimestamp(get_cmd_buf(command_pool, buffer_index), VK_PIPELINE_STAGE_TRANSFER_BIT, 
+			pool->vk_query_pool, n);
+	}
+}
+
 ERROR_RETURN_TYPE pigeon_vulkan_end_submission(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);

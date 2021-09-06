@@ -114,6 +114,7 @@
     <ClCompile Include="src\wgi\vulkan\vkmemory.c" />
     <ClCompile Include="src\wgi\vulkan\vkphysdevice.c" />
     <ClCompile Include="src\wgi\vulkan\vkpipeline.c" />
+    <ClCompile Include="src\wgi\vulkan\vkquery.c" />
     <ClCompile Include="src\wgi\vulkan\vkqueue.c" />
     <ClCompile Include="src\wgi\vulkan\vkrenderpass.c" />
     <ClCompile Include="src\wgi\vulkan\vksampler.c" />

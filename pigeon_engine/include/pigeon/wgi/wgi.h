@@ -15,13 +15,27 @@ ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool
 
 bool pigeon_wgi_close_requested(void);
 
+typedef enum {
+    PIGEON_WGI_TIMER_START,
+    PIGEON_WGI_TIMER_UPLOAD_DONE,
+    PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE,
+    PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE,
+    PIGEON_WGI_TIMER_SSAO_BLUR_DONE,
+    PIGEON_WGI_TIMER_RENDER_DONE,
+    PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE,
+    PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE,
+    PIGEON_WGI_TIMER_POST_PROCESS_DONE,
+    PIGEON_WGI_TIMERS_COUNT
+} PigeonWGITimer;
+
 // Returns 1 on error, 2 if not ready yet, 3 if swapchain must be recreated
 // If returns 3, call pigeon_wgi_recreate_swapchain()
 // max_draw_calls determines the minimum size of the draw calls ssbo
 // max_multidraw_draw_calls = maximum number of drawcalls within multidraw draws
 // Instancing counts as multiple draw calls
+// delayed_timer_values is set to the timer query results from 2 or more frames ago
 ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, uint32_t max_draw_calls,
-    uint32_t max_multidraw_draw_calls);
+    uint32_t max_multidraw_draw_calls, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT]);
 
 ERROR_RETURN_TYPE pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
     PigeonWGIDrawCallObject *, unsigned int num_draw_calls);
@@ -46,8 +60,7 @@ void pigeon_wgi_draw(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMulti
     uint32_t start_vertex, uint32_t draw_call_index, uint32_t instances,
     uint32_t first, unsigned int count);
 
-void pigeon_wgi_multidraw_draw(PigeonWGICommandBuffer*, unsigned int start_vertex,
-	uint32_t instances, uint32_t first, uint32_t count);
+void pigeon_wgi_multidraw_draw(unsigned int start_vertex, uint32_t instances, uint32_t first, uint32_t count);
 
 void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMultiMesh*,
     uint32_t first_multidraw_index, uint32_t drawcalls, uint32_t first_drawcall_index);

@@ -23,6 +23,9 @@ typedef struct SingletonData
 	uint32_t general_queue_family;
 	uint32_t transfer_queue_family;
 
+	unsigned int general_queue_timestamp_bits_valid;
+	unsigned int transfer_queue_timestamp_bits_valid;
+
 	VkQueue general_queue;
 	VkQueue transfer_queue;
 	VkDevice device;

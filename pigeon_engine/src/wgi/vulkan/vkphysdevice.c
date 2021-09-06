@@ -44,6 +44,7 @@ static bool find_general_queue(VkPhysicalDevice physical_device,
 				vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, singleton_data.surface, &present);
 				if (present) {
 					singleton_data.general_queue_family = i;
+					singleton_data.general_queue_timestamp_bits_valid = queue_properties[i].timestampValidBits;
 					return true;
 				}
 			}
@@ -88,6 +89,7 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 	for (unsigned int i = 0; i < queue_family_count; i++) {
 		if ((queue_properties[i].queueFlags & 7) == VK_QUEUE_TRANSFER_BIT && queue_properties[i].queueCount) {
 			singleton_data.transfer_queue_family = i;
+			singleton_data.transfer_queue_timestamp_bits_valid = queue_properties[i].timestampValidBits;
 		}
 	}
 

@@ -9,6 +9,7 @@
 #include <pigeon/wgi/vulkan/fence.h>
 #include <pigeon/wgi/vulkan/semaphore.h>
 #include <pigeon/wgi/vulkan/command.h>
+#include <pigeon/wgi/vulkan/query.h>
 #include <pigeon/wgi/window.h>
 
 typedef struct FramebufferImageObjects {
@@ -59,6 +60,9 @@ typedef struct PerFrameData {
 
 	PigeonVulkanSemaphore render_done_semaphore2;
 	PigeonVulkanSemaphore post_processing_done_semaphore2;
+
+	PigeonVulkanTimerQueryPool timer_query_pool;
+	bool first_frame_submitted; // set to true when a frame is rendered using this PerFrameData struct
 } PerFrameData;
 
 typedef struct SingletonData

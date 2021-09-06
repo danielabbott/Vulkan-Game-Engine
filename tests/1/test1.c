@@ -563,7 +563,7 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 					if (game_objects[k].model_index == i) obj_count++;
 				}			
 
-				pigeon_wgi_multidraw_draw(command_buffer, model->mesh_meta.multimesh_start_vertex,
+				pigeon_wgi_multidraw_draw(model->mesh_meta.multimesh_start_vertex,
 					obj_count, model->mesh_meta.multimesh_start_index + model->materials[j].first, model->materials[j].count);
 				draw_calls += obj_count;	
 			}
@@ -582,6 +582,10 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 static void set_uniforms(PigeonWGISceneUniformData *scene_uniform_data, vec2 rotation, vec3 position,
 						 PigeonWGIDrawCallObject *draw_call_objects, unsigned int total_draw_calls)
 {
+#ifdef NDEBUG
+	(void)total_draw_calls;
+#endif
+
 	unsigned int window_width, window_height;
 	pigeon_wgi_get_window_dimensions(&window_width, &window_height);
 
@@ -817,6 +821,38 @@ static ERROR_RETURN_TYPE recreate_swapchain(void)
 	return 0;
 }
 
+static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT])
+{
+	static double values[PIGEON_WGI_TIMERS_COUNT];
+	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
+		values[i] += delayed_timer_values[i] - delayed_timer_values[0];
+
+	static unsigned int frame_counter;
+	frame_counter++;
+
+	if(frame_counter < 300) {
+		return;
+	}
+
+	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
+		values[i] /= 300.0;
+
+	printf("Render time statistics (300-frame average):\n");
+	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
+	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
+	printf("\tSSAO and Shadow Maps: %f\n", values[PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
+	printf("\tSSAO blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
+	printf("\tBloom Downsample: %f\n", values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
+	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
+	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
+	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
+
+	frame_counter = 0;
+	memset(values, 0, sizeof values);
+
+}
+
 // TODO ERROR_RETURN_TYPE
 static void game_loop(void)
 {
@@ -835,18 +871,22 @@ static void game_loop(void)
 	unsigned int frame_number = 0;
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
+		double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT];
 
-		int start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls);
+		int start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls, delayed_timer_values);
 		if (start_frame_err == 3)
 		{
 			if(recreate_swapchain()) return;
-			start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls);
+			start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls, delayed_timer_values);
 		}
 		if (start_frame_err)
 		{
 			ERRLOG("start frame error");
 			return;
 		}
+
+		if(delayed_timer_values[0] > 0.0 || delayed_timer_values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] > 0.0)
+			print_timer_stats(delayed_timer_values);
 
 		float time_now = pigeon_wgi_get_time_seconds();
 		float delta_time = time_now - last_frame_time;
