@@ -73,7 +73,10 @@ PigeonWGIMultiMesh mesh;
 
 PigeonWGIPipeline skybox_pipeline;
 PigeonWGIPipeline render_pipeline;
+
 bool mouse_grabbed;
+int last_mouse_x = -1;
+int last_mouse_y = -1;
 
 /* Creates window and vulkan context */
 static ERROR_RETURN_TYPE start(void)
@@ -705,8 +708,6 @@ static void fps_camera_mouse_input(vec2 rotation)
 	if (!mouse_grabbed)
 		return;
 
-	static int last_mouse_x = -1;
-	static int last_mouse_y = -1;
 
 	int mouse_x, mouse_y;
 	pigeon_wgi_get_mouse_position(&mouse_x, &mouse_y);
@@ -912,6 +913,7 @@ static void mouse_callback(PigeonWGIMouseEvent e)
 	{
 		mouse_grabbed = !mouse_grabbed;
 		pigeon_wgi_set_cursor_type(mouse_grabbed ? PIGEON_WGI_CURSOR_TYPE_FPS_CAMERA : PIGEON_WGI_CURSOR_TYPE_NORMAL);
+		if(mouse_grabbed) last_mouse_x = last_mouse_y = -1;
 	}
 }
 
