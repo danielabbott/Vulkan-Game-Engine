@@ -291,13 +291,13 @@ static ERROR_RETURN_TYPE create_grid_texture(PigeonWGICommandBuffer *cmd)
 	ASSERT_1(!pigeon_wgi_create_grid_texture(&grid_texture, grid_texture_grids_count,
 											 PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB, cmd));
 	ASSERT_1(!pigeon_wgi_create_grid_texture(&normal_grid_texture, normal_grid_texture_grids_count,
-											 PIGEON_WGI_IMAGE_FORMAT_BC5_SRGB, cmd));
+											 PIGEON_WGI_IMAGE_FORMAT_BC5, cmd));
 
 	for (unsigned int i = 0; i < texture_assets_count; i++)
 	{
 		PigeonAsset *asset = &texture_assets[i];
 
-		PigeonWGIImageFormat format = asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR ? PIGEON_WGI_IMAGE_FORMAT_BC5_SRGB : PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
+		PigeonWGIImageFormat format = asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR ? PIGEON_WGI_IMAGE_FORMAT_BC5 : PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
 
 		ASSERT_1(pigeon_wgi_get_texture_size(asset->texture_meta.width, asset->texture_meta.height,
 											 format, true) == asset->compression[1].decompressed_data_length);

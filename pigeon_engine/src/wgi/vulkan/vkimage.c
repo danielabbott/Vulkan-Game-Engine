@@ -33,7 +33,7 @@ VkFormat pigeon_get_vulkan_image_format(PigeonWGIImageFormat f)
 			return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
 		case PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB:
 			return VK_FORMAT_BC3_SRGB_BLOCK;
-		case PIGEON_WGI_IMAGE_FORMAT_BC5_SRGB:
+		case PIGEON_WGI_IMAGE_FORMAT_BC5:
 			return VK_FORMAT_BC5_UNORM_BLOCK; // TODO snorm?
 		case PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB:
 			return VK_FORMAT_BC7_SRGB_BLOCK;

@@ -29,7 +29,7 @@ typedef enum {
 
     PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB, // RGB (dxt1, poor quality, GL_EXT_texture_compression_s3tc)
     PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB, // RGBA (dxt3, poor quality, GL_EXT_texture_compression_s3tc)
-    PIGEON_WGI_IMAGE_FORMAT_BC5_SRGB, // RG (ARB_texture_compression_rgtc)
+    PIGEON_WGI_IMAGE_FORMAT_BC5, // RG (ARB_texture_compression_rgtc)
     PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB, // RGB(A) (good quality, ARB_texture_compression_bptc)
 
     PIGEON_WGI_IMAGE_FORMAT_ETC1_LINEAR, // RGB (mobile, poor quality, GL_ETC1_RGB8_OES)

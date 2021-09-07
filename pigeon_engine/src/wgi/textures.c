@@ -320,7 +320,7 @@ unsigned int pigeon_image_format_bytes_per_4x4_block(PigeonWGIImageFormat f)
 		case PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB:
 			return 8;
 		case PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB:
-		case PIGEON_WGI_IMAGE_FORMAT_BC5_SRGB:
+		case PIGEON_WGI_IMAGE_FORMAT_BC5:
 		case PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB:
 		case PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB_ALPHA_SRGB:
 			return 16;
