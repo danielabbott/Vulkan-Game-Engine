@@ -70,9 +70,9 @@ typedef struct GO
 #define SPINNY_CUBE_INDEX 1
 
 GO game_objects[NUM_GAME_OBJECTS] = {
-	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {0.5f, 0.5f, 0.5f}},
-	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {0.5f, 0.5f, 0.5f}},
-	{1, {0, 0, -4}, {1, 1, 1}, {0, 0.1f, 0}, {0.7f, 0.7f, 0.7f}},
+	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {1, 1, 1}},
+	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {1.1f, 0.5f, 1.15f}},
+	{1, {0, 0, -4}, {1, 1, 1}, {0, 0.1f, 0}, {1, 1, 1}},
 };
 
 PigeonWGIMultiMesh mesh;
@@ -700,8 +700,13 @@ static void set_uniforms(PigeonWGISceneUniformData *scene_uniform_data, vec2 rot
 
 				/* Material data */
 
-				memcpy(data->colour, model_asset->materials[j].colour, 3 * 4);
-				memcpy(data->under_colour, model_asset->materials[j].colour, 3 * 4);
+
+				vec3 colour;
+				for(unsigned int p = 0; p < 3; p++) {
+					colour[p] = model_asset->materials[j].colour[p] * game_objects[k].colour[p];
+				}
+				memcpy(data->colour, colour, 3 * 4);
+				memcpy(data->under_colour, colour, 3 * 4);
 				
 
 				unsigned int texture_asset_index = model_materials[i][j].texture_index;
