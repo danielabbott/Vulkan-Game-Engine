@@ -50,9 +50,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     if(create_framebuffer_images(&singleton_data.render_image, PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR, 
         sc_info.width, sc_info.height, true, false)) return 1;
     if(create_framebuffer_images(&singleton_data.bloom_image, PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR, 
-        sc_info.width/16, sc_info.height/16, false, true)) return 1;
+        sc_info.width/8, sc_info.height/8, false, true)) return 1;
     if(create_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image, PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR, 
-        sc_info.width/16, sc_info.height/16, false, false)) return 1;
+        sc_info.width/8, sc_info.height/8, false, false)) return 1;
 
 
     create_framebuffer(&singleton_data.depth_framebuffer,

@@ -575,12 +575,12 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
 
 
     struct DownsamplePushC downsample_pushc = {
-        {1 / (float)sc_info.width, 1 / (float)sc_info.height}, 8
+        {1 / (float)sc_info.width, 1 / (float)sc_info.height}, 4
     };
 
-    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/16, sc_info.height/16);
+    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
     pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
-        &singleton_data.bloom_framebuffer, sc_info.width/16, sc_info.height/16, false);
+        &singleton_data.bloom_framebuffer, sc_info.width/8, sc_info.height/8, false);
     pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_downsample);
     pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_downsample, &singleton_data.bloom_downsample_descriptor_pool, 0);
     pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_downsample, sizeof downsample_pushc, &downsample_pushc);
@@ -594,11 +594,11 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
 
     // Gaussian blur bloom image
 
-    float blur_pushc[2] = {0, 1/((float)sc_info.height/16.0f)};
+    float blur_pushc[2] = {0, 1/((float)sc_info.height/8.0f)};
 
-    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/16, sc_info.height/16);
+    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
     pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
-        &singleton_data.bloom_gaussian_intermediate_framebuffer, sc_info.width/16, sc_info.height/16, false);
+        &singleton_data.bloom_gaussian_intermediate_framebuffer, sc_info.width/8, sc_info.height/8, false);
     pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_gaussian);
     pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_gaussian, &singleton_data.bloom_gaussian_descriptor_pool, 0);
     pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_gaussian, sizeof blur_pushc, blur_pushc);
@@ -606,12 +606,12 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_gaussian_intermediate_image.image);
 
 
-    float blur_pushc2[2] = {1/((float)sc_info.width/16.0f), 0};
+    float blur_pushc2[2] = {1/((float)sc_info.width/8.0f), 0};
 
 
-    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/16, sc_info.height/16);
+    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
     pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
-        &singleton_data.bloom_framebuffer, sc_info.width/16, sc_info.height/16, false);
+        &singleton_data.bloom_framebuffer, sc_info.width/8, sc_info.height/8, false);
     pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_gaussian);
     pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_gaussian, &singleton_data.bloom_intermediate_gaussian_descriptor_pool, 0);
     pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_gaussian, sizeof blur_pushc2, blur_pushc2);

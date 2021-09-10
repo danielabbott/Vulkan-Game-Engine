@@ -78,7 +78,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[0].vertex_shader_accessible = false;
 	bindings[0].fragment_shader_accessible = true;
 	
-	// Bloom 1/16 image
+	// Bloom 1/8 image
 	bindings[1].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
 	bindings[1].vertex_shader_accessible = false;
 	bindings[1].fragment_shader_accessible = true;
