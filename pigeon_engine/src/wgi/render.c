@@ -517,7 +517,6 @@ static void use_secondary_command_buffer(PigeonVulkanCommandPool * primary, unsi
 typedef struct PushConstants {
     float viewport_width, viewport_height;
     float one_pixel_x, one_pixel_y;
-    float ssao_cutoff;
 } PushConstants;
 
 static PushConstants get_push_constant_data(void)
@@ -527,21 +526,28 @@ static PushConstants get_push_constant_data(void)
         .viewport_width = (float)sc_info.width,
         .viewport_height = (float)sc_info.height,
         .one_pixel_x = 1.0f / (float)sc_info.width,
-        .one_pixel_y = 1.0f / (float)sc_info.height,
-        .ssao_cutoff = 0.0003f //TODO store in singleton data, add function for changing value
+        .one_pixel_y = 1.0f / (float)sc_info.height
     };
     return pc;
 }
 
-static void do_ssao(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info, PushConstants* pushc)
+static void do_ssao(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info, PushConstants* pushc, bool debug_disable_ssao)
 {
+    struct {
+        PushConstants pushc;
+        float ssao_cutoff;
+    } ssao_pushc;
+    ssao_pushc.pushc = *pushc;
+    ssao_pushc.ssao_cutoff = debug_disable_ssao ? -1 :  0.0003f; //TODO store in singleton data, add function for changing value
+    
+
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
     pigeon_vulkan_wait_for_depth_write(p, 0, &singleton_data.depth_image.image);
     pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao, 
         &singleton_data.ssao_framebuffer, sc_info.width, sc_info.height, false);
     pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_ssao);
     pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_ssao, &singleton_data.ssao_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_ssao, 20, pushc);
+    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_ssao, sizeof ssao_pushc, &ssao_pushc);
     pigeon_vulkan_end_render_pass(p, 0);
 }
 
@@ -572,7 +578,8 @@ static void do_ssao_blur(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_in
 }
 
 // TODO split this up
-static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info, PushConstants* pushc)
+static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info, PushConstants* pushc,
+    bool debug_disable_bloom)
 {
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
     ASSERT_1(!pigeon_vulkan_start_submission(p, 2));
@@ -637,13 +644,20 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
 
 
     // Post-process
+
+    struct {
+        PushConstants pushc;
+        float bloom_intensity;
+    } post_pushc;
+    post_pushc.pushc = *pushc;
+    post_pushc.bloom_intensity = debug_disable_bloom ? 0 : 1;
     
     pigeon_vulkan_set_viewport_size(p, 2, sc_info.width, sc_info.height);
     pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_post, 
         &singleton_data.post_framebuffers[singleton_data.swapchain_image_index], sc_info.width, sc_info.height, false);
     pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_post);
     pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_post, &singleton_data.post_process_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_post, 16, pushc);
+    pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_post, sizeof post_pushc, &post_pushc);
     pigeon_vulkan_end_render_pass(p, 2);
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
@@ -654,7 +668,7 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
 }
 
 // TODO This could be 2 functions so pre-processing can start before render command buffer is recorded
-ERROR_RETURN_TYPE pigeon_wgi_present_frame(void)
+ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_disable_bloom)
 {
 
     const bool first_frame = singleton_data.previous_frame_index_mod == UINT32_MAX;
@@ -699,7 +713,7 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(void)
     }
 
     
-    do_ssao(objects, sc_info, &pushc);
+    do_ssao(objects, sc_info, &pushc, debug_disable_ssao);
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
@@ -739,7 +753,7 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(void)
 
     /* Post-processing */
 
-    ASSERT_1(!do_post(objects, sc_info, &pushc));
+    ASSERT_1(!do_post(objects, sc_info, &pushc, debug_disable_bloom));
     ASSERT_1(!pigeon_vulkan_submit3(&objects->primary_command_pool, 2, NULL, 
         &objects->render_done_semaphore, NULL,
         &objects->post_processing_done_semaphore, &objects->post_processing_done_semaphore2));

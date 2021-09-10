@@ -12,6 +12,7 @@ layout(push_constant) uniform PushConstantsObject
 {
 	vec2 viewport_dimensions;
 	vec2 one_pixel; // 1.0 / viewport_dimensions
+	float bloom_intensity;
 } push_constants;
 
 
@@ -62,7 +63,7 @@ void main() {
 
 	// Use blurred colour if contrast is high, otherwise use true value
 	vec3 colour = is_high_contrast*blurred_colour + (1-is_high_contrast)*true_colour;
-	colour += bloom;
+	colour += bloom * push_constants.bloom_intensity;
 
 
 

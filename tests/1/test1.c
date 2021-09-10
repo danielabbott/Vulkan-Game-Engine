@@ -84,6 +84,18 @@ bool mouse_grabbed;
 int last_mouse_x = -1;
 int last_mouse_y = -1;
 
+bool debug_disable_ssao = false, debug_disable_bloom = false;
+
+static void key_callback(PigeonWGIKeyEvent e)
+{
+	if(e.key == PIGEON_WGI_KEY_1 && !e.pressed) {
+		debug_disable_ssao = !debug_disable_ssao;
+	}
+	else if(e.key == PIGEON_WGI_KEY_2 && !e.pressed) {
+		debug_disable_bloom = !debug_disable_bloom;
+	}
+}
+
 /* Creates window and vulkan context */
 static ERROR_RETURN_TYPE start(void)
 {
@@ -98,6 +110,8 @@ static ERROR_RETURN_TYPE start(void)
 		pigeon_wgi_deinit();
 		return 1;
 	}
+
+	pigeon_wgi_set_key_callback(key_callback);
 
 	return 0;
 }
@@ -988,7 +1002,9 @@ static void game_loop(void)
 		if (render_frame(render_command_buffer, false, total_draw_calls))
 			return;
 
-		int present_frame_error = pigeon_wgi_present_frame();
+		
+
+		int present_frame_error = pigeon_wgi_present_frame(debug_disable_ssao, debug_disable_bloom);
 		if (present_frame_error == 2)
 		{
 			if (recreate_swapchain()) return;

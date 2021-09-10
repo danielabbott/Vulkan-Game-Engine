@@ -120,7 +120,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects()
 		&singleton_data.rp_bloom_gaussian, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
 		
 	if (create_pipeine(&singleton_data.pipeline_post, SHADER_PATH("post.vert"), SHADER_PATH("post.frag"),
-		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 16)) return 1;
+		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 20)) return 1;
 
 #undef SHADER_PATH
 	return 0;

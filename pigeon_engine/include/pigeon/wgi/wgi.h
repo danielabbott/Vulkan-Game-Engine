@@ -68,7 +68,7 @@ void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, Pi
 ERROR_RETURN_TYPE pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 
 // If returns 2, call pigeon_wgi_recreate_swapchain. Do *NOT* call present again; start the next frame.
-ERROR_RETURN_TYPE pigeon_wgi_present_frame(void);
+ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_disable_bloom);
 
 
 // Returns 2 (fail) if the window is minimised or smaller than 16x16 pixels
