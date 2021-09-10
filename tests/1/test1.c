@@ -554,6 +554,7 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 #endif
 
 	PigeonWGIPipelineConfig config = {0};
+	config.depth_test = true;
 
 	ASSERT_1(!create_pipeline(&skybox_pipeline,
 							  SHADER_PATH("skybox.vert"), NULL, SHADER_PATH("skybox.frag"), &config));
@@ -588,10 +589,6 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 
 	ASSERT_1(!pigeon_wgi_start_command_buffer(command_buffer));
 
-	if (!depth_only) {
-		pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
-	}
-
 	if (depth_only) {
 		unsigned int draw_calls = 0;
 		for (unsigned int i = 0; i < NUM_MODELS; i++) {
@@ -613,6 +610,10 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 	}
 	else {
 		pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh, 0, multidraw_draw_count, 0);
+	}
+
+	if (!depth_only) {
+		pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
 	}
 
 	ASSERT_1(!pigeon_wgi_end_command_buffer(command_buffer));

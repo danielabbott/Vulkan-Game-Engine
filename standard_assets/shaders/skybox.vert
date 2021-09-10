@@ -25,5 +25,5 @@ void main() {
     v[3][1] = 0;
     v[3][2] = 0;
     out_direction = inverse(ubo.proj * v) * vec4(p, 1, 1);
-    gl_Position = vec4(p, 1.0, 1.0);
+    gl_Position = vec4(p, 0.0, 1.0);
 }
