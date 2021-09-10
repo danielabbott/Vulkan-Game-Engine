@@ -264,7 +264,7 @@ void pigeon_wgi_set_global_descriptors(void)
 		&singleton_data.bloom_gaussian_intermediate_image.image_view, &singleton_data.bilinear_sampler);	
 		
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.post_process_descriptor_pool, 0, 0, 0, 
-		&singleton_data.render_image.image_view, &singleton_data.nearest_filter_sampler);
+		&singleton_data.render_image.image_view, &singleton_data.bilinear_sampler);
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.post_process_descriptor_pool, 0, 1, 0, 
 		&singleton_data.bloom_image.image_view, &singleton_data.bilinear_sampler);
 }
