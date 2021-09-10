@@ -73,7 +73,7 @@ void main() {
 		colour = colours[4];
 	}
 
-	colour += bloom*1.5;
+	colour += bloom;
 
 	float luminance = dot(luminance_multipliers, colour);
 	

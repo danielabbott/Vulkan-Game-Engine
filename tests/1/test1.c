@@ -28,7 +28,7 @@ PigeonAsset model_assets[NUM_MODELS];
 
 typedef struct Mat
 {
-	// UINT32_MAX if not used, otherwise index into texture_assets and texture_asset_grid_positions
+	// UINT32_MAX if not used, otherwise index into texture_assets and texture_locations
 	uint32_t texture_index;
 	uint32_t normal_index;
 
@@ -41,17 +41,21 @@ unsigned int total_material_count;
 unsigned int texture_assets_count;
 PigeonAsset *texture_assets;
 
-unsigned int tiles_needed;
-PigeonWGIGridTexture grid_texture;
-PigeonWGIGridTextureGrid *grid_texture_grids;
-unsigned int grid_texture_grids_count;
+typedef struct ArrayTexture {
+	struct ArrayTexture * next;
+	PigeonWGIArrayTexture t;
+} ArrayTexture;
 
-unsigned int normal_tiles_needed;
-PigeonWGIGridTexture normal_grid_texture;
-PigeonWGIGridTextureGrid *normal_grid_texture_grids;
-unsigned int normal_grid_texture_grids_count;
+ArrayTexture * array_texture_0 = NULL; // LINKED LIST
 
-PigeonWGITextureGridPosition *texture_asset_grid_positions; // One for each texture asset
+typedef struct TextureLocation {
+	PigeonWGIArrayTexture * texture;
+	unsigned int texture_index;
+	unsigned int layer;
+	unsigned int compression_region_index;
+} TextureLocation;
+
+TextureLocation *texture_locations; // One for each texture asset
 
 typedef struct GO
 {
@@ -63,9 +67,11 @@ typedef struct GO
 } GO;
 
 #define NUM_GAME_OBJECTS 3
+#define SPINNY_CUBE_INDEX 1
+
 GO game_objects[NUM_GAME_OBJECTS] = {
-	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {0.7f, 0.7f, 0.7f}},
-	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {0.7f, 0.7f, 0.7f}},
+	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {0.5f, 0.5f, 0.5f}},
+	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {0.5f, 0.5f, 0.5f}},
 	{1, {0, 0, -4}, {1, 1, 1}, {0, 0.1f, 0}, {0.7f, 0.7f, 0.7f}},
 };
 
@@ -115,27 +121,20 @@ static ERROR_RETURN_TYPE load_texture_asset(const char *asset_name, PigeonAsset 
 	ASSERT_1(asset->type == PIGEON_ASSET_TYPE_IMAGE);
 	if (normals)
 	{
-		ASSERT_1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR && asset->texture_meta.has_bc5);
+		ASSERT_1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR);
 	}
 	else
 	{
-		ASSERT_1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB && asset->texture_meta.has_bc1);
+		ASSERT_1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB);
 	}
-	ASSERT_1(asset->texture_meta.width % 512 == 0);
-	ASSERT_1(asset->texture_meta.height % 512 == 0);
+	ASSERT_1(asset->texture_meta.width % 4 == 0);
+	ASSERT_1(asset->texture_meta.height % 4 == 0);
 	ASSERT_1(asset->texture_meta.has_mip_maps);
 
 	char *data_file_path = meta_file_path;
 	memcpy(&data_file_path[prefix_len + asset_name_len], ".data", 6);
 
 	ASSERT_1(!pigeon_load_asset_data(asset, data_file_path));
-
-	unsigned int t_w = (asset->texture_meta.width + 511) / 512;
-	unsigned int t_h = (asset->texture_meta.height + 511) / 512;
-	if (normals)
-		normal_tiles_needed += t_w * t_h;
-	else
-		tiles_needed += t_w * t_h;
 
 	return 0;
 }
@@ -161,9 +160,8 @@ static ERROR_RETURN_TYPE load_model_assets(void)
 		ASSERT_1(model_assets[i].mesh_meta.attribute_types[0] == PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED &&
 			model_assets[i].mesh_meta.attribute_types[1] == PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL &&
 			model_assets[i].mesh_meta.attribute_types[2] == PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT &&
-			model_assets[i].mesh_meta.attribute_types[3] == PIGEON_WGI_VERTEX_ATTRIBUTE_UV &&
-			!model_assets[i].mesh_meta.attribute_types[4] &&
-			!model_assets[i].mesh_meta.big_indices
+			model_assets[i].mesh_meta.attribute_types[3] == PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT &&
+			!model_assets[i].mesh_meta.attribute_types[4]
 		);
 		ASSERT_1(!pigeon_load_asset_data(&model_assets[i], model_file_paths[i][1]));
 	}
@@ -175,7 +173,7 @@ static ERROR_RETURN_TYPE load_texture_assets()
 	texture_assets = calloc(texture_assets_count, sizeof *texture_assets);
 	ASSERT_1(texture_assets);
 
-	texture_asset_grid_positions = malloc(texture_assets_count * sizeof *texture_asset_grid_positions);
+	texture_locations = malloc(texture_assets_count * sizeof *texture_locations);
 
 	unsigned int tex_i = 0;
 	unsigned int material_index = 0;
@@ -232,88 +230,107 @@ static ERROR_RETURN_TYPE load_assets(void)
 	return 0;
 }
 
-static int texture_asset_compare(const void *i0_, const void *i1_)
+
+static ERROR_RETURN_TYPE populate_array_textures(void)
 {
-	const unsigned int *i0 = i0_;
-	const unsigned int *i1 = i1_;
-
-	PigeonAsset *a0 = &texture_assets[*i0];
-	PigeonAsset *a1 = &texture_assets[*i1];
-
-	unsigned int sz0 = a0->texture_meta.width * a0->texture_meta.height;
-	unsigned int sz1 = a1->texture_meta.width * a1->texture_meta.height;
-
-	return (int)sz1 - (int)sz0;
-}
-
-static ERROR_RETURN_TYPE populate_grids(void)
-{
-	ASSERT_1(!pigeon_wgi_allocate_empty_grids(&grid_texture_grids, &grid_texture_grids_count, tiles_needed));
-	ASSERT_1(!pigeon_wgi_allocate_empty_grids(&normal_grid_texture_grids, &normal_grid_texture_grids_count, normal_tiles_needed));
-
-	unsigned int *asset_sorted_indices = malloc(texture_assets_count * sizeof *asset_sorted_indices);
-	ASSERT_1(asset_sorted_indices);
-
 	for (unsigned int i = 0; i < texture_assets_count; i++)
 	{
-		asset_sorted_indices[i] = i;
-	}
-
-	qsort(asset_sorted_indices, texture_assets_count, sizeof *asset_sorted_indices, texture_asset_compare);
-
-	for (unsigned int j = 0; j < texture_assets_count; j++)
-	{
-		unsigned int i = asset_sorted_indices[j];
-
 		PigeonAsset *asset = &texture_assets[i];
-		unsigned int w = (asset->texture_meta.width + 511) / 512;
-		unsigned int h = (asset->texture_meta.height + 511) / 512;
-		if (asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR)
-		{
-			ASSERT_1(!pigeon_wgi_add_texture_to_grid(&normal_grid_texture_grids, &normal_grid_texture_grids_count,
-													 asset, w, h, &texture_asset_grid_positions[i], true));
+
+		PigeonWGIImageFormat base_format = asset->texture_meta.format;
+		PigeonWGIImageFormat true_format = base_format;
+		unsigned int compression_region_index = 0;
+
+		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB) {
+			if (asset->texture_meta.has_bc1) {
+				compression_region_index++;
+				true_format = PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
+			}
+			if (asset->texture_meta.has_bc3) {
+				compression_region_index++;
+				true_format = PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB;
+			}
+			if (asset->texture_meta.has_bc7) {
+				compression_region_index++;
+				true_format = PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB;
+			}
 		}
-		else
-		{
-			ASSERT_1(!pigeon_wgi_add_texture_to_grid(&grid_texture_grids, &grid_texture_grids_count,
-													 asset, w, h, &texture_asset_grid_positions[i], true));
+		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR && asset->texture_meta.has_bc5) {
+			compression_region_index = 1;
+			true_format = PIGEON_WGI_IMAGE_FORMAT_BC5;
 		}
+
+		ArrayTexture * array_texture = NULL;
+		unsigned int texture_index = 0;
+		if(array_texture_0) {
+			ArrayTexture * arr = array_texture_0;
+			while(1) {
+				if(arr->t.format == true_format && arr->t.width == asset->texture_meta.width
+					&& arr->t.height == asset->texture_meta.height
+					&& arr->t.mip_maps == asset->texture_meta.has_mip_maps)
+				{
+					array_texture = arr;
+					break;
+				}
+
+				if(!arr->next) break;
+
+				arr = arr->next;
+				texture_index++;
+			}
+			if(!array_texture) {
+				arr->next = calloc(1, sizeof *arr->next);
+				ASSERT_1(arr->next);
+				array_texture = arr->next;
+				texture_index++;
+			}
+		}
+		else {
+			array_texture_0 = calloc(1, sizeof *array_texture_0);
+			ASSERT_1(array_texture_0);
+			array_texture = array_texture_0;
+		}
+
+		array_texture->t.format = true_format;
+		array_texture->t.width = asset->texture_meta.width;
+		array_texture->t.height = asset->texture_meta.height;
+		array_texture->t.mip_maps = asset->texture_meta.has_mip_maps;
+		array_texture->t.layers++;
+
+		texture_locations[i].texture = &array_texture->t;
+		texture_locations[i].texture_index = texture_index;
+		texture_locations[i].layer = array_texture->t.layers-1;
+		texture_locations[i].compression_region_index = compression_region_index;
 	}
-	free(asset_sorted_indices);
 	return 0;
 }
 
 // Runs in first frame
-static ERROR_RETURN_TYPE create_grid_texture(PigeonWGICommandBuffer *cmd)
+static ERROR_RETURN_TYPE create_array_textures(PigeonWGICommandBuffer *cmd)
 {
-	ASSERT_1(!populate_grids());
+	ASSERT_1(!populate_array_textures());
 
-	ASSERT_1(!pigeon_wgi_create_grid_texture(&grid_texture, grid_texture_grids_count,
-											 PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB, cmd));
-	ASSERT_1(!pigeon_wgi_create_grid_texture(&normal_grid_texture, normal_grid_texture_grids_count,
-											 PIGEON_WGI_IMAGE_FORMAT_BC5, cmd));
+	ArrayTexture * arr = array_texture_0;
+	while(arr) {
+		ASSERT_1(!pigeon_wgi_create_array_texture(&arr->t, arr->t.width, arr->t.height,
+			arr->t.layers, arr->t.format, arr->t.mip_maps ? 0 : 1, cmd));
 
-	for (unsigned int i = 0; i < texture_assets_count; i++)
-	{
-		PigeonAsset *asset = &texture_assets[i];
+		
+		unsigned int layer = 0;
+		for (unsigned int i = 0; i < texture_assets_count; i++)
+		{
+			if(texture_locations[i].texture == &arr->t) {
+				void *dst = pigeon_wgi_array_texture_upload(&arr->t, layer++, cmd);
+				ASSERT_1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].compression_region_index));
+			}
+		}
 
-		PigeonWGIImageFormat format = asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR ? PIGEON_WGI_IMAGE_FORMAT_BC5 : PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
+		pigeon_wgi_array_texture_transition(&arr->t, cmd);
+		pigeon_wgi_array_texture_unmap(&arr->t);
 
-		ASSERT_1(pigeon_wgi_get_texture_size(asset->texture_meta.width, asset->texture_meta.height,
-											 format, true) == asset->compression[1].decompressed_data_length);
-
-		PigeonWGIGridTexture *grid_tex = asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR ? &normal_grid_texture : &grid_texture;
-
-		void *dst = pigeon_wgi_grid_texture_upload(grid_tex, texture_asset_grid_positions[i],
-												   asset->texture_meta.width, asset->texture_meta.height, cmd);
-
-		ASSERT_1(!pigeon_decompress_asset(asset, dst, 1));
+		arr = arr->next;
 	}
-	pigeon_wgi_grid_texture_transition(&normal_grid_texture, cmd);
-	pigeon_wgi_grid_texture_transition(&grid_texture, cmd);
 
-	pigeon_wgi_grid_texture_unmap(&normal_grid_texture);
-	pigeon_wgi_grid_texture_unmap(&grid_texture);
 
 	return 0;
 }
@@ -360,7 +377,7 @@ static ERROR_RETURN_TYPE create_meshes(void)
 
 	uint8_t *mapping;
 	ASSERT_1(!pigeon_wgi_create_multimesh(&mesh,
-		model_assets[0].mesh_meta.attribute_types, vertex_count, index_count, false,
+		model_assets[0].mesh_meta.attribute_types, vertex_count, index_count, true,
 		&size, (void **)&mapping));
 
 	PigeonWGIVertexAttributeType * attributes = model_assets[0].mesh_meta.attribute_types;
@@ -378,14 +395,37 @@ static ERROR_RETURN_TYPE create_meshes(void)
 	}
 	for (unsigned int i = 0; i < NUM_MODELS; i++) {
 		if(j < model_assets[i].compression[j].decompressed_data_length) {
-			ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
-			offset += 2 * model_assets[i].mesh_meta.index_count;
+			if(model_assets[i].mesh_meta.big_indices) {
+				ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
+				offset += 4 * model_assets[i].mesh_meta.index_count;
+			}
+			else {
+				// Convert indices from u16 to u32
+
+				uint16_t * u16 = malloc(2 * model_assets[i].mesh_meta.index_count);
+				ASSERT_1(u16);
+
+				ASSERT_1(!pigeon_decompress_asset(&model_assets[i], u16, j));
+
+				for(unsigned int k = 0; k < model_assets[i].mesh_meta.index_count; k++) {
+					uint16_t a = u16[k];
+
+					mapping[offset++] = (uint8_t)a;
+					mapping[offset++] = (uint8_t)(a>>8);
+					mapping[offset++] = 0;
+					mapping[offset++] = 0;
+				}
+				free(u16);
+				
+			}
 		}
 		else {
 			// Flat shaded model- create indices
 			for(unsigned int k = 0; k < model_assets[i].mesh_meta.vertex_count; k++) {
 				mapping[offset++] = (uint8_t)k;
 				mapping[offset++] = (uint8_t)(k>>8);
+				mapping[offset++] = 0;
+				mapping[offset++] = 0;
 			}
 		}
 	}
@@ -607,27 +647,19 @@ static void set_uniforms(PigeonWGISceneUniformData *scene_uniform_data, vec2 rot
 	scene_uniform_data->one_pixel_x = 1.0f / (float)window_width;
 	scene_uniform_data->one_pixel_y = 1.0f / (float)window_height;
 	scene_uniform_data->time = pigeon_wgi_get_time_seconds();
-	scene_uniform_data->ambient[0] = 1.7f;
-	scene_uniform_data->ambient[1] = 1.7f;
-	scene_uniform_data->ambient[2] = 1.7f;
-	// scene_uniform_data->ambient[0] = 0.05f;
-	// scene_uniform_data->ambient[1] = 0.05f;
-	// scene_uniform_data->ambient[2] = 0.05f;
+	scene_uniform_data->ambient[0] = 0.3f;
+	scene_uniform_data->ambient[1] = 0.3f;
+	scene_uniform_data->ambient[2] = 0.3f;
 
 	scene_uniform_data->number_of_lights = 1;
 	PigeonWGILight *light = &scene_uniform_data->lights[0];
-	light->intensity[0] = 12;
-	light->intensity[1] = 12;
-	light->intensity[2] = 12;
-	// light->intensity[0] = 0.1f;
-	// light->intensity[1] = 0.1f;
-	// light->intensity[2] = 0.1f;
-	// light->intensity[0] = 15;
-	// light->intensity[1] = 15;
-	// light->intensity[2] = 15;
-	light->neg_direction[0] = 0.19245f;
-	light->neg_direction[1] = 0.96225f;
-	light->neg_direction[2] = 0.19245f;
+	light->intensity[0] = 8;
+	light->intensity[1] = 8;
+	light->intensity[2] = 8;
+	light->neg_direction[0] = 0.1f;
+	light->neg_direction[1] = 1.0f;
+	light->neg_direction[2] = 0.5f;
+	glm_vec3_normalize(light->neg_direction);
 	light->is_shadow_caster = 0;
 
 	unsigned int draw_call_index = 0;
@@ -669,19 +701,21 @@ static void set_uniforms(PigeonWGISceneUniformData *scene_uniform_data, vec2 rot
 				/* Material data */
 
 				memcpy(data->colour, model_asset->materials[j].colour, 3 * 4);
+				memcpy(data->under_colour, model_asset->materials[j].colour, 3 * 4);
+				
 
 				unsigned int texture_asset_index = model_materials[i][j].texture_index;
 				unsigned int normal_asset_index = model_materials[i][j].normal_index;
 
 				if (texture_asset_index != UINT32_MAX)
 				{
-					PigeonWGITextureGridPosition *p = &texture_asset_grid_positions[texture_asset_index];
-					data->texture_sampler_index_plus1 = 1;
-					data->texture_index = (float)p->grid_i;
-					data->texture_uv_base_and_range[0] = (float)p->grid_x / 8.0f;
-					data->texture_uv_base_and_range[1] = (float)p->grid_y / 8.0f;
-					data->texture_uv_base_and_range[2] = (float)p->grid_w / 8.0f;
-					data->texture_uv_base_and_range[3] = (float)p->grid_h / 8.0f;
+					TextureLocation *p = &texture_locations[texture_asset_index];
+					data->texture_sampler_index_plus1 = p->texture_index+1;
+					data->texture_index = (float)p->layer;
+					data->texture_uv_base_and_range[0] = 0;
+					data->texture_uv_base_and_range[1] = 0;
+					data->texture_uv_base_and_range[2] = 1;
+					data->texture_uv_base_and_range[3] = 1;
 				}
 				else
 				{
@@ -689,13 +723,13 @@ static void set_uniforms(PigeonWGISceneUniformData *scene_uniform_data, vec2 rot
 				}
 				if (normal_asset_index != UINT32_MAX)
 				{
-					PigeonWGITextureGridPosition *p = &texture_asset_grid_positions[normal_asset_index];
-					data->normal_map_sampler_index_plus1 = 2;
-					data->normal_map_index = (float)p->grid_i;
-					data->normal_map_uv_base_and_range[0] = (float)p->grid_x / 8.0f;
-					data->normal_map_uv_base_and_range[1] = (float)p->grid_y / 8.0f;
-					data->normal_map_uv_base_and_range[2] = (float)p->grid_w / 8.0f;
-					data->normal_map_uv_base_and_range[3] = (float)p->grid_h / 8.0f;
+					TextureLocation *p = &texture_locations[normal_asset_index];
+					data->normal_map_sampler_index_plus1 = p->texture_index+1;
+					data->normal_map_index = (float)p->layer;
+					data->normal_map_uv_base_and_range[0] = 0;
+					data->normal_map_uv_base_and_range[1] = 0;
+					data->normal_map_uv_base_and_range[2] = 1;
+					data->normal_map_uv_base_and_range[3] = 1;
 				}
 				else
 				{
@@ -892,7 +926,7 @@ static void game_loop(void)
 		float delta_time = time_now - last_frame_time;
 		last_frame_time = time_now;
 
-		game_objects[1].rotation[1] = fmodf(game_objects[1].rotation[1] + delta_time, 2.0f * 3.1315f);
+		game_objects[SPINNY_CUBE_INDEX].rotation[1] = fmodf(game_objects[SPINNY_CUBE_INDEX].rotation[1] + delta_time, 2.0f * 3.1315f);
 
 		fps_camera_input(delta_time, rotation, position);
 
@@ -909,22 +943,27 @@ static void game_loop(void)
 			if (pigeon_wgi_start_command_buffer(upload_command_buffer))
 				return;
 			upload_meshes(upload_command_buffer);
-			if (create_grid_texture(upload_command_buffer))
+			if (create_array_textures(upload_command_buffer))
 				return;
 			if (pigeon_wgi_end_command_buffer(upload_command_buffer))
 				return;
 		}
 		else if (frame_number == 1)
 		{
-			pigeon_wgi_grid_texture_transfer_done(&normal_grid_texture);
-			pigeon_wgi_grid_texture_transfer_done(&grid_texture);
 			pigeon_wgi_multimesh_transfer_done(&mesh);
 		}
 
 		// TODO don't rebind every time if possible-
 		// ^ still need to bind 2+ times though (once for each possible frame in flight)
-		pigeon_wgi_bind_grid_texture(0, &grid_texture);
-		pigeon_wgi_bind_grid_texture(1, &normal_grid_texture);
+
+		ArrayTexture * arr = array_texture_0;
+		unsigned int array_texture_index = 0;
+		while(arr) {
+			if(frame_number == 1)
+				pigeon_wgi_array_texture_transfer_done(&arr->t);
+			pigeon_wgi_bind_array_texture(array_texture_index++, &arr->t);
+			arr = arr->next;
+		}
 
 		if (render_frame(depth_command_buffer, true, total_draw_calls))
 			return;

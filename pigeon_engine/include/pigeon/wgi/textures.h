@@ -47,28 +47,61 @@ ERROR_RETURN_TYPE pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid **, un
     unsigned int tiles_width, unsigned int tiles_height, PigeonWGITextureGridPosition*,
     bool allow_add_new_grids);
 
+// Mip maps go down to 4x4
+uint32_t pigeon_wgi_get_texture_size(unsigned int width, unsigned int height, PigeonWGIImageFormat format, bool mip_maps);
 
-struct PigeonWGIGridTextureData;
 
-typedef struct PigeonWGIGridTexture {
-    struct PigeonWGIGridTextureData * data;
-    bool host_memory_image; // If true, not using staging buffer
+
+
+typedef struct PigeonWGIArrayTexture {
+    struct PigeonWGIArrayTextureData * data;
+
+    unsigned int width, height, layers;
+    PigeonWGIImageFormat format; // Either RGBA_U8_*, RG_U8_LINEAR or a compressed format
+    unsigned int mip_maps;
 
     void * mapping;
     unsigned int mapping_offset;
+} PigeonWGIArrayTexture;
 
-    // unsigned int * width_height;
-    // unsigned int * grids;
-    PigeonWGIImageFormat format; // Either RGBA_U8_*, RG_U8_LINEAR or a compressed format
+// mapping is set to a host-accessible write-only memory mapping
+ERROR_RETURN_TYPE pigeon_wgi_create_array_texture(PigeonWGIArrayTexture*, 
+    uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat,
+    unsigned int mip_maps, // 0 = auto, 1 = no mipmapping
+    PigeonWGICommandBuffer*);
+
+uint32_t pigeon_wgi_get_array_texture_layer_size(PigeonWGIArrayTexture const*);
+
+// Returns pointer to memcpy (or zstd decompress) texture data to
+// Write pigeon_wgi_get_array_texture_tile_size() bytes
+// Width&height halve with each mip level, data size in bytes quarters
+// Adds transfer commands to command buffer
+void* pigeon_wgi_array_texture_upload(PigeonWGIArrayTexture*, 
+    unsigned int layer,
+    PigeonWGICommandBuffer*);
+
+// Call when finished calling pigeon_wgi_array_texture_upload
+void pigeon_wgi_array_texture_transition(PigeonWGIArrayTexture* array_texture, PigeonWGICommandBuffer* cmd_buf);
+
+void pigeon_wgi_array_texture_unmap(PigeonWGIArrayTexture*);
+
+void pigeon_wgi_array_texture_transfer_done(PigeonWGIArrayTexture*); // Call this when the transfer is done *on the GPU*
+void pigeon_wgi_destroy_array_texture(PigeonWGIArrayTexture*);
+
+// ** Binding points are per-frame-in-flight
+void pigeon_wgi_bind_array_texture(unsigned int binding_point, PigeonWGIArrayTexture*);
+
+
+typedef struct PigeonWGIGridTexture {
+    PigeonWGIArrayTexture array_texture;
 } PigeonWGIGridTexture;
 
 // mapping is set to a host-accessible write-only memory mapping
 ERROR_RETURN_TYPE pigeon_wgi_create_grid_texture(PigeonWGIGridTexture*, uint32_t grids, PigeonWGIImageFormat,
-    PigeonWGICommandBuffer*);
+    PigeonWGICommandBuffer*, bool mip_maps);
 
-// 512 * 512 * bytes per pixel
-// For mip map level 0
-uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format);
+// 512 * 512 * bytes per pixel * 1.33333ish
+uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format, bool mip_maps);
 
 // Returns pointer to memcpy (or zstd decompress) texture data to
 // Write (pigeon_wgi_get_grid_texture_tile_size() * grid_position.w * grid_position.h) bytes
@@ -87,8 +120,6 @@ void pigeon_wgi_grid_texture_unmap(PigeonWGIGridTexture*);
 void pigeon_wgi_grid_texture_transfer_done(PigeonWGIGridTexture*); // Call this when the transfer is done *on the GPU*
 void pigeon_wgi_destroy_grid_texture(PigeonWGIGridTexture*);
 
-// Mip maps go down to 2x2
-uint32_t pigeon_wgi_get_texture_size(unsigned int width, unsigned int height, PigeonWGIImageFormat format, bool mip_maps);
-
 // ** Binding points are per-frame-in-flight
 void pigeon_wgi_bind_grid_texture(unsigned int binding_point, PigeonWGIGridTexture*);
+

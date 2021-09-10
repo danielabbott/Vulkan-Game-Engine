@@ -24,7 +24,7 @@ void main() {
 	for(int y = 0; y < samples; y++) {
 		offset.x = -push_constants.offset.x * (samples-1);
 		for(int x = 0; x < samples; x++) {
-			sum += max(vec3(0), texture(src_image, in_tex_coord + offset).rgb-vec3(10));
+			sum += max(vec3(0), texture(src_image, in_tex_coord + offset).rgb-vec3(5));
 
 			offset.x += push_constants.offset.x*2;
 		}

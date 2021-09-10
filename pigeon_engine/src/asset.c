@@ -263,6 +263,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 else if(word_matches(value, "NORMAL")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL;
                 else if(word_matches(value, "TANGENT")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT;
                 else if(word_matches(value, "UV")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_UV;
+                else if(word_matches(value, "UV-FLOAT")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT;
                 else if(word_matches(value, "BONE2")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_BONE2;
                 else {
                     fprintf(stderr, "Unrecognised vertex attribute\n");

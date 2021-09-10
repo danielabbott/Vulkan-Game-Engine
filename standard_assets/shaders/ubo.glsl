@@ -35,6 +35,7 @@ struct DrawCallObject {
 	mat4 modelView;
 
     vec4 colour;
+    vec4 under_colour;
     vec4 texture_uv_base_and_range; // .xy = base, .zw = range
     vec4 normal_map_uv_base_and_range;
 

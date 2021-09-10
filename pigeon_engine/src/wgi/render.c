@@ -72,6 +72,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, j, 
                 &singleton_data.default_1px_white_texture_image_view, &singleton_data.nearest_filter_sampler);
         }
+
+        // TODO do in bulk
         for(unsigned int j = 0; j < 90; j++) {
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, j, 
                 &singleton_data.default_1px_white_texture_array_image_view, &singleton_data.texture_sampler);

@@ -236,3 +236,38 @@ void pigeon_vulkan_destroy_staged_buffer(PigeonVulkanStagedBuffer* buffer)
 		pigeon_vulkan_free_memory(&buffer->staging_memory);
 	}
 }
+
+ERROR_RETURN_TYPE pigeon_vulkan_create_staging_buffer_with_dedicated_memory(PigeonVulkanBuffer* buffer,
+	PigeonVulkanMemoryAllocation * memory, uint64_t size, void ** mapping)
+{
+	ASSERT_1(buffer && memory && size && mapping);
+
+    PigeonVulkanBufferUsages usages = {0};
+    usages.transfer_src = true;
+    
+	PigeonVulkanMemoryRequirements mem_req;
+	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
+
+	PigeonVulkanMemoryTypePerferences preferences = { 0 };
+	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST;
+	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
+	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+
+	if (pigeon_vulkan_allocate_memory_dedicated(memory, mem_req, 
+        preferences, NULL, buffer)) 
+    {
+		pigeon_vulkan_destroy_buffer(buffer);
+		return 1;
+	}
+
+	if(pigeon_vulkan_buffer_bind_memory_dedicated(buffer, 
+        memory) ||
+        pigeon_vulkan_map_memory(memory, mapping)) 
+    {
+		pigeon_vulkan_destroy_buffer(buffer);
+		pigeon_vulkan_free_memory(memory);
+		return 1;
+	}
+	return 0;
+}

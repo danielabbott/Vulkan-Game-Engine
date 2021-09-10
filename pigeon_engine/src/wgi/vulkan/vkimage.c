@@ -208,3 +208,47 @@ void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView* image_view)
 		assert(false);
 	}
 }
+
+
+ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
+	PigeonVulkanMemoryAllocation * memory, PigeonVulkanImageView * image_view,
+	PigeonWGIImageFormat format, unsigned int width, unsigned int height,
+	unsigned int layers, unsigned int mip_maps, bool device_local)
+{
+    PigeonVulkanMemoryRequirements memory_req;
+
+	ASSERT_1 (!pigeon_vulkan_create_image(
+		image,
+		format,
+		width, height, layers, mip_maps == 0 ? 1 : mip_maps,
+		false, false,
+		true, false,
+		false, device_local,
+		&memory_req
+	))
+
+	PigeonVulkanMemoryTypePerferences preferences = { 0 };
+	preferences.device_local = device_local ? PIGEON_VULKAN_MEMORY_TYPE_MUST : PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	preferences.host_visible = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT : PIGEON_VULKAN_MEMORY_TYPE_MUST;
+	preferences.host_coherent = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT : PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
+	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+
+	if (pigeon_vulkan_allocate_memory_dedicated(memory, memory_req, preferences,
+        image, NULL)) {
+        pigeon_vulkan_destroy_image(image);
+        ASSERT_1(false);
+    }
+
+	if (pigeon_vulkan_image_bind_memory_dedicated(image, memory)) {
+        pigeon_vulkan_destroy_image(image);
+        pigeon_vulkan_free_memory(memory);
+        ASSERT_1(false);
+    }
+
+	if (pigeon_vulkan_create_image_view(image_view, image, true)) {
+        pigeon_vulkan_destroy_image(image);
+        pigeon_vulkan_free_memory(memory);
+        ASSERT_1(false);
+    }
+    return 0;
+}

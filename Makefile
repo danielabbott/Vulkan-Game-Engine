@@ -11,7 +11,7 @@ CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra -pedantic \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
 -Wunused-macros -Wcast-align \
--Wformat-security -Wundef -Wconversion -Werror=unused-result \
+-Wformat-security -Wundef -Wconversion -Werror=unused-result -Wno-newline-eof \
 -Iconfig_parser -fstack-protector -I pigeon_engine/include -isystem deps
 
 

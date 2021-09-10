@@ -410,7 +410,7 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
         asset_text_file += ' TANGENT'
     
     if export_uv:
-        asset_text_file += ' UV'
+        asset_text_file += ' UV-FLOAT'
     
 
     asset_text_file += '\n'
@@ -492,13 +492,19 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
         writers.append(w)
         for v in vertices:
             if v.uv is None:
-                w.writeDWord(0)
+                # w.writeWord(0)
+                # w.writeWord(0)
+                w.writeFloat(0)
+                w.writeFloat(0)
             else:
-                x = int(clamp(v.uv[0] % 1, 0.0, 1.0) * 65535.0)
-                y = int(clamp(1-(v.uv[1] % 1), 0.0, 1.0) * 65535.0)
-                
-                w.writeWord(x)
-                w.writeWord(y)
+                # 16-bit unorm coordinates half the size in bytes of UV coords but don't work with repeating textures
+                # x = int((v.uv[0] % 1) * 65535.0)
+                # y = int((1 - (v.uv[1] % 1)) * 65535.0)                
+                # w.writeWord(x)
+                # w.writeWord(y)
+
+                w.writeFloat(v.uv[0])
+                w.writeFloat(1-v.uv[1])
 
     if indices_count > 0:
         w = ByteArrayWriter()

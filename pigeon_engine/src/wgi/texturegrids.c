@@ -1,20 +1,6 @@
-#include <pigeon/wgi/textures.h>
-#include <pigeon/util.h>
-#include <pigeon/wgi/vulkan/image.h>
-#include <pigeon/wgi/vulkan/buffer.h>
+// * untested *
+#include "tex.h"
 #include <stdlib.h>
-#include "singleton.h"
-
-
-typedef struct PigeonWGIGridTextureData
-{
-    PigeonVulkanMemoryAllocation image_memory;
-    PigeonVulkanImage image;
-    PigeonVulkanImageView image_view;
-
-    PigeonVulkanMemoryAllocation staging_buffer_memory;
-    PigeonVulkanBuffer staging_buffer;
-} PigeonWGIGridTextureData;
 
 // TODO replace 8 with GRID_SIZE and 4096 with IMAGE_WIDTH_HEIGHT
 // #define GRID_SIZE 8
@@ -101,196 +87,73 @@ ERROR_RETURN_TYPE pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid ** gri
         texture, tiles_width, tiles_height, position, false);
 }
 
-static ERROR_RETURN_TYPE create_image(PigeonWGIGridTexture* grid_texture, PigeonWGIImageFormat format,
-    unsigned int grids, bool device_local)
-{
-    PigeonVulkanMemoryRequirements memory_req;
-
-	ASSERT_1 (!pigeon_vulkan_create_image(
-		&grid_texture->data->image,
-		format,
-		4096, 4096, grids, 8,
-		false, false,
-		true, false,
-		false, device_local,
-		&memory_req
-	))
-
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
-	preferences.device_local = device_local ? PIGEON_VULKAN_MEMORY_TYPE_MUST : PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
-	preferences.host_visible = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT : PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT : PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
-
-	if (pigeon_vulkan_allocate_memory_dedicated(&grid_texture->data->image_memory, memory_req, preferences,
-        &grid_texture->data->image, NULL)) {
-        pigeon_vulkan_destroy_image(&grid_texture->data->image);
-        ASSERT_1(false);
-    }
-
-	if (pigeon_vulkan_image_bind_memory_dedicated(&grid_texture->data->image, &grid_texture->data->image_memory)) {
-        pigeon_vulkan_destroy_image(&grid_texture->data->image);
-        pigeon_vulkan_free_memory(&grid_texture->data->image_memory);
-        ASSERT_1(false);
-    }
-
-	if (pigeon_vulkan_create_image_view(&grid_texture->data->image_view, &grid_texture->data->image, true)) {
-        pigeon_vulkan_destroy_image(&grid_texture->data->image);
-        pigeon_vulkan_free_memory(&grid_texture->data->image_memory);
-        ASSERT_1(false);
-    }
-    return 0;
-}
-
-static ERROR_RETURN_TYPE create_staging_buffer(PigeonWGIGridTexture* grid_texture, PigeonWGIImageFormat format,
-    unsigned int grids)
-{
-    PigeonVulkanBufferUsages usages = {0};
-    usages.transfer_src = true;
-
-    uint64_t size = pigeon_wgi_get_grid_texture_tile_size(format) * 8*8 * grids;
-    
-	PigeonVulkanMemoryRequirements mem_req;
-	ASSERT_1(!pigeon_vulkan_create_buffer(&grid_texture->data->staging_buffer, size, usages, &mem_req));
-
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
-	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
-	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
-
-	if (pigeon_vulkan_allocate_memory_dedicated(&grid_texture->data->staging_buffer_memory, mem_req, 
-        preferences, NULL, &grid_texture->data->staging_buffer)) 
-    {
-		pigeon_vulkan_destroy_buffer(&grid_texture->data->staging_buffer);
-		return 1;
-	}
-
-	if(pigeon_vulkan_buffer_bind_memory_dedicated(&grid_texture->data->staging_buffer, 
-        &grid_texture->data->staging_buffer_memory) ||
-        pigeon_vulkan_map_memory(&grid_texture->data->staging_buffer_memory, &grid_texture->mapping)) 
-    {
-		pigeon_vulkan_destroy_buffer(&grid_texture->data->staging_buffer);
-		pigeon_vulkan_free_memory(&grid_texture->data->staging_buffer_memory);
-		return 1;
-	}
-	return 0;
-}
-
 ERROR_RETURN_TYPE pigeon_wgi_create_grid_texture(PigeonWGIGridTexture* grid_texture, 
-    uint32_t grids, PigeonWGIImageFormat format, PigeonWGICommandBuffer* cmd_buf)
+    uint32_t grids, PigeonWGIImageFormat format, PigeonWGICommandBuffer* cmd_buf, bool mip_maps)
 {
     ASSERT_1(grid_texture && cmd_buf);
     ASSERT_1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
     || (format >= PIGEON_WGI_IMAGE_FORMAT__FIRST_COMPRESSED_FORMAT &&
         format <= PIGEON_WGI_IMAGE_FORMAT__LAST_COMPRESSED_FORMAT));
 
-    grid_texture->data = calloc(1, sizeof *grid_texture->data);
-    ASSERT_1(grid_texture->data);
-
-    if(create_image(grid_texture, format, grids, true)) {
-        // Cannot create device local. Fall back to host memory
-        fputs("Failed to create device local image. Multitexture is falling back to host memory\n", stderr);
-        grid_texture->host_memory_image = true;
-
-        if(create_image(grid_texture, format, grids, false)) {
-            free(grid_texture->data);
-            return 1;
-        }
-    }
-
-    if(create_staging_buffer(grid_texture, format, grids)) {
-        pigeon_vulkan_destroy_image_view(&grid_texture->data->image_view);
-        pigeon_vulkan_destroy_image(&grid_texture->data->image);
-        pigeon_vulkan_free_memory(&grid_texture->data->image_memory);
-        return 1;
-    }
-    
-    pigeon_vulkan_transition_image_to_transfer_dst(&cmd_buf->command_pool, 0, &grid_texture->data->image);
-
-    grid_texture->format = format;
-
+    ASSERT_1(pigeon_wgi_create_array_texture(&grid_texture->array_texture, 
+        4096, 4096, grids, format, mip_maps ? 8 : 1, cmd_buf));
     return 0;
 }
 
-uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format)
+uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format, bool mip_maps)
 {
-    return ((512*512+256*256+128*128+64*64+32*32+16*16+8*8+4*4)/16)
-    * pigeon_image_format_bytes_per_4x4_block(format);
+    if(mip_maps)
+        return ((512*512+256*256+128*128+64*64+32*32+16*16+8*8+4*4)/16)
+            * pigeon_image_format_bytes_per_4x4_block(format);
+    else
+        return ((512*512)/16)
+            * pigeon_image_format_bytes_per_4x4_block(format);
 }
 
 void* pigeon_wgi_grid_texture_upload(PigeonWGIGridTexture* grid_texture, 
     PigeonWGITextureGridPosition position, unsigned int w, unsigned int h, PigeonWGICommandBuffer* cmd_buf)
 {
+    assert(w % 512 == 0);
+    assert(h % 512 == 0);
     assert((w+511) / 512 == position.grid_w);
     assert((h+511) / 512 == position.grid_h);
     assert(position.grid_x + position.grid_w <= 8);
     assert(position.grid_y + position.grid_h <= 8);
 
-    uint64_t buffer_offset = grid_texture->mapping_offset;
+    uint64_t buffer_offset = grid_texture->array_texture.mapping_offset;
     
-    grid_texture->mapping_offset += position.grid_w * position.grid_h * 
-        pigeon_wgi_get_grid_texture_tile_size(grid_texture->format);
+    grid_texture->array_texture.mapping_offset += position.grid_w * position.grid_h * 
+        pigeon_wgi_get_grid_texture_tile_size(grid_texture->array_texture.format, grid_texture->array_texture.mip_maps > 1);
     
     pigeon_vulkan_transfer_buffer_to_image(&cmd_buf->command_pool, 0,
-        &grid_texture->data->staging_buffer, buffer_offset,
-        &grid_texture->data->image, position.grid_i, position.grid_x*512, position.grid_y*512,
-        w,h, 8);    
+        &grid_texture->array_texture.data->staging_buffer, buffer_offset,
+        &grid_texture->array_texture.data->image, position.grid_i, position.grid_x*512, position.grid_y*512,
+        w,h, grid_texture->array_texture.mip_maps ? 8 : 1);    
 
-    return &((uint8_t*)grid_texture->mapping)[buffer_offset];
+    return &((uint8_t*)grid_texture->array_texture.mapping)[buffer_offset];
 }
 
 void pigeon_wgi_grid_texture_transition(PigeonWGIGridTexture* grid_texture, PigeonWGICommandBuffer* cmd_buf)
 {
-
-    pigeon_vulkan_transition_transfer_dst_to_shader_read(&cmd_buf->command_pool, 0, &grid_texture->data->image);
+    pigeon_wgi_array_texture_transition(&grid_texture->array_texture, cmd_buf);
 }
 
 void pigeon_wgi_grid_texture_unmap(PigeonWGIGridTexture* grid_texture)
 {
-    assert(grid_texture && grid_texture->data && grid_texture->data->staging_buffer.vk_buffer);
-    pigeon_vulkan_unmap_memory(&grid_texture->data->staging_buffer_memory);
+    pigeon_wgi_array_texture_unmap(&grid_texture->array_texture);
 }
 
 void pigeon_wgi_grid_texture_transfer_done(PigeonWGIGridTexture* grid_texture)
 {
-    assert(grid_texture && grid_texture->data && grid_texture->data->staging_buffer.vk_buffer);
-
-    pigeon_vulkan_destroy_buffer(&grid_texture->data->staging_buffer);
-    pigeon_vulkan_free_memory(&grid_texture->data->staging_buffer_memory);
+    pigeon_wgi_array_texture_transfer_done(&grid_texture->array_texture);
 }
 
 void pigeon_wgi_destroy_grid_texture(PigeonWGIGridTexture* grid_texture)
 {
-    if(grid_texture->data) {
-        if(grid_texture->data->image_view.vk_image_view)
-            pigeon_vulkan_destroy_image_view(&grid_texture->data->image_view);
-
-        if(grid_texture->data->image.vk_image)
-            pigeon_vulkan_destroy_image(&grid_texture->data->image);
-
-        if(grid_texture->data->image_memory.vk_device_memory) 
-            pigeon_vulkan_free_memory(&grid_texture->data->image_memory);
-
-        if(grid_texture->data->staging_buffer.size) 
-            pigeon_vulkan_destroy_buffer(&grid_texture->data->staging_buffer);
-
-		if(grid_texture->data->staging_buffer_memory.vk_device_memory) 
-            pigeon_vulkan_free_memory(&grid_texture->data->staging_buffer_memory);
-
-
-        free(grid_texture->data);
-    }
-    else {
-        assert(false);
-    }
+    pigeon_wgi_destroy_array_texture(&grid_texture->array_texture);
 }
 
 void pigeon_wgi_bind_grid_texture(unsigned int binding_point, PigeonWGIGridTexture* grid_texture)
 {
-    assert(grid_texture && grid_texture->data);
-
-    PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
-    pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, binding_point, 
-        &grid_texture->data->image_view, &singleton_data.texture_sampler);
+    pigeon_wgi_bind_array_texture(binding_point, &grid_texture->array_texture);
 }

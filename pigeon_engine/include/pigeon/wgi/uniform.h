@@ -14,8 +14,12 @@ typedef struct PigeonWGIDrawCallObject {
     mat4 normal_model_matrix;
     mat4 view_model;
 
-    vec3 colour; // Good default is {0.7f, 0.7f, 0.7f};
+    vec3 colour;
     float rsvd;
+
+    // Textures with alpha channel interpolate between this colour and texture
+    vec3 under_colour;
+    float rsvd2;
 
     vec4 texture_uv_base_and_range; // .xy = base, .zw = range
     vec4 normal_map_uv_base_and_range;

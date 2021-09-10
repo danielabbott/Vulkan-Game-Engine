@@ -53,3 +53,7 @@ void pigeon_vulkan_staged_buffer_transfer(PigeonVulkanStagedBuffer*,
 void pigeon_vulkan_staged_buffer_transfer_complete(PigeonVulkanStagedBuffer*);
 
 void pigeon_vulkan_destroy_staged_buffer(PigeonVulkanStagedBuffer*);
+
+// Convenience function
+ERROR_RETURN_TYPE pigeon_vulkan_create_staging_buffer_with_dedicated_memory(PigeonVulkanBuffer* buffer,
+	PigeonVulkanMemoryAllocation * memory, uint64_t size, void ** mapping);

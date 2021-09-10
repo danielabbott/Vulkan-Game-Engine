@@ -8,7 +8,7 @@ uint64_t pigeon_wgi_mesh_meta_size_requirements(PigeonWGIMeshMeta *meta)
 {
     assert(meta);
 
-    uint64_t sz = 0;
+    unsigned int sz = 0;
 
     for (unsigned int i = 0; i < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; i++)
     {
@@ -21,7 +21,7 @@ uint64_t pigeon_wgi_mesh_meta_size_requirements(PigeonWGIMeshMeta *meta)
 
     unsigned int index_size = meta->big_indices ? 4 : 2;
 
-    return sz*(uint64_t)meta->vertex_count + (uint64_t)(index_size*meta->index_count);
+    return (uint64_t)sz*(uint64_t)meta->vertex_count + (uint64_t)(index_size*meta->index_count);
 }
 
 ERROR_RETURN_TYPE pigeon_wgi_create_multimesh(PigeonWGIMultiMesh *mesh, 

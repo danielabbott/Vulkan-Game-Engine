@@ -15,7 +15,6 @@ layout(binding = 4) uniform sampler2DArray textures[90];
 
 #include "ubo.glsl"
 
-
 void main() {
 
     /* Ambient Occlusion */
@@ -70,7 +69,8 @@ void main() {
 
     /* Light */
 
-    vec3 colour = ubo.ambient * vec3(1-clamp(occlusion, 0.0, 1)*0.7);
+    // vec3 colour = ubo.ambient * vec3(1-clamp(occlusion, 0.0, 1)*0.7);
+    vec3 colour = ubo.ambient;
     // vec3 colour = vec3(0);
 
     for(uint i = 0; i < ubo.number_of_lights; i++) {
@@ -105,13 +105,14 @@ void main() {
 
         colour += intensity*l.light_intensity__and__shadow_pixel_offset.rgb;
     }
+    colour *= vec3(1-clamp(occlusion, 0.0, 1)*0.7);
 
     colour *= data.colour.rgb;
 
     if(data.texture_sampler_index_plus1 >= 1) {
-        colour *= texture(textures[data.texture_sampler_index_plus1-1], 
-            vec3(in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy,
-            data.texture_index)).rgb;
+        vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
+        vec4 tex_val = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index));
+        colour = mix(colour * data.under_colour.rgb, colour * tex_val.rgb*1.2, tex_val.a);
     }
 
     colour = max(vec3(0), colour);
