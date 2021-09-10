@@ -87,6 +87,7 @@ typedef struct SingletonData
 
 	PigeonVulkanPipeline pipeline_ssao;
 	PigeonVulkanPipeline pipeline_ssao_blur;
+	PigeonVulkanPipeline pipeline_ssao_blur2;
 	PigeonVulkanPipeline pipeline_downsample;
 	PigeonVulkanPipeline pipeline_bloom_gaussian;
 	PigeonVulkanPipeline pipeline_post;
@@ -99,6 +100,7 @@ typedef struct SingletonData
     FramebufferImageObjects depth_image;
     FramebufferImageObjects ssao_image;
     FramebufferImageObjects ssao_blur_image;
+    FramebufferImageObjects ssao_blur_image2;
     FramebufferImageObjects render_image;
     FramebufferImageObjects bloom_image;
     FramebufferImageObjects bloom_gaussian_intermediate_image;
@@ -106,12 +108,14 @@ typedef struct SingletonData
     PigeonVulkanFramebuffer depth_framebuffer;
     PigeonVulkanFramebuffer ssao_framebuffer;
     PigeonVulkanFramebuffer ssao_blur_framebuffer;
+    PigeonVulkanFramebuffer ssao_blur_framebuffer2;
     PigeonVulkanFramebuffer render_framebuffer;
     PigeonVulkanFramebuffer bloom_framebuffer;
     PigeonVulkanFramebuffer bloom_gaussian_intermediate_framebuffer;
 
 	PigeonVulkanDescriptorPool ssao_descriptor_pool;
 	PigeonVulkanDescriptorPool ssao_blur_descriptor_pool;
+	PigeonVulkanDescriptorPool ssao_blur_descriptor_pool2;
 	PigeonVulkanDescriptorPool bloom_downsample_descriptor_pool;
 	PigeonVulkanDescriptorPool bloom_gaussian_descriptor_pool;
 	PigeonVulkanDescriptorPool bloom_intermediate_gaussian_descriptor_pool;

@@ -68,20 +68,22 @@ void main() {
 			vec2 p = push_constants.one_pixel * 40 * rotation_matrix * length_random_mul * coordinate_offsets[i];
 
 			// Flip points that are in the wrong direction
-			if(dot(p, surface_direction) < 0) {
-				p = -p;
-			}
+			// if(dot(p, surface_direction) < 0) {
+			// 	p = -p;
+			// }
+			p *= sign(min(0, dot(p, surface_direction)))*2 + 1;
 
 			float neighbour_depth = texture(depth_image, in_tex_coord + p).r;
 
 			float delta = neighbour_depth - depth;
 
-			if(delta > 0 && delta < push_constants.ssao_cutoff) {
-				occlusion += smoothstep(0,1,delta/push_constants.ssao_cutoff);
-			}
+			// if(delta > 0 && delta < push_constants.ssao_cutoff) {
+			// 	occlusion += smoothstep(0,1,delta/push_constants.ssao_cutoff);
+			// }
+			occlusion += min(1, sign(push_constants.ssao_cutoff - delta)+1) * smoothstep(0,1,delta/push_constants.ssao_cutoff);
 		}
 		occlusion /= float(samples);
-		occlusion *= 1.4;
+		occlusion *= 1.6;
 		occlusion = clamp(occlusion, 0.0, 1.0);
 	}
 

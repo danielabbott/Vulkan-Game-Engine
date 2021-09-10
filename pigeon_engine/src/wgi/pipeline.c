@@ -14,7 +14,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.vertex_shader_depends_on_transfer = true;
 	config.fragment_shader_depends_on_transfer = false;
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP;
-	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24;
+	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16;
 
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config)) return 1;
 
@@ -109,6 +109,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects()
 	if (create_pipeine(&singleton_data.pipeline_ssao_blur, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur.frag"),
 		&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
 
+	if (create_pipeine(&singleton_data.pipeline_ssao_blur2, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur2.frag"),
+		&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
+
 	if (create_pipeine(&singleton_data.pipeline_bloom_gaussian, SHADER_PATH("gaussian.vert"), SHADER_PATH("bloom_gaussian.frag"),
 		&singleton_data.rp_bloom_gaussian, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
 
@@ -127,6 +130,7 @@ void pigeon_wgi_destroy_standard_pipeline_objects()
 {
 	if (singleton_data.pipeline_ssao.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao);
 	if (singleton_data.pipeline_ssao_blur.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao_blur);
+	if (singleton_data.pipeline_ssao_blur2.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao_blur2);
 	if (singleton_data.pipeline_downsample.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample);
 	if (singleton_data.pipeline_bloom_gaussian.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_bloom_gaussian);
 	if (singleton_data.pipeline_post.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_post);

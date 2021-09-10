@@ -902,6 +902,9 @@ static void game_loop(void)
 
 	float last_frame_time = pigeon_wgi_get_time_seconds() - 1 / 60.0f;
 
+	float last_fps_output_time = pigeon_wgi_get_time_seconds();
+	unsigned int fps_frame_counter = 0;
+
 	unsigned int frame_number = 0;
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
@@ -925,6 +928,15 @@ static void game_loop(void)
 		float time_now = pigeon_wgi_get_time_seconds();
 		float delta_time = time_now - last_frame_time;
 		last_frame_time = time_now;
+
+		if(time_now - last_fps_output_time >= 1.0f) {
+			printf("FPS: %u\n", fps_frame_counter);
+			fps_frame_counter = 0;
+			last_fps_output_time = time_now;
+		}
+		else {
+			fps_frame_counter++;
+		}
 
 		game_objects[SPINNY_CUBE_INDEX].rotation[1] = fmodf(game_objects[SPINNY_CUBE_INDEX].rotation[1] + delta_time, 2.0f * 3.1315f);
 

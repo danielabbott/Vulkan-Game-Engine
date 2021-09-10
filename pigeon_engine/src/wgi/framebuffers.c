@@ -41,12 +41,14 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
 {
     PigeonVulkanSwapchainInfo sc_info = pigeon_vulkan_get_swapchain_info();
     
-    if(create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, 
+    if(create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16, 
         sc_info.width, sc_info.height, false, false)) return 1;
     if(create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
         sc_info.width, sc_info.height, false, false)) return 1;
     if(create_framebuffer_images(&singleton_data.ssao_blur_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
-        sc_info.width, sc_info.height, false, false)) return 1;
+        sc_info.width/2, sc_info.height, false, false)) return 1;
+    if(create_framebuffer_images(&singleton_data.ssao_blur_image2, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+        sc_info.width/2, sc_info.height/2, false, false)) return 1;
     if(create_framebuffer_images(&singleton_data.render_image, PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR, 
         sc_info.width, sc_info.height, true, false)) return 1;
     if(create_framebuffer_images(&singleton_data.bloom_image, PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR, 
@@ -61,6 +63,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
         NULL, &singleton_data.ssao_image.image_view, &singleton_data.rp_ssao);
     create_framebuffer(&singleton_data.ssao_blur_framebuffer, 
         NULL, &singleton_data.ssao_blur_image.image_view, &singleton_data.rp_ssao_blur);
+    create_framebuffer(&singleton_data.ssao_blur_framebuffer2, 
+        NULL, &singleton_data.ssao_blur_image2.image_view, &singleton_data.rp_ssao_blur);
     create_framebuffer(&singleton_data.render_framebuffer, 
         &singleton_data.depth_image.image_view, &singleton_data.render_image.image_view, 
         &singleton_data.rp_render);
@@ -99,6 +103,7 @@ void pigeon_wgi_destroy_framebuffers(void)
     destroy_framebuffer_images(&singleton_data.depth_image);
     destroy_framebuffer_images(&singleton_data.ssao_image);
     destroy_framebuffer_images(&singleton_data.ssao_blur_image);
+    destroy_framebuffer_images(&singleton_data.ssao_blur_image2);
     destroy_framebuffer_images(&singleton_data.render_image);
     destroy_framebuffer_images(&singleton_data.bloom_image);
     destroy_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image);

@@ -20,6 +20,7 @@ typedef enum {
 
 	PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32,
 	PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24,
+	PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16,
 
 	// Linear non-colour formats
 	PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR,
@@ -47,6 +48,7 @@ unsigned int pigeon_image_format_bytes_per_4x4_block(PigeonWGIImageFormat);
 
 static inline bool PIGEON_WGI_IMAGE_FORMAT_is_depth(PigeonWGIImageFormat format)
 {
-	return format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32 || format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24;
+	return format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32 || format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24
+		|| format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16;
 }
 

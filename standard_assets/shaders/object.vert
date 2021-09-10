@@ -25,7 +25,7 @@ layout(push_constant) uniform PushConstantsObject
 void main() {
     float z = in_position.z / 1023.0;
     float x = ((in_position.x << 1) | (in_position.a & 1)) / 2047.0;
-    float y = ((in_position.y << 1) | ((in_position.a & 2) >> 1)) / 2047.0;
+    float y = ((in_position.y << 1) | (in_position.a >> 1)) / 2047.0;
 
     uint draw_call_index = push_constants.draw_call_index_offset + gl_DrawID + gl_InstanceIndex;
     DrawCallObject data = draw_call_objects.obj[draw_call_index];

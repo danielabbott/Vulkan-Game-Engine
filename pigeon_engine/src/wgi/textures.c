@@ -233,6 +233,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void)
 		1, &singleton_data.one_texture_descriptor_layout)) return 1;
 	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.ssao_blur_descriptor_pool,
 		1, &singleton_data.one_texture_descriptor_layout)) return 1;
+	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.ssao_blur_descriptor_pool2,
+		1, &singleton_data.one_texture_descriptor_layout)) return 1;
 	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.bloom_downsample_descriptor_pool,
 		1, &singleton_data.one_texture_descriptor_layout)) return 1;
 	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.bloom_gaussian_descriptor_pool,
@@ -253,6 +255,9 @@ void pigeon_wgi_set_global_descriptors(void)
 
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.ssao_blur_descriptor_pool, 0, 0, 0, 
 		&singleton_data.ssao_image.image_view, &singleton_data.bilinear_sampler);
+
+	pigeon_vulkan_set_descriptor_texture(&singleton_data.ssao_blur_descriptor_pool2, 0, 0, 0, 
+		&singleton_data.ssao_blur_image.image_view, &singleton_data.bilinear_sampler);
 
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.bloom_downsample_descriptor_pool, 0, 0, 0, 
 		&singleton_data.render_image.image_view, &singleton_data.bilinear_sampler);
@@ -295,6 +300,7 @@ unsigned int pigeon_image_format_bytes_per_pixel(PigeonWGIImageFormat f)
 		case PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR:
 			return 1;
 		case PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR:
+		case PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16:
 			return 2;
 		case PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24:
 			return 3;

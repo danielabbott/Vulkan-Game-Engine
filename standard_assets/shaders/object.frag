@@ -19,35 +19,15 @@ void main() {
 
     /* Ambient Occlusion */
 
+    DrawCallObject data = draw_call_objects.obj[in_draw_call_index];  
     vec2 tex_coord = gl_FragCoord.xy / ubo.viewport_size;
 
-    const float weights[4] = float[](
-        0.1945945946,
-        0.1216216216,
-        0.0540540541,
-        0.0162162162
-    );
 
-    const float centre_weight = 0.2270270270;
+    float occlusion = texture(ssao_image, tex_coord).r;
 
-    // Centre value
 
-	float occlusion = texture(ssao_image, tex_coord).r * centre_weight;
-	
-	// Others
+    occlusion *= 0.03 * data.ssao_intensity;
 
-	float x = 1.5;
-	for(int i = 0; i < 4; i += 1) {
-		occlusion += texture(ssao_image, vec2(tex_coord.x + x*ubo.one_pixel_x, tex_coord.y)).r
-			* weights[i];
-		occlusion += texture(ssao_image, vec2(tex_coord.x - x*ubo.one_pixel_x, tex_coord.y)).r
-			* weights[i];
-		x += 2;
-	}
-
-    DrawCallObject data = draw_call_objects.obj[in_draw_call_index];
-    
-    occlusion *= 0.05 * data.ssao_intensity;
 
 
     /* Normal map */
@@ -69,9 +49,7 @@ void main() {
 
     /* Light */
 
-    // vec3 colour = ubo.ambient * vec3(1-clamp(occlusion, 0.0, 1)*0.7);
     vec3 colour = ubo.ambient;
-    // vec3 colour = vec3(0);
 
     for(uint i = 0; i < ubo.number_of_lights; i++) {
         Light l = ubo.lights[i];
@@ -101,11 +79,11 @@ void main() {
                 ) / 5;
             }
         }
-
-
         colour += intensity*l.light_intensity__and__shadow_pixel_offset.rgb;
     }
-    colour *= vec3(1-clamp(occlusion, 0.0, 1)*0.7);
+
+    colour *= vec3(1-clamp(occlusion, 0.0, 1)*0.9);
+    colour += vec3(0.1, 0, 0.2) * clamp(occlusion, 0.0, 1)*0.1;
 
     colour *= data.colour.rgb;
 
