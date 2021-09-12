@@ -14,7 +14,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.vertex_shader_depends_on_transfer = true;
 	config.fragment_shader_depends_on_transfer = false;
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP;
-	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16;
+	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24;
 
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config)) return 1;
 

@@ -41,7 +41,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
 {
     PigeonVulkanSwapchainInfo sc_info = pigeon_vulkan_get_swapchain_info();
     
-    if(create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16, 
+    if(create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, 
         sc_info.width, sc_info.height, false, false)) return 1;
     if(create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
         sc_info.width, sc_info.height, false, false)) return 1;

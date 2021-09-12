@@ -77,11 +77,17 @@ void pigeon_wgi_perspective(mat4 m, float fovy, float aspect, float nearZ)
 
 	glm_mat4_zero(m);
 
+	// x
 	m[0][0] = f / aspect;
+
+	// y
 	m[1][1] = -f;
-	m[2][3] = -1;
+
+	// z
 	m[3][2] = nearZ;
-	m[3][3] = 0;
+
+	// w
+	m[2][3] = -1;
 }
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix)
