@@ -189,8 +189,13 @@ int parser_match_key_get_value(char ** input, const char * const* keys, unsigned
         if(char_is_whitespace(in[i])) whitespace_counter++;
         else whitespace_counter = 0;
     }
+    if(!in[i]) {
+        *input = NULL;
+    }
+    else {
+        *input = &in[i+1];
+    }
     in[i-whitespace_counter] = 0;
-    *input = &in[i+1];
     *value = in;
 
 

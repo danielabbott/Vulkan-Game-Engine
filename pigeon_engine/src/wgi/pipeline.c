@@ -57,7 +57,7 @@ void pigeon_wgi_destroy_render_passes(void)
 	if (singleton_data.rp_depth.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_depth);
 	if (singleton_data.rp_ssao.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao);
 	if (singleton_data.rp_ssao_blur.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao_blur);
-	if (singleton_data.rp_bloom_gaussian.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao_blur);
+	if (singleton_data.rp_bloom_gaussian.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_bloom_gaussian);
 	if (singleton_data.rp_render.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_render);
 	if (singleton_data.rp_post.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_post);
 

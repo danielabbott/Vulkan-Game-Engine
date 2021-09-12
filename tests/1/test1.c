@@ -8,10 +8,23 @@
 #include <cglm/clipspace/persp_rh_zo.h>
 #include <cglm/euler.h>
 #include <cglm/affine.h>
+#include <pigeon/audio/audio.h>
+
+#define NUM_AUDIO 1
+#define ASSET_PATH5(x) ("build/test_assets/audio/" x ".asset")
+#define ASSET_PATH6(x) ("build/test_assets/audio/" x ".data")
+
+
+const char *audio_file_paths[NUM_AUDIO][2] = {
+	{ASSET_PATH5("pigeon.ogg"), ASSET_PATH6("pigeon.ogg")},
+};
+
+PigeonAsset audio_assets[NUM_AUDIO];
+PigeonAudioBuffer audio_buffers[NUM_AUDIO];
+PigeonAudioSource pigeon_source;
 
 
 #define NUM_MODELS 2
-
 #define ASSET_PATH(x) ("build/test_assets/models/" x ".asset")
 #define ASSET_PATH2(x) ("build/standard_assets/models/" x ".asset")
 #define ASSET_PATH3(x) ("build/test_assets/models/" x ".data")
@@ -91,8 +104,12 @@ static void key_callback(PigeonWGIKeyEvent e)
 	if(e.key == PIGEON_WGI_KEY_1 && !e.pressed) {
 		debug_disable_ssao = !debug_disable_ssao;
 	}
-	else if(e.key == PIGEON_WGI_KEY_2 && !e.pressed) {
+	if(e.key == PIGEON_WGI_KEY_2 && !e.pressed) {
 		debug_disable_bloom = !debug_disable_bloom;
+	}
+
+	if(e.key == PIGEON_WGI_KEY_0 && !e.pressed) {
+		pigeon_audio_play(pigeon_source, audio_buffers[0]);
 	}
 }
 
@@ -112,6 +129,8 @@ static ERROR_RETURN_TYPE start(void)
 	}
 
 	pigeon_wgi_set_key_callback(key_callback);
+	
+	ASSERT_1(!pigeon_audio_init());
 
 	return 0;
 }
@@ -151,6 +170,35 @@ static ERROR_RETURN_TYPE load_texture_asset(const char *asset_name, PigeonAsset 
 	ASSERT_1(!pigeon_load_asset_data(asset, data_file_path));
 
 	return 0;
+}
+
+static ERROR_RETURN_TYPE load_audio_assets(void)
+{
+	if(!NUM_AUDIO) return 0;
+	ASSERT_1(!pigeon_audio_create_buffers(NUM_AUDIO, audio_buffers));
+
+	for (unsigned int i = 0; i < NUM_AUDIO; i++)
+	{
+		ASSERT_1(!pigeon_load_asset_meta(&audio_assets[i], audio_file_paths[i][0]));
+		ASSERT_1(audio_assets[i].type == PIGEON_ASSET_TYPE_AUDIO);
+		ASSERT_1(!pigeon_load_asset_data(&audio_assets[i], audio_file_paths[i][1]));
+		ASSERT_1(!pigeon_decompress_asset(&audio_assets[i], NULL, 0));
+		ASSERT_1(!pigeon_audio_upload(audio_buffers[i], audio_assets[i].audio_meta, 
+			audio_assets[i].subresources[0].decompressed_data,
+			audio_assets[i].subresources[0].decompressed_data_length));
+		pigeon_free_asset(&audio_assets[i]);
+	}
+
+	ASSERT_1(!pigeon_audio_create_sources(1, &pigeon_source));
+	
+	return 0;
+}
+
+static void audio_cleanup(void)
+{
+	if(pigeon_source) pigeon_audio_destroy_sources(1, &pigeon_source);
+	if(NUM_AUDIO && audio_buffers[0]) pigeon_audio_destroy_buffers(NUM_AUDIO, audio_buffers);
+	pigeon_audio_deinit();
 }
 
 static ERROR_RETURN_TYPE load_model_assets(void)
@@ -232,6 +280,7 @@ static ERROR_RETURN_TYPE load_texture_assets()
 static ERROR_RETURN_TYPE load_assets(void)
 {
 	ASSERT_1(!load_model_assets());
+	ASSERT_1(!load_audio_assets());
 
 	// This assumes that textures are not shared between models
 
@@ -349,6 +398,15 @@ static ERROR_RETURN_TYPE create_array_textures(PigeonWGICommandBuffer *cmd)
 	return 0;
 }
 
+static void destroy_array_textures(void)
+{
+	ArrayTexture * arr = array_texture_0;
+	while(arr) {
+		pigeon_wgi_destroy_array_texture(&arr->t);
+		arr = arr->next;
+	}
+}
+
 static void free_assets(void)
 {
 	if (texture_assets)
@@ -377,7 +435,7 @@ static ERROR_RETURN_TYPE create_meshes(void)
 
 		uint64_t full_size = 0;
 		for(unsigned int j = 0; j < PIGEON_ASSET_MAX_SUBRESOURCES; j++) {
-			full_size += model_assets[i].compression[j].decompressed_data_length;
+			full_size += model_assets[i].subresources[j].decompressed_data_length;
 		}
 		ASSERT_1(full_size == sz);
 
@@ -402,13 +460,13 @@ static ERROR_RETURN_TYPE create_meshes(void)
 
 		for (unsigned int i = 0; i < NUM_MODELS; i++) {
 			uint64_t sz = pigeon_wgi_get_vertex_attribute_type_size(attributes[j]) * model_assets[i].mesh_meta.vertex_count;
-			ASSERT_1(sz == model_assets[i].compression[j].decompressed_data_length);
+			ASSERT_1(sz == model_assets[i].subresources[j].decompressed_data_length);
 			ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
 			offset += sz;
 		}
 	}
 	for (unsigned int i = 0; i < NUM_MODELS; i++) {
-		if(j < model_assets[i].compression[j].decompressed_data_length) {
+		if(j < model_assets[i].subresources[j].decompressed_data_length) {
 			if(model_assets[i].mesh_meta.big_indices) {
 				ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
 				offset += 4 * model_assets[i].mesh_meta.index_count;
@@ -907,6 +965,31 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 
 }
 
+
+static void set_audio_listener(vec3 position, vec2 rotation, vec3 position_prev, float delta_time)
+{
+	vec3 velocity;
+	memcpy(velocity, position, sizeof(vec3));
+	velocity[0] -= position_prev[0];
+	velocity[1] -= position_prev[1];
+	velocity[2] -= position_prev[2];
+	velocity[0] *= delta_time;
+	velocity[1] *= delta_time;
+	velocity[2] *= delta_time;
+
+	mat4 rotation_matrix;
+	vec3 angles = {rotation[0], -rotation[1], 0.0f};
+	glm_euler_zyx(angles, rotation_matrix);
+
+	vec3 forwards = {0, 0, -1};
+	glm_vec3_rotate_m4(rotation_matrix, forwards, forwards);
+
+	vec3 up = {0, 1, 0};
+	glm_vec3_rotate_m4(rotation_matrix, up, up);
+
+	pigeon_audio_set_listener(position, forwards, up, velocity);
+}
+
 // TODO ERROR_RETURN_TYPE
 static void game_loop(void)
 {
@@ -919,6 +1002,7 @@ static void game_loop(void)
 
 	vec2 rotation = {0};
 	vec3 position = {0, 1.7f, 0};
+	vec3 position_prev = {0, 1.7f, 0};
 
 	float last_frame_time = pigeon_wgi_get_time_seconds() - 1 / 60.0f;
 
@@ -960,7 +1044,9 @@ static void game_loop(void)
 
 		game_objects[SPINNY_CUBE_INDEX].rotation[1] = fmodf(game_objects[SPINNY_CUBE_INDEX].rotation[1] + delta_time, 2.0f * 3.1315f);
 
+		memcpy(position_prev, position, sizeof(vec3));
 		fps_camera_input(delta_time, rotation, position);
+		set_audio_listener(position, rotation, position_prev, delta_time);
 
 		set_uniforms(&scene_uniform_data, rotation, position, draw_call_objects, total_draw_calls);
 		if (pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_call_objects, total_draw_calls))
@@ -1065,7 +1151,10 @@ int main(void)
 	pigeon_wgi_wait_idle();
 	destroy_pipelines();
 	destroy_meshes();
+	destroy_array_textures();
 	free_assets();
+	audio_cleanup();
+	pigeon_wgi_deinit();
 
 	return 0;
 }

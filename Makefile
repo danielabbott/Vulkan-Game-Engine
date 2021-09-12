@@ -11,19 +11,19 @@ CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra -pedantic \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
 -Wunused-macros -Wcast-align \
--Wformat-security -Wundef -Wconversion -Werror=unused-result -Wno-newline-eof \
+-Wformat-security -Wundef -Wconversion -Werror=unused-result\
 -Iconfig_parser -fstack-protector -I pigeon_engine/include -isystem deps
 
 
 ifeq ($(CC), clang)
 CFLAGS_COMMON += -Wshorten-64-to-32 -Wconditional-uninitialized -Wimplicit-int-conversion \
--Wimplicit-float-conversion -Wimplicit-int-float-conversion
+-Wimplicit-float-conversion -Wimplicit-int-float-conversion -Wno-newline-eof 
 endif
 
 
 CFLAGS = $(CFLAGS_COMMON)
 
-LDFLAGS = -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -lm -lc -fuse-ld=lld
+LDFLAGS = -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -lm -lc -fuse-ld=lld
 
 # -- GLSL CONFIG --
 
@@ -59,13 +59,14 @@ $(SOURCES_FRAG:%=$(BUILD_DIR)/%.spv)
 
 
 SOURCES = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
-$(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard tests/1/*.c) config_parser/parser.c
+$(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
+$(wildcard tests/1/*.c) config_parser/parser.c
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 
 
 DEPS = $(OBJECTS:%.o=%.d) $(OBJECTS_GLSL:%=%.d)
 
-ASSETS_SRC = \
+ASSETS_SRC_IMAGES = \
 $(wildcard test_assets/textures/*.jpg) \
 $(wildcard test_assets/textures/*.jpeg) \
 $(wildcard test_assets/textures/*.png) \
@@ -85,11 +86,19 @@ $(wildcard standard_assets/textures/*.psd) \
 $(wildcard standard_assets/textures/*.gif) \
 $(wildcard standard_assets/textures/*.hdr) \
 $(wildcard standard_assets/textures/*.pic) \
-$(wildcard standard_assets/textures/*.pnm) \
-$(wildcard test_assets/models/*.blend) \
-$(wildcard standard_assets/models/*.blend) \
+$(wildcard standard_assets/textures/*.pnm)
 
-ASSET_FILES = $(ASSETS_SRC:%=build/%.asset)
+ASSETS_SRC_MODELS = $(wildcard test_assets/models/*.blend) \
+$(wildcard standard_assets/models/*.blend)
+
+ASSETS_SRC_AUDIO = $(wildcard test_assets/audio/*.ogg) \
+$(wildcard standard_assets/audio/*.ogg)
+
+ASSET_FILES_TEXTURES = $(ASSETS_SRC_IMAGES:%=build/%.asset)
+ASSET_FILES_MODELS = $(ASSETS_SRC_MODELS:%=build/%.asset)
+ASSET_FILES_AUDIO = $(ASSETS_SRC_AUDIO:%=build/%.asset)
+
+ASSET_FILES = $(ASSET_FILES_TEXTURES) $(ASSET_FILES_MODELS) $(ASSET_FILES_AUDIO)
 
 # -- RULES --
 
@@ -100,6 +109,12 @@ IMAGE_ASSET_CONVERTER_DEPS = image_asset_converter/converter.c config_parser/par
 $(BUILD_DIR)/image_asset_converter: $(IMAGE_ASSET_CONVERTER_DEPS)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $^ -o $@ -lzstd -lm
+
+AUDIO_ASSET_CONVERTER_DEPS = audio_asset_converter/converter.c
+
+$(BUILD_DIR)/audio_asset_converter: $(AUDIO_ASSET_CONVERTER_DEPS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 
 ifeq ($(DEBUG), 1)
@@ -132,13 +147,20 @@ build/debug/parser_test: $(wildcard config_parser/*.c)
 	$(CC) $(CFLAGS_COMMON) -DDEBUG -g -O0 $^ -o $@
 
 
-build/%.asset: % %.import $(IMAGE_ASSET_CONVERTER_DEPS) | $(BUILD_DIR)/image_asset_converter
+$(ASSET_FILES_TEXTURES): build/%.asset: % %.import $(IMAGE_ASSET_CONVERTER_DEPS) | $(BUILD_DIR)/image_asset_converter
 	@mkdir -p $(@D)
 	$(BUILD_DIR)/image_asset_converter $< $@
 
-build/%.blend.asset: %.blend %.blend.import blender_export.py
+
+$(ASSET_FILES_MODELS): build/%.asset: % %.import blender_export.py
 	@mkdir -p $(@D)
 	blender $< --background --python-exit-code 1 --python blender_export.py -- $@
+
+
+$(ASSET_FILES_AUDIO): build/%.asset: % $(AUDIO_ASSET_CONVERTER_DEPS) | $(BUILD_DIR)/audio_asset_converter
+	@mkdir -p $(@D)
+	ln -sf ../../../$< $(patsubst %.asset,%.data,$@)
+	$(BUILD_DIR)/audio_asset_converter $< $@
 
 
 clean_spv:

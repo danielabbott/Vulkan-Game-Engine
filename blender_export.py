@@ -50,7 +50,7 @@ class ByteArrayWriter():
 
 def write_files(asset_text, data, filepath, use_zstd, zstd_path_override):
     data_file = open(filepath.replace('.asset', '.data'), 'wb')
-    asset_text += 'COMPRESSION'
+    asset_text += 'SUBREGIONS'
 
     for data_to_write in data:
         using_zstd = False

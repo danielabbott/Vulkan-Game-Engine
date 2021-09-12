@@ -31,9 +31,7 @@ bool generate_mipmap = true;
 static int parse_arguments(int argc, const char ** argv)
 {
     if(argc != 3) {
-       fputs(
-        "Usage: ImageAssetConverter [INPUT_FILE] [OUTPUT_FILE]\n",
-        stderr);
+        fprintf(stderr, "Usage: %s [INPUT_FILE] [OUTPUT_FILE]\n", argv[0]);
         return 1;
     }
 
@@ -431,7 +429,7 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
         output_format == NormalMap ? "RG" : "RGBA"
     );
 
-    fputs("COMPRESSION ", asset_file);
+    fputs("SUBREGIONS ", asset_file);
     if(uncompressed_uses_zstd) {
         fprintf(asset_file, "ZSTD %u>%u", uncompressed_data_length, uncompressed_data_length_zstd_length);
     }

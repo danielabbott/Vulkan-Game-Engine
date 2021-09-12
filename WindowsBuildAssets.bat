@@ -34,6 +34,7 @@ glslc -O0 -DDEBUG standard_assets\shaders\post.frag -o build\debug\standard_asse
 glslc -O0 -DDEBUG standard_assets\shaders\skybox.frag -o build\debug\standard_assets\shaders\skybox.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\ssao.frag -o build\debug\standard_assets\shaders\ssao.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\ssao_blur.frag -o build\debug\standard_assets\shaders\ssao_blur.frag.spv
+glslc -O0 -DDEBUG standard_assets\shaders\ssao_blur2.frag -o build\debug\standard_assets\shaders\ssao_blur2.frag.spv
 
 glslc -O0 -DDEBUG standard_assets\shaders\downsample.vert -o build\debug\standard_assets\shaders\downsample.vert.spv
 glslc -O0 -DDEBUG standard_assets\shaders\gaussian.vert -o build\debug\standard_assets\shaders\gaussian.vert.spv
@@ -53,3 +54,5 @@ x64\Release\ImageAssetConverter.exe test_assets\textures\t_biomech_mutant_skin_1
 x64\Release\ImageAssetConverter.exe test_assets\textures\t_biomech_mutant_skin_1_bottom_n.jpg build\test_assets\textures\t_biomech_mutant_skin_1_bottom_n.jpg.asset
 x64\Release\ImageAssetConverter.exe test_assets\textures\t_biomech_mutant_skin_1_top_a.jpg build\test_assets\textures\t_biomech_mutant_skin_1_top_a.jpg.asset
 x64\Release\ImageAssetConverter.exe test_assets\textures\t_biomech_mutant_skin_1_top_n.jpg build\test_assets\textures\t_biomech_mutant_skin_1_top_n.jpg.asset
+
+x64\Release\AudioAssetConverter.exe test_assets\audio\pigeon.ogg build\test_assets\audio\pigeon.ogg.asset

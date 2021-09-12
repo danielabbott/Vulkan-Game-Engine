@@ -280,6 +280,8 @@ void pigeon_wgi_destroy_descriptor_pools(void)
 		pigeon_vulkan_destroy_descriptor_pool(&singleton_data.ssao_descriptor_pool);
 	if (singleton_data.ssao_blur_descriptor_pool.vk_descriptor_pool) 
 		pigeon_vulkan_destroy_descriptor_pool(&singleton_data.ssao_blur_descriptor_pool);
+	if (singleton_data.ssao_blur_descriptor_pool2.vk_descriptor_pool) 
+		pigeon_vulkan_destroy_descriptor_pool(&singleton_data.ssao_blur_descriptor_pool2);
 	if (singleton_data.bloom_downsample_descriptor_pool.vk_descriptor_pool) 
 		pigeon_vulkan_destroy_descriptor_pool(&singleton_data.bloom_downsample_descriptor_pool);		
 	if (singleton_data.bloom_gaussian_descriptor_pool.vk_descriptor_pool) 

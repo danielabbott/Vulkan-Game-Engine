@@ -2,12 +2,13 @@
 #include <pigeon/util.h>
 #include <parser.h>
 #include <zstd.h>
+#include <stb_vorbis.c>
 
 enum {
     KEY_ASSET,
     KEY_TYPE,
     KEY_DECOMPRESSED_SIZE,
-    KEY_COMPRESSION,
+    KEY_SUBREGIONS,
 
     KEY_VERTEX_COUNT,
     KEY_BOUNDS_MINIMUM,
@@ -38,6 +39,8 @@ enum {
     KEY_ETC2,
     KEY_ETC2_ALPHA,
 
+    KEY_SAMPLE_RATE,
+    KEY_CHANNELS,
 
     KEY__MAX
 };
@@ -46,7 +49,7 @@ const char * keys[] = {
     "ASSET",
     "TYPE",
     "DECOMPRESSED-SIZE",
-    "COMPRESSION",
+    "SUBREGIONS",
 
     "VERTEX-COUNT",
     "BOUNDS-MINIMUM",
@@ -76,6 +79,9 @@ const char * keys[] = {
     "ETC1",
     "ETC2",
     "ETC2-ALPHA",
+
+    "SAMPLE-RATE",
+    "CHANNELS",
 };
 
 static ERROR_RETURN_TYPE copy_asset_name(PigeonAsset * asset, const char * meta_file_path)
@@ -144,6 +150,9 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
             else if(word_matches(value, "IMAGE")) {
                 asset->type = PIGEON_ASSET_TYPE_IMAGE;
             }
+            else if(word_matches(value, "AUDIO")) {
+                asset->type = PIGEON_ASSET_TYPE_AUDIO;
+            }
             else if(word_matches(value, "NONE") || word_matches(value, "TEXT")
                 || word_matches(value, "BINARY"))
             {
@@ -154,17 +163,20 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 ERR();
             }
         }
-        else if (key == KEY_COMPRESSION) {
+        else if (key == KEY_SUBREGIONS) {
             uint32_t file_offset = 0;
             for(unsigned int i = 0; i < PIGEON_ASSET_MAX_SUBRESOURCES && *value; i++) {
                 if(word_matches(value, "ZSTD")) {
-                    asset->compression[i].type = PIGEON_ASSET_COMPRESSION_TYPE_ZSTD;
+                    asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD;
                 }
                 else if(word_matches(value, "NONE")) {
-                    asset->compression[i].type = PIGEON_ASSET_COMPRESSION_TYPE_NONE;
+                    asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_NONE;
+                }
+                else if(word_matches(value, "OGG")) {
+                    asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE;
                 }
                 else {
-                    fputs("Unknown compression type\n", stderr);
+                    fputs("Unknown subresource type\n", stderr);
                     ERR();
                 }
                 value += 4;
@@ -176,15 +188,21 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 while(*value == ' ' || *value == '\t') value++;
                 if(!*value) ERR2();
 
-                asset->compression[i].original_file_data_offset = file_offset;
+                asset->subresources[i].original_file_data_offset = file_offset;
 
                 long int sz_ = strtol(value, (char**)&value, 10);
                 if(sz_ <= 0 || sz_ > UINT32_MAX) ERR2();
                 uint32_t sz = (uint32_t)sz_;
 
 
-                if(asset->compression[i].type == PIGEON_ASSET_COMPRESSION_TYPE_ZSTD) {
-                    asset->compression[i].decompressed_data_length = sz;
+                if(asset->subresources[i].type == PIGEON_ASSET_SUBRESOURCE_TYPE_NONE) {
+                    asset->subresources[i].decompressed_data_length = sz;
+                }
+                else if(asset->subresources[i].type == PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE) {
+                    asset->subresources[i].compressed_data_length = sz;
+                }
+                else {
+                    asset->subresources[i].decompressed_data_length = sz;
                     if(*value != '>') ERR2();
                     value++;
 
@@ -192,10 +210,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                     if(sz_ <= 0 || sz_ > UINT32_MAX) ERR2();
                     sz = (uint32_t)sz_;
 
-                    asset->compression[i].compressed_data_length = sz;
-                }
-                else {
-                    asset->compression[i].decompressed_data_length = sz;
+                    asset->subresources[i].compressed_data_length = sz;
                 }
                 file_offset += sz;
                 
@@ -470,6 +485,25 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
             CHECK_TYPE(PIGEON_ASSET_TYPE_IMAGE);
             asset->texture_meta.has_etc2_alpha = true;
         }
+        else if (key == KEY_SAMPLE_RATE) {
+            CHECK_TYPE(PIGEON_ASSET_TYPE_AUDIO);
+            long int s = strtol(value, NULL, 10);
+            if(s <= 0 || s > 192000) {
+                fprintf(stderr, "Invalid SAMPLE-RATE: %li\n", s);
+                ERR();
+            }
+            asset->audio_meta.sample_rate = (unsigned int)s;
+        }
+        else if (key == KEY_CHANNELS) {
+            CHECK_TYPE(PIGEON_ASSET_TYPE_AUDIO);
+            long int c = strtol(value, NULL, 10);
+            if(c != 1 && c != 2) {
+                fprintf(stderr, "Invalid CHANNELS: %li\n", c);
+                ERR();
+            }
+            asset->audio_meta.channels = (unsigned int)c;
+        }
+
         else {
             if(input) {
                 // Invalid key
@@ -560,15 +594,15 @@ ERROR_RETURN_TYPE pigeon_load_asset_data(PigeonAsset * asset, const char * data_
 
     ASSERT_1(asset->original_data);
 
-    for(unsigned int i = 0; i < sizeof asset->compression / sizeof *asset->compression; i++) {
-        if(asset->compression[i].type == PIGEON_ASSET_COMPRESSION_TYPE_NONE) {
-            asset->compression[i].decompressed_data = &data[asset->compression[i].original_file_data_offset];
-        }
-        else if(asset->compression[i].type == PIGEON_ASSET_COMPRESSION_TYPE_ZSTD) {
-            asset->compression[i].compressed_data = &data[asset->compression[i].original_file_data_offset];
-        }
-        else {
-            ASSERT_1(false);
+    for(unsigned int i = 0; i < sizeof asset->subresources / sizeof *asset->subresources; i++) {
+        switch(asset->subresources[i].type) {
+            case PIGEON_ASSET_SUBRESOURCE_TYPE_NONE:
+                asset->subresources[i].decompressed_data = &data[asset->subresources[i].original_file_data_offset];
+                break;
+            case PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD:
+            case PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE:
+                asset->subresources[i].compressed_data = &data[asset->subresources[i].original_file_data_offset];
+                break;
         }
     }
 
@@ -580,16 +614,47 @@ ERROR_RETURN_TYPE pigeon_decompress_asset(PigeonAsset * asset, void * buffer, un
 {
     ASSERT_1(asset);
 
-    PigeonAssetCompression * comp = &asset->compression[i];
+    PigeonAssetSubresource * subr = &asset->subresources[i];
+
+    if(buffer && subr->decompressed_data) {
+        memcpy(buffer, subr->decompressed_data, subr->decompressed_data_length);
+        return 0;
+    }
+
+    if(subr->type == PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE) {
+        ASSERT_1(!buffer);
+
+        int channels, sample_rate;
+        short * audio_data;
+        int sample_count = stb_vorbis_decode_memory(subr->compressed_data, (int)subr->compressed_data_length, 
+            &channels, &sample_rate, &audio_data);
+        ASSERT_1(sample_count && channels >= 1 && channels <= 2);
+
+        asset->audio_meta.channels = (unsigned int) channels;
+        asset->audio_meta.sample_rate = (unsigned int) sample_rate;
+        subr->decompressed_data = audio_data;
+        subr->decompressed_data_length = (unsigned)sample_count * (unsigned)channels * 2;
+        subr->decompressed_data_was_mallocd = true;
+
+        return 0;
+    }
+
+    if(!buffer) {
+        ASSERT_1(subr->decompressed_data);
+
+        subr->decompressed_data = malloc(subr->decompressed_data_length);
+        subr->decompressed_data_was_mallocd = true;
+
+        buffer = subr->decompressed_data;
+    }
+
+    ASSERT_1(subr->compressed_data);
     
 
-    if(comp->decompressed_data) {
-        memcpy(buffer, comp->decompressed_data, comp->decompressed_data_length);
-    }
-    else if (comp->compressed_data && comp->type == PIGEON_ASSET_COMPRESSION_TYPE_ZSTD) {
+    if (subr->type == PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD) {
         size_t output_bytes_count = ZSTD_decompress(
-            buffer, comp->decompressed_data_length, 
-            comp->compressed_data, comp->compressed_data_length);
+            buffer, subr->decompressed_data_length, 
+            subr->compressed_data, subr->compressed_data_length);
 
         if(ZSTD_isError(output_bytes_count)) {
             fprintf(stderr, "ZSTD error: %s\n", ZSTD_getErrorName(output_bytes_count));
@@ -617,14 +682,14 @@ void pigeon_free_asset(PigeonAsset * asset)
         asset->original_data = NULL;
     }
 
-    for(unsigned int i = 0; i < sizeof asset->compression / sizeof *asset->compression; i++) {
-        if(asset->compression[i].compressed_data_was_mallocd) {
-            free(asset->compression[i].compressed_data);
-            asset->compression[i].compressed_data = NULL;
+    for(unsigned int i = 0; i < sizeof asset->subresources / sizeof *asset->subresources; i++) {
+        if(asset->subresources[i].compressed_data_was_mallocd) {
+            free(asset->subresources[i].compressed_data);
+            asset->subresources[i].compressed_data = NULL;
         }
-        if(asset->compression[i].decompressed_data_was_mallocd) {
-            free(asset->compression[i].decompressed_data);
-            asset->compression[i].decompressed_data = NULL;
+        if(asset->subresources[i].decompressed_data_was_mallocd) {
+            free(asset->subresources[i].decompressed_data);
+            asset->subresources[i].decompressed_data = NULL;
         }
     }
 

@@ -11,8 +11,10 @@ CGLM 0.8.3 (Not available on vcpkg- copy the include/cglm folder to the Deps fol
 glslc shaderc v2021.0 - spirv-tools v2021.2 - glslang v11.5.0
 zstd 1.5.0
 Blender 2.92.0
+OpenAL 1.1
 stb_image.h (included)
 stb_dxt.h (included)
+stb_vorbis.c (included)
 
 To Compile (Linux):
 

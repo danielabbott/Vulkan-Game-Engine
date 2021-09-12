@@ -56,6 +56,7 @@ void pigeon_wgi_deinit(void)
 	pigeon_vulkan_wait_idle();
 
 	pigeon_wgi_destroy_per_frame_objects();
+	pigeon_wgi_destroy_sync_objects();
 	pigeon_wgi_destroy_default_textures();
 	pigeon_wgi_destroy_standard_pipeline_objects();
 	pigeon_vulkan_destroy_swapchain();

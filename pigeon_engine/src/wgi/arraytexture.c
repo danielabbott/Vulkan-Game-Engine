@@ -129,7 +129,7 @@ void pigeon_wgi_destroy_array_texture(PigeonWGIArrayTexture* array_texture)
         if(array_texture->data->image_memory.vk_device_memory) 
             pigeon_vulkan_free_memory(&array_texture->data->image_memory);
 
-        if(array_texture->data->staging_buffer.size) 
+        if(array_texture->data->staging_buffer.vk_buffer) 
             pigeon_vulkan_destroy_buffer(&array_texture->data->staging_buffer);
 
 		if(array_texture->data->staging_buffer_memory.vk_device_memory) 

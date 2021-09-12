@@ -93,6 +93,8 @@ void pigeon_wgi_destroy_framebuffers(void)
         pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_framebuffer);
     if(singleton_data.ssao_blur_framebuffer.vk_framebuffer) 
         pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_blur_framebuffer);
+    if(singleton_data.ssao_blur_framebuffer2.vk_framebuffer) 
+        pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_blur_framebuffer2);
     if(singleton_data.render_framebuffer.vk_framebuffer) 
         pigeon_vulkan_destroy_framebuffer(&singleton_data.render_framebuffer);
     if(singleton_data.bloom_gaussian_intermediate_framebuffer.vk_framebuffer) 
