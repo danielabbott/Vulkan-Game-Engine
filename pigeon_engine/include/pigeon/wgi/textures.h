@@ -12,6 +12,7 @@ typedef struct PigeonWGITextureMeta
     unsigned int width;
     unsigned int height;
     PigeonWGIImageFormat format;
+    bool has_alpha;
     bool has_mip_maps;
 
     // The compressed texture data is always stored in the same order as these variables

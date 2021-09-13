@@ -426,7 +426,7 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
         image_file_path,
         image_width,
         image_height,
-        output_format == NormalMap ? "RG" : "RGBA"
+        output_format == NormalMap ? "RG" : (output_format == RGB ? "RGB" : "RGBA")
     );
 
     fputs("SUBREGIONS ", asset_file);

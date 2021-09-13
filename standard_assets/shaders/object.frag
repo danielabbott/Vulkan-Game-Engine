@@ -26,7 +26,7 @@ void main() {
     float occlusion = texture(ssao_image, tex_coord).r;
 
 
-    occlusion *= 0.03 * data.ssao_intensity;
+    occlusion *= data.ssao_intensity;
 
 
 
@@ -82,15 +82,28 @@ void main() {
         colour += intensity*l.light_intensity__and__shadow_pixel_offset.rgb;
     }
 
-    colour *= vec3(1-clamp(occlusion, 0.0, 1)*0.9);
+    colour *= vec3(1-clamp(occlusion, 0.0, 1));
     colour += vec3(0.1, 0, 0.2) * clamp(occlusion, 0.0, 1)*0.1;
 
     colour *= data.colour.rgb;
 
+    float alpha = 1;
+
     if(data.texture_sampler_index_plus1 >= 1) {
         vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
         vec4 tex_val = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index));
-        colour = mix(colour * data.under_colour.rgb, colour * tex_val.rgb*1.2, tex_val.a);
+        tex_val.rgb *= 1.2;
+
+
+        if(data.under_colour.a == 1) {
+            colour *= mix(data.under_colour.rgb, tex_val.rgb, tex_val.a);
+        }
+        else {
+            colour *= tex_val.rgb;
+            if(data.under_colour.a == 2) {
+                alpha = tex_val.a;
+            }
+        }
     }
 
     colour = max(vec3(0), colour);
@@ -100,5 +113,5 @@ void main() {
 
 
     const vec3 luminance_multipliers = vec3(0.2126, 0.7152, 0.0722);
-    out_colour = vec4(colour, dot(colour, luminance_multipliers));
+    out_colour = vec4(colour, alpha);
 }

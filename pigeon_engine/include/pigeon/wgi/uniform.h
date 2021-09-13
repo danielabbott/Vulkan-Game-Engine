@@ -4,6 +4,10 @@
 #include <cglm/types.h>
 #include <stdint.h>
 
+#define PIGEON_WGI_ALPHA_CHANNEL_UNUSED 0.0f
+#define PIGEON_WGI_ALPHA_CHANNEL_UNDER_COLOUR 1.0f
+#define PIGEON_WGI_ALPHA_CHANNEL_TRANSPARENCY 2.0f
+
 typedef struct PigeonWGIDrawCallObject {
     vec4 position_min;
     vec3 position_range;
@@ -19,7 +23,7 @@ typedef struct PigeonWGIDrawCallObject {
 
     // Textures with alpha channel interpolate between this colour and texture
     vec3 under_colour;
-    float rsvd2;
+    float alpha_channel_usage;
 
     vec4 texture_uv_base_and_range; // .xy = base, .zw = range
     vec4 normal_map_uv_base_and_range;

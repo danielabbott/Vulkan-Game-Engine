@@ -467,6 +467,8 @@ void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer* command_buffer,
     PigeonWGIPipeline* pipeline, PigeonWGIMultiMesh* mesh,
     uint32_t first_multidraw_index, uint32_t drawcalls, uint32_t first_drawcall_index)
 {
+    if(!drawcalls) return;
+
     assert(command_buffer && pipeline && pipeline->pipeline && mesh && mesh->staged_buffer);
     assert(first_drawcall_index + drawcalls <= singleton_data.max_draw_calls);
     assert(first_multidraw_index + drawcalls <= singleton_data.max_multidraw_draw_calls);

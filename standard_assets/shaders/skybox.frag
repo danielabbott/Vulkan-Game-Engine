@@ -36,6 +36,5 @@ void main() {
     // vec3 colour = mix(colours[colours_index], colours[colours_index+1], 
     //     smoothstep(ranges[colours_index].x, ranges[colours_index].y, up_down));
 
-    const vec3 luminance_multipliers = vec3(0.2126, 0.7152, 0.0722);
-    out_colour = vec4(colour, dot(colour, luminance_multipliers));
+    out_colour = vec4(colour, 1);
 }

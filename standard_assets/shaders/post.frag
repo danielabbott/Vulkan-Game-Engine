@@ -21,25 +21,29 @@ void main() {
 
     const vec3 luminance_multipliers = vec3(0.2126, 0.7152, 0.0722);
 
-	vec4 colour_and_lum = texture(hdr_render, in_tex_coord);
-	vec3 true_colour = colour_and_lum.rgb;
+	vec3 true_colour = texture(hdr_render, in_tex_coord).rgb;
 
 	vec3 colours[4];
 	float luminosities[4];
-	float luminance_average = colour_and_lum.a;
 
 	{
 		int i = 0;
 		for(float y = -1; y <= 1; y+=2) {
 			for(float x = -1; x <= 1; x+=2, i++) {
-				colour_and_lum = texture(hdr_render, in_tex_coord + 0.5*push_constants.one_pixel * vec2(x,y));
-				colours[i] = colour_and_lum.rgb;
-				luminosities[i] = colour_and_lum.a;
-				luminance_average += colour_and_lum.a;			
+				colours[i] = texture(hdr_render, in_tex_coord + 0.5*push_constants.one_pixel * vec2(x,y)).rgb;
+				luminosities[i] = dot(colours[i], luminance_multipliers);
 			}
 		}
-		luminance_average /= 5;
 	}
+	
+	vec3 blurred_colour = (
+		colours[0] +
+		colours[1] +
+		colours[2] +
+		colours[3]
+	) / 4;
+
+	float luminance_average = dot(blurred_colour, luminance_multipliers);
 
 
 	float is_high_contrast = 0;
@@ -53,13 +57,6 @@ void main() {
 	// make is_high_contrast 0 or 1
 	is_high_contrast = sign(is_high_contrast);
 
-	
-	vec3 blurred_colour = (
-		colours[0] +
-		colours[1] +
-		colours[2] +
-		colours[3]
-	) / 4;
 
 	// Use blurred colour if contrast is high, otherwise use true value
 	vec3 colour = is_high_contrast*blurred_colour + (1-is_high_contrast)*true_colour;

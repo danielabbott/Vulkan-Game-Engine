@@ -207,7 +207,7 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 	VkPipelineColorBlendAttachmentState blend = {0};
 	blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
-	if (cfg->blend_function == PIGEON_WGI_BLEND_NORMAL) {
+	if (!cfg->depth_only && cfg->blend_function == PIGEON_WGI_BLEND_NORMAL) {
 		blend.blendEnable = VK_TRUE;
 		blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;

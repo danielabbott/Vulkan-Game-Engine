@@ -438,14 +438,18 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
         }
         else if (key == KEY_IMAGE_FORMAT) {
             CHECK_TYPE(PIGEON_ASSET_TYPE_IMAGE);
-            if(word_matches(value, "RGBA") || word_matches(value, "RGB")) {
+            if(word_matches(value, "RGBA")) {
+                asset->texture_meta.format = PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB;
+                asset->texture_meta.has_alpha = true;
+            }
+            else if(word_matches(value, "RGB")) {
                 asset->texture_meta.format = PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB;
             }
             else if(word_matches(value, "RG")) {
                 asset->texture_meta.format = PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR;
             }
             else {
-                fprintf(stderr, "Invalid IMAGE-FORMAT: %s\n", old_input_value);
+                fprintf(stderr, "Invalid IMAGE-FORMAT: %s\n", value);
                 ERR();
             }
         }
