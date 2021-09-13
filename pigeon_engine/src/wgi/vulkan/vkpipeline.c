@@ -205,7 +205,7 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 	}
 
 	VkPipelineColorBlendAttachmentState blend = {0};
-	blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
 
 	if (!cfg->depth_only && cfg->blend_function == PIGEON_WGI_BLEND_NORMAL) {
 		blend.blendEnable = VK_TRUE;

@@ -310,6 +310,7 @@ unsigned int pigeon_image_format_bytes_per_pixel(PigeonWGIImageFormat f)
 		case PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB:
 		case PIGEON_WGI_IMAGE_FORMAT_BGRA_U8_SRGB:
 		case PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32:
+		case PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR:
 			return 4;
 		case PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR:
 			return 8;

@@ -93,29 +93,84 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 		}
 	}
 
+	VkPhysicalDeviceProperties device_properties;
+	VkPhysicalDeviceFeatures device_features;
 
-	vkGetPhysicalDeviceProperties(physical_device, &singleton_data.device_properties);
+	vkGetPhysicalDeviceProperties(physical_device, &device_properties);
 
-	if ((singleton_data.device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) != dedicated) {
+	if ((device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) != dedicated) {
 		return false;
 	}
 
-	vkGetPhysicalDeviceFeatures(physical_device, &singleton_data.device_features);
-	singleton_data.depth_clamp_supported = singleton_data.device_features.depthClamp;
-	singleton_data.anisotropy_supported = singleton_data.device_features.samplerAnisotropy && singleton_data.device_properties.limits.maxSamplerAnisotropy >= 16;
+	vkGetPhysicalDeviceFeatures(physical_device, &device_features);
 
-	if(!singleton_data.device_features.multiDrawIndirect) {
+	if(!device_features.multiDrawIndirect) {
 		fputs("Multidraw unsupported\n", stderr);
 		return false;
 	}
 
+	singleton_data.depth_clamp_supported = device_features.depthClamp;
+	singleton_data.anisotropy_supported = device_features.samplerAnisotropy && device_properties.limits.maxSamplerAnisotropy >= 16;
+	
 
-	singleton_data.timer_multiplier = ((double)singleton_data.device_properties.limits.timestampPeriod / 1000.0) / 1000.0;
 
-	singleton_data.uniform_buffer_min_alignment = (unsigned)singleton_data.device_properties.limits.minUniformBufferOffsetAlignment;
+	singleton_data.timer_multiplier = ((double)device_properties.limits.timestampPeriod / 1000.0) / 1000.0;
+
+	singleton_data.uniform_buffer_min_alignment = (unsigned)device_properties.limits.minUniformBufferOffsetAlignment;
 	
 	vkGetPhysicalDeviceMemoryProperties(physical_device, &singleton_data.memory_properties);
 
+
+	VkFormatProperties format_properties;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_B10G11R11_UFLOAT_PACK32, &format_properties);
+	singleton_data.b10g11r11_ufloat_pack32_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC1_RGB_SRGB_BLOCK, &format_properties);
+	singleton_data.bc1_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC3_SRGB_BLOCK, &format_properties);
+	singleton_data.bc3_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC5_UNORM_BLOCK, &format_properties);
+	singleton_data.bc5_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC7_SRGB_BLOCK, &format_properties);
+	singleton_data.bc7_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK, &format_properties);
+	singleton_data.etc1_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK, &format_properties);
+	singleton_data.etc2_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK, &format_properties);
+	singleton_data.etc2_rgba_optimal_available = 
+		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+
+
+	
+	printf("Using device: %s\n", device_properties.deviceName);
+
+	if (singleton_data.depth_clamp_supported) puts("Depth clamp supported");
+	if (singleton_data.anisotropy_supported) puts("Anisotropic filtering supported");
+	if (singleton_data.dedicated_allocation_supported) puts("Dedicated allocation supported");
+	if (singleton_data.b10g11r11_ufloat_pack32_optimal_available) puts("VK_FORMAT_B10G11R11_UFLOAT_PACK32 render+blend target supported");
+
+	if (singleton_data.bc1_optimal_available) puts("BC1 supported");
+	if (singleton_data.bc3_optimal_available) puts("BC3 supported");
+	if (singleton_data.bc5_optimal_available) puts("BC5 supported");
+	if (singleton_data.bc7_optimal_available) puts("BC7 supported");
+	if (singleton_data.etc1_optimal_available) puts("ETC1 supported");
+	if (singleton_data.etc2_optimal_available) puts("ETC2 RGB supported");
+	if (singleton_data.etc2_rgba_optimal_available) puts("ETC2 RGBA supported");
 
 	return true;
 }
@@ -157,11 +212,6 @@ ERROR_RETURN_TYPE pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
 	ASSERT__1(singleton_data.physical_device, "No suitable GPU found");
 
 
-	printf("Using device: %s\n", singleton_data.device_properties.deviceName);
-
-	if (singleton_data.depth_clamp_supported) puts("Depth clamp supported");
-	if (singleton_data.anisotropy_supported) puts("Anisotropic filtering supported");
-	if (singleton_data.dedicated_allocation_supported) puts("Dedicated allocation supported");
 
 	return 0;
 

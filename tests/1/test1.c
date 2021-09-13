@@ -65,7 +65,7 @@ typedef struct TextureLocation {
 	PigeonWGIArrayTexture * texture;
 	unsigned int texture_index;
 	unsigned int layer;
-	unsigned int compression_region_index;
+	unsigned int subregion_index;
 } TextureLocation;
 
 TextureLocation *texture_locations; // One for each texture asset
@@ -303,24 +303,60 @@ static ERROR_RETURN_TYPE populate_array_textures(void)
 
 		PigeonWGIImageFormat base_format = asset->texture_meta.format;
 		PigeonWGIImageFormat true_format = base_format;
-		unsigned int compression_region_index = 0;
+		unsigned int subregion_index = 0;
+		unsigned int chosen_subregion = 0;
 
 		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB) {
 			if (asset->texture_meta.has_bc1) {
-				compression_region_index++;
-				true_format = PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
+				subregion_index++;
+				if(pigeon_wgi_bc1_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
+				}
 			}
 			if (asset->texture_meta.has_bc3) {
-				compression_region_index++;
-				true_format = PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB;
+				subregion_index++;
+				if(pigeon_wgi_bc3_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB;
+				}
 			}
 			if (asset->texture_meta.has_bc7) {
-				compression_region_index++;
-				true_format = PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB;
+				subregion_index++;
+				if(pigeon_wgi_bc7_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB;
+				}
+			}
+			if (asset->texture_meta.has_etc1) {
+				subregion_index++;
+				if(pigeon_wgi_etc1_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC1_LINEAR;
+				}
+				if(pigeon_wgi_etc2_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB;
+				}
+			}
+			if (asset->texture_meta.has_etc2) {
+				subregion_index++;
+				if(pigeon_wgi_etc2_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB;
+				}
+			}
+			if (asset->texture_meta.has_etc2_alpha) {
+				subregion_index++;
+				if(pigeon_wgi_etc2_rgba_optimal_available()) {
+					chosen_subregion = subregion_index;
+					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB_ALPHA_SRGB;
+				}
 			}
 		}
-		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR && asset->texture_meta.has_bc5) {
-			compression_region_index = 1;
+		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR && asset->texture_meta.has_bc5
+			&& pigeon_wgi_bc5_optimal_available()) {
+			chosen_subregion = 1;
 			true_format = PIGEON_WGI_IMAGE_FORMAT_BC5;
 		}
 
@@ -364,7 +400,7 @@ static ERROR_RETURN_TYPE populate_array_textures(void)
 		texture_locations[i].texture = &array_texture->t;
 		texture_locations[i].texture_index = texture_index;
 		texture_locations[i].layer = array_texture->t.layers-1;
-		texture_locations[i].compression_region_index = compression_region_index;
+		texture_locations[i].subregion_index = chosen_subregion;
 	}
 	return 0;
 }
@@ -385,7 +421,7 @@ static ERROR_RETURN_TYPE create_array_textures(PigeonWGICommandBuffer *cmd)
 		{
 			if(texture_locations[i].texture == &arr->t) {
 				void *dst = pigeon_wgi_array_texture_upload(&arr->t, layer++, cmd);
-				ASSERT_1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].compression_region_index));
+				ASSERT_1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].subregion_index));
 			}
 		}
 

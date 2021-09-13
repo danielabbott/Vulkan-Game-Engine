@@ -15,6 +15,7 @@ typedef enum {
 	// HDR colour formats
 
 	PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR,
+	PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR, // Support not guaranteed 
 
 	// Depth formats
 
@@ -51,4 +52,12 @@ static inline bool PIGEON_WGI_IMAGE_FORMAT_is_depth(PigeonWGIImageFormat format)
 	return format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32 || format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24
 		|| format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16;
 }
+
+bool pigeon_wgi_bc1_optimal_available(void);
+bool pigeon_wgi_bc3_optimal_available(void);
+bool pigeon_wgi_bc5_optimal_available(void);
+bool pigeon_wgi_bc7_optimal_available(void);
+bool pigeon_wgi_etc1_optimal_available(void);
+bool pigeon_wgi_etc2_optimal_available(void);
+bool pigeon_wgi_etc2_rgba_optimal_available(void);
 

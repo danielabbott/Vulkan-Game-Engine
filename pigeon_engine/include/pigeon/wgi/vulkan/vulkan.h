@@ -17,3 +17,15 @@ typedef struct PigeonVulkanDrawIndexedIndirectCommand {
     int32_t     vertexOffset;
     uint32_t    firstInstance;
 } PigeonVulkanDrawIndexedIndirectCommand;
+
+// PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR
+// If false then use PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR for HDR framebuffers
+bool pigeon_vulkan_compact_hdr_framebuffer_available(void);
+
+bool pigeon_vulkan_bc1_optimal_available(void);
+bool pigeon_vulkan_bc3_optimal_available(void);
+bool pigeon_vulkan_bc5_optimal_available(void);
+bool pigeon_vulkan_bc7_optimal_available(void);
+bool pigeon_vulkan_etc1_optimal_available(void);
+bool pigeon_vulkan_etc2_optimal_available(void);
+bool pigeon_vulkan_etc2_rgba_optimal_available(void);

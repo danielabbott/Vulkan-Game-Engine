@@ -95,3 +95,33 @@ void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matr
 	glm_mat4_inv((vec4*)model, normal_model_matrix);
 	glm_mat4_transpose(normal_model_matrix);
 }
+
+
+bool pigeon_wgi_bc1_optimal_available(void)
+{
+	return pigeon_vulkan_bc1_optimal_available();
+}
+bool pigeon_wgi_bc3_optimal_available(void)
+{
+	return pigeon_vulkan_bc3_optimal_available();
+}
+bool pigeon_wgi_bc5_optimal_available(void)
+{
+	return pigeon_vulkan_bc5_optimal_available();
+}
+bool pigeon_wgi_bc7_optimal_available(void)
+{
+	return pigeon_vulkan_bc7_optimal_available();
+}
+bool pigeon_wgi_etc1_optimal_available(void)
+{
+	return pigeon_vulkan_etc1_optimal_available();
+}
+bool pigeon_wgi_etc2_optimal_available(void)
+{
+	return pigeon_vulkan_etc2_optimal_available();
+}
+bool pigeon_wgi_etc2_rgba_optimal_available(void)
+{
+	return pigeon_vulkan_etc2_rgba_optimal_available();
+}

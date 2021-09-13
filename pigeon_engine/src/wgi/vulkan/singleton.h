@@ -9,8 +9,6 @@ typedef struct SingletonData
 	VkInstance instance;
 
 	VkPhysicalDevice physical_device;
-	VkPhysicalDeviceProperties device_properties;
-	VkPhysicalDeviceFeatures device_features;
 	bool dedicated_allocation_supported;
 	VkSurfaceKHR surface;
 	VkPhysicalDeviceMemoryProperties memory_properties;
@@ -19,6 +17,14 @@ typedef struct SingletonData
 	bool depth_clamp_supported;
 	bool anisotropy_supported;
 	double timer_multiplier;
+	bool b10g11r11_ufloat_pack32_optimal_available;
+	bool bc1_optimal_available;
+	bool bc3_optimal_available;
+	bool bc5_optimal_available;
+	bool bc7_optimal_available;
+	bool etc1_optimal_available;
+	bool etc2_optimal_available;
+	bool etc2_rgba_optimal_available;
 
 	uint32_t general_queue_family;
 	uint32_t transfer_queue_family;

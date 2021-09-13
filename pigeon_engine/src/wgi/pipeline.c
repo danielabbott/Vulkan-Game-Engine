@@ -3,6 +3,7 @@
 #include <pigeon/wgi/pipeline.h>
 #include <pigeon/wgi/vulkan/renderpass.h>
 #include <pigeon/wgi/vulkan/swapchain.h>
+#include <pigeon/wgi/vulkan/vulkan.h>
 #include <pigeon/util.h>
 
 ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
@@ -28,13 +29,15 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao, config)) return 1;
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao_blur, config)) return 1; // TODO merge into 1
 
-	config.colour_image = PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
+
+    config.colour_image = pigeon_vulkan_compact_hdr_framebuffer_available() ?
+    	PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR : PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
+
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_gaussian, config)) return 1;
 
 	// render
 	config.fragment_shader_depends_on_transfer = true;
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_READ_ONLY;
-	config.colour_image = PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
 	config.clear_colour_image = false;
 
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_render, config)) return 1;

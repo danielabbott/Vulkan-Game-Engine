@@ -41,6 +41,40 @@ unsigned int pigeon_vulkan_get_uniform_buffer_min_alignment(void)
 	return singleton_data.uniform_buffer_min_alignment;
 }
 
+bool pigeon_vulkan_compact_hdr_framebuffer_available(void)
+{
+	return singleton_data.b10g11r11_ufloat_pack32_optimal_available;
+}
+
+bool pigeon_vulkan_bc1_optimal_available(void)
+{
+	return singleton_data.bc1_optimal_available;
+}
+bool pigeon_vulkan_bc3_optimal_available(void)
+{
+	return singleton_data.bc3_optimal_available;
+}
+bool pigeon_vulkan_bc5_optimal_available(void)
+{
+	return singleton_data.bc5_optimal_available;
+}
+bool pigeon_vulkan_bc7_optimal_available(void)
+{
+	return singleton_data.bc7_optimal_available;
+}
+bool pigeon_vulkan_etc1_optimal_available(void)
+{
+	return singleton_data.etc1_optimal_available;
+}
+bool pigeon_vulkan_etc2_optimal_available(void)
+{
+	return singleton_data.etc2_optimal_available;
+}
+bool pigeon_vulkan_etc2_rgba_optimal_available(void)
+{
+	return singleton_data.etc2_rgba_optimal_available;
+}
+
 
 void pigeon_vulkan_wait_idle(void)
 {

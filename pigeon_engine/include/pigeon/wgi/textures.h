@@ -17,7 +17,7 @@ typedef struct PigeonWGITextureMeta
 
     // The compressed texture data is always stored in the same order as these variables
     // Mipmap chains are stored together, smallest mip size is 4x4 pixels (this includes uncompressed formats)
-    // e.g. 16x16 RGB image: bc1_level0 bc1_level1, bc1_level2, bc5_level0, bc5_level1, bc5_level2
+    // e.g. 16x16 RGB image: bc1_level0 bc1_level1, bc1_level2, etc1_level0, etc1_level1, etc1_level2
 
     bool has_bc1;
     bool has_bc3;
