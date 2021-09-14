@@ -32,7 +32,9 @@ int pigeon_vulkan_create_sampler(PigeonVulkanSampler* sampler, bool linear_filte
 
     if (shadow_map) {
         sampler_create.compareEnable = true;
-        sampler_create.compareOp = VK_COMPARE_OP_GREATER;
+        sampler_create.compareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+        sampler_create.magFilter = VK_FILTER_LINEAR;
+        sampler_create.minFilter = VK_FILTER_LINEAR;
     }
 
     if (clamp_to_edge) {

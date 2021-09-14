@@ -120,7 +120,6 @@ void pigeon_wgi_destroy_samplers(void)
 	if (singleton_data.texture_sampler.vk_sampler) pigeon_vulkan_destroy_sampler(&singleton_data.texture_sampler);
 }
 
-// TODO use device-local memory and clear with vkCmdClearColorImage?
 static ERROR_RETURN_TYPE create_default_image_objects(void)
 {
 	PigeonVulkanMemoryRequirements memory_req;
@@ -150,6 +149,7 @@ static ERROR_RETURN_TYPE create_default_image_objects(void)
 		&singleton_data.default_1px_white_texture_image, false)) return 1;
 	if (pigeon_vulkan_create_image_view(&singleton_data.default_1px_white_texture_array_image_view,
 		&singleton_data.default_1px_white_texture_image, true)) return 1;
+
 	return 0;
 }
 
@@ -187,7 +187,7 @@ static ERROR_RETURN_TYPE transition_default_image()
 		return 1;
 	}
 
-	pigeon_vulkan_transition_image_preinit_to_general(&command_pool, 0, &singleton_data.default_1px_white_texture_image);
+	pigeon_vulkan_transition_image_preinit_to_shader_read(&command_pool, 0, &singleton_data.default_1px_white_texture_image);
 
 
 	if (pigeon_vulkan_submit(&command_pool, 0, &fence)) {

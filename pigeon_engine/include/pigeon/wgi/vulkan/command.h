@@ -39,7 +39,7 @@ int pigeon_vulkan_start_submission2(PigeonVulkanCommandPool* command_pool, unsig
 
 
 
-void pigeon_vulkan_transition_image_preinit_to_general(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*);
+void pigeon_vulkan_transition_image_preinit_to_shader_read(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*);
 void pigeon_vulkan_transition_image_to_transfer_dst(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*);
 void pigeon_vulkan_transition_transfer_src_to_shader_read(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanImage*);

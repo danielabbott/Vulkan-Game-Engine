@@ -84,7 +84,7 @@ typedef struct GO
 
 GO game_objects[NUM_GAME_OBJECTS] = {
 	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {1, 1, 1}},
-	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {1.1f, 0.5f, 1.15f}},
+	{0, {-3, 1.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {1.1f, 0.5f, 1.15f}},
 	{1, {0, 0, -4}, {1, 1, 1}, {0, 0.1f, 0}, {1, 1, 1}},
 };
 
@@ -788,7 +788,7 @@ static void set_object_uniform_data(PigeonWGIDrawCallObject *data,
 	pigeon_wgi_get_normal_model_matrix(data->model, data->normal_model_matrix);
 
 	glm_mat4_mul(scene_uniform_data->view, data->model, data->view_model);
-	glm_mat4_mul(scene_uniform_data->proj_view, data->model, data->proj_view_model);
+	glm_mat4_mul(scene_uniform_data->proj_view, data->model, data->proj_view_model[0]);
 
 	/* Material data */
 
@@ -1087,16 +1087,40 @@ static void game_loop(void)
 	float last_fps_output_time = pigeon_wgi_get_time_seconds();
 	unsigned int fps_frame_counter = 0;
 
+	PigeonWGIShadowParameters shadows[4] = {{0}};
+	{
+		shadows[0].resolution = 1024;
+		shadows[0].near_plane = 6.0f;
+		shadows[0].far_plane = 13.0f;
+		shadows[0].sizeX = 6;
+		shadows[0].sizeY = 6;
+
+		vec3 angles = {glm_rad(70.0f), glm_rad(45.0f), glm_rad(0.0f)};
+		glm_euler_xyz(angles, shadows[0].view_matrix);
+
+		vec3 pos = {2, -10, 0};
+		mat4 t;
+		glm_translate_make(t, pos);	
+		
+
+		glm_mat4_mul(shadows[0].view_matrix, t, shadows[0].view_matrix);
+
+		
+	}
+
+
 	unsigned int frame_number = 0;
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
 		double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT];
 
-		int start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls, delayed_timer_values);
+		int start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls,
+			delayed_timer_values, shadows);
 		if (start_frame_err == 3)
 		{
 			if(recreate_swapchain()) return;
-			start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls, delayed_timer_values);
+			start_frame_err = pigeon_wgi_start_frame(true, total_draw_calls, total_draw_calls,
+				delayed_timer_values, shadows);
 		}
 		if (start_frame_err)
 		{
@@ -1134,6 +1158,7 @@ static void game_loop(void)
 
 		PigeonWGICommandBuffer *upload_command_buffer = pigeon_wgi_get_upload_command_buffer();
 		PigeonWGICommandBuffer *depth_command_buffer = pigeon_wgi_get_depth_command_buffer();
+		PigeonWGICommandBuffer *shadow_command_buffer = pigeon_wgi_get_shadow_command_buffer(0);
 		PigeonWGICommandBuffer *render_command_buffer = pigeon_wgi_get_render_command_buffer();
 
 		if (frame_number == 0)
@@ -1164,6 +1189,8 @@ static void game_loop(void)
 		}
 
 		if (render_frame(depth_command_buffer, true, total_draw_calls, non_transparent_draw_calls))
+			return;
+		if (render_frame(shadow_command_buffer, true, total_draw_calls, non_transparent_draw_calls))
 			return;
 		if (render_frame(render_command_buffer, false, total_draw_calls, non_transparent_draw_calls))
 			return;

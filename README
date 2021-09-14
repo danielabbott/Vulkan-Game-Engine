@@ -7,7 +7,7 @@ clang 12.0.1 or gcc 10.3.0
 Make 4.3
 GLFW 3.3.4
 Vulkan 1.0
-CGLM 0.8.3 (Not available on vcpkg- copy the include/cglm folder to the Deps folder)
+CGLM 0.8.4 (Not available on vcpkg- copy the include/cglm folder to the Deps folder)
 glslc shaderc v2021.0 - spirv-tools v2021.2 - glslang v11.5.0
 zstd 1.5.0
 Blender 2.92.0
@@ -29,6 +29,9 @@ Automatic conversion of blender files and image files to custom zstd-compressed 
 Asset building is done by Makefile (assets built in parallel to code compilation, linux only)
 Normal maps
 Multidraw indirect
-Bloom (WIP)
-Screen-space antialiasing (WIP)
-SSAO (WIP)
+Bloom
+Screen-space antialiasing
+SSAO
+Shadow maps
+Transparent textures (for foliage, hair, etc.)
+Ogg vorbis sound

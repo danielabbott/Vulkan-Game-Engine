@@ -136,7 +136,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass * rp, Pi
 	ASSERT__1(config.depth_mode == PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP || config.colour_image != PIGEON_WGI_IMAGE_FORMAT_NONE, "No-op renderpass");
 
 	if(config.depth_mode != PIGEON_VULKAN_RENDER_PASS_DEPTH_NONE) 
-		ASSERT_1(PIGEON_WGI_IMAGE_FORMAT_is_depth(config.depth_format));
+		ASSERT_1(pigeon_wgi_image_format_is_depth(config.depth_format));
 
 	VkAttachmentDescription attachments[2] = { {0}, {0} };
 	unsigned int attachment_count;

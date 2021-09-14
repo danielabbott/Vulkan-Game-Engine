@@ -8,7 +8,7 @@ layout(location = 2) in vec4 in_tangent;
 layout(location = 3) in vec2 in_uv;
 
 
-layout(location = 0) out vec3 out_position_world_space;
+layout(location = 0) out vec3 out_position_model_space;
 layout(location = 1) out vec2 out_uv;
 layout(location = 2) out flat uint out_draw_call_index;
 layout(location = 3) out mat3 out_tangent_to_world;
@@ -19,6 +19,7 @@ layout(location = 3) out mat3 out_tangent_to_world;
 layout(push_constant) uniform PushConstantsObject
 {
 	uint draw_call_index_offset;
+    uint model_view_proj_index;
 } push_constants;
 
 
@@ -31,12 +32,12 @@ void main() {
     DrawCallObject data = draw_call_objects.obj[draw_call_index];
     vec3 p = vec3(x,y,z) * data.position_range.xyz + data.position_min.xyz;
     
-    gl_Position = data.modelViewProj * vec4(p, 1.0);
+    gl_Position = data.modelViewProj[push_constants.model_view_proj_index] * vec4(p, 1.0);
     
 
 #ifndef DEPTH_ONLY
     out_draw_call_index = draw_call_index;
-    out_position_world_space = (data.model * vec4(p, 1.0)).xyz;
+    out_position_model_space = p.xyz;
     out_uv = in_uv;
 
     mat3 nmat = mat3(data.normal_model_matrix);

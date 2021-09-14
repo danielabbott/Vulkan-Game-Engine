@@ -233,7 +233,7 @@ void pigeon_vulkan_set_descriptor_texture(PigeonVulkanDescriptorPool* pool,
 
 	VkDescriptorImageInfo image_info = {0};
 	image_info.imageLayout = 
-		PIGEON_WGI_IMAGE_FORMAT_is_depth(image_view->format) ? 
+		pigeon_wgi_image_format_is_depth(image_view->format) ? 
 			VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_info.imageView = image_view->vk_image_view;
 	image_info.sampler = sampler->vk_sampler;

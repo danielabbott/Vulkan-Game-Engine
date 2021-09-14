@@ -80,7 +80,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 	}
 
 	if (to_be_attatched) {
-		if (PIGEON_WGI_IMAGE_FORMAT_is_depth(format)) {
+		if (pigeon_wgi_image_format_is_depth(format)) {
 			image_create_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		}
 		else {
@@ -179,7 +179,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_v
 
 	create_info.format = pigeon_get_vulkan_image_format(image->format);
 
-	if (PIGEON_WGI_IMAGE_FORMAT_is_depth(image->format)) {
+	if (pigeon_wgi_image_format_is_depth(image->format)) {
 		create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	}
 	else {

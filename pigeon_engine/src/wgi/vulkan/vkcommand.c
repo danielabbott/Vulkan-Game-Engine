@@ -103,7 +103,7 @@ int pigeon_vulkan_start_submission2(PigeonVulkanCommandPool* command_pool, unsig
 	return 0;
 }
 
-void pigeon_vulkan_transition_image_preinit_to_general(PigeonVulkanCommandPool* command_pool, 
+void pigeon_vulkan_transition_image_preinit_to_shader_read(PigeonVulkanCommandPool* command_pool, 
 	unsigned int buffer_index, PigeonVulkanImage* image)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer && image);
@@ -241,7 +241,7 @@ void pigeon_vulkan_wait_for_depth_write(PigeonVulkanCommandPool* command_pool, u
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
-	assert(image && image->vk_image && PIGEON_WGI_IMAGE_FORMAT_is_depth(image->format));
+	assert(image && image->vk_image && pigeon_wgi_image_format_is_depth(image->format));
 
 
 	VkImageMemoryBarrier image_memory_barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -271,7 +271,7 @@ void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool* command_pool, 
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
-	assert(image && image->vk_image && !PIGEON_WGI_IMAGE_FORMAT_is_depth(image->format));
+	assert(image && image->vk_image && !pigeon_wgi_image_format_is_depth(image->format));
 
 	VkImageMemoryBarrier image_memory_barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
 	image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;

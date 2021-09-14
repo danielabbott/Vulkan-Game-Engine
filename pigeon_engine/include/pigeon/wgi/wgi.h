@@ -6,6 +6,8 @@
 #include "pipeline.h"
 #include "uniform.h"
 #include "mesh.h"
+#include "shadow.h"
+#define CGLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <cglm/types.h>
 
 struct PigeonVulkanCommandPool;
@@ -34,8 +36,10 @@ typedef enum {
 // max_multidraw_draw_calls = maximum number of drawcalls within multidraw draws
 // Instancing counts as multiple draw calls
 // delayed_timer_values is set to the timer query results from 2 or more frames ago
+// index into shadows = index into lights array in per-frame uniform data
 ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, uint32_t max_draw_calls,
-    uint32_t max_multidraw_draw_calls, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT]);
+    uint32_t max_multidraw_draw_calls, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT],
+    PigeonWGIShadowParameters shadows[4]);
 
 ERROR_RETURN_TYPE pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
     PigeonWGIDrawCallObject *, unsigned int num_draw_calls);
@@ -47,6 +51,7 @@ typedef struct PigeonWGICommandBuffer PigeonWGICommandBuffer;
 // ! Discard the command buffer pointers after presenting the frame !
 PigeonWGICommandBuffer * pigeon_wgi_get_upload_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_depth_command_buffer(void);
+PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light_index);
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
 
 ERROR_RETURN_TYPE pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);

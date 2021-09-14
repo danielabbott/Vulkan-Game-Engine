@@ -28,7 +28,7 @@ layout(binding = 0, std140) uniform UniformBufferObject {
 struct DrawCallObject {
     vec4 position_min;
     vec4 position_range__and__ssao_intensity;
-	mat4 modelViewProj;
+	mat4 modelViewProj[5];
     
 	mat4 model;
     mat4 normal_model_matrix;

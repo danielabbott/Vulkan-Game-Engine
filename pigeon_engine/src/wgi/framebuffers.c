@@ -10,7 +10,7 @@
 
 
 
-static int create_framebuffer_images(FramebufferImageObjects * objects,
+int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
     PigeonWGIImageFormat format, unsigned int width, unsigned int height,
     bool to_be_transfer_src, bool to_be_transfer_dst)
 {
@@ -45,19 +45,19 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     PigeonWGIImageFormat hdr_format = pigeon_vulkan_compact_hdr_framebuffer_available() ?
         PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR : PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
     
-    if(create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, 
         sc_info.width, sc_info.height, false, false)) return 1;
-    if(create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
         sc_info.width, sc_info.height, false, false)) return 1;
-    if(create_framebuffer_images(&singleton_data.ssao_blur_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
         sc_info.width/2, sc_info.height, false, false)) return 1;
-    if(create_framebuffer_images(&singleton_data.ssao_blur_image2, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image2, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
         sc_info.width/2, sc_info.height/2, false, false)) return 1;
-    if(create_framebuffer_images(&singleton_data.render_image, hdr_format, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.render_image, hdr_format, 
         sc_info.width, sc_info.height, true, false)) return 1;
-    if(create_framebuffer_images(&singleton_data.bloom_image, hdr_format, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_image, hdr_format, 
         sc_info.width/8, sc_info.height/8, false, true)) return 1;
-    if(create_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image, hdr_format, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image, hdr_format, 
         sc_info.width/8, sc_info.height/8, false, false)) return 1;
 
 

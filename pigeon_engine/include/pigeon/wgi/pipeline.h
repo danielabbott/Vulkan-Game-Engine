@@ -75,6 +75,7 @@ void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 typedef struct PigeonWGIPipeline {
 	struct PigeonVulkanPipeline * pipeline;
 	struct PigeonVulkanPipeline * pipeline_depth_only;
+	struct PigeonVulkanPipeline * pipeline_shadow;
 	bool has_fragment_shader;
 } PigeonWGIPipeline;
 

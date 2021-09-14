@@ -176,9 +176,9 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 
 
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs ? fs->shader : NULL,
-			4, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, config)) {
+			8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, config)) {
 		free(pipeline->pipeline);
-		pipeline->pipeline = NULL;
+		ASSERT_1(false);
 	}
 
 	if(vs_depth_only) {
@@ -186,7 +186,13 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 		if(!pipeline->pipeline_depth_only) {
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			free(pipeline->pipeline);
-			pipeline->pipeline = NULL;
+			ASSERT_1(false);
+		}
+		pipeline->pipeline_shadow = calloc(1, sizeof *pipeline->pipeline_shadow);
+		if(!pipeline->pipeline_shadow) {
+			free(pipeline->pipeline_depth_only);
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
+			free(pipeline->pipeline);
 			ASSERT_1(false);
 		}
 
@@ -195,12 +201,22 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 		config2.depth_test = true;
 		config2.depth_only = true;
 		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_depth_only, vs_depth_only->shader, NULL,
-				4, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2)) {
+				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2)) {
+			free(pipeline->pipeline_shadow);
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			free(pipeline->pipeline);
-			pipeline->pipeline = NULL;
 			free(pipeline->pipeline_depth_only);
-			pipeline->pipeline_depth_only = NULL;
+		}
+
+		config2.cull_mode = PIGEON_WGI_CULL_MODE_FRONT;
+
+		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_shadow, vs_depth_only->shader, NULL,
+				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2)) {
+			free(pipeline->pipeline_shadow);
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_depth_only);
+			free(pipeline->pipeline);
+			free(pipeline->pipeline_depth_only);
 		}
 	}
 
@@ -218,6 +234,11 @@ void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline* pipeline)
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_depth_only);
 			free(pipeline->pipeline_depth_only);
 			pipeline->pipeline_depth_only = NULL;
+		}
+		if(pipeline->pipeline_shadow) {
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_shadow);
+			free(pipeline->pipeline_shadow);
+			pipeline->pipeline_shadow = NULL;
 		}
 	}
 	else {

@@ -47,7 +47,7 @@ typedef enum {
 unsigned int pigeon_image_format_bytes_per_pixel(PigeonWGIImageFormat);
 unsigned int pigeon_image_format_bytes_per_4x4_block(PigeonWGIImageFormat);
 
-static inline bool PIGEON_WGI_IMAGE_FORMAT_is_depth(PigeonWGIImageFormat format)
+static inline bool pigeon_wgi_image_format_is_depth(PigeonWGIImageFormat format)
 {
 	return format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32 || format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24
 		|| format == PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16;

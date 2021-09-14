@@ -11,6 +11,8 @@
 #include <pigeon/wgi/vulkan/command.h>
 #include <pigeon/wgi/vulkan/query.h>
 #include <pigeon/wgi/window.h>
+#include <pigeon/wgi/shadow.h>
+#include <pigeon/wgi/uniform.h>
 
 typedef struct FramebufferImageObjects {
     PigeonVulkanImage image;
@@ -26,9 +28,8 @@ typedef struct PigeonWGICommandBuffer {
 
 	// Below fields are unused for upload command buffer
 
-    PigeonVulkanMemoryAllocation* uniform_buffer_memory;
-    PigeonVulkanBuffer* uniform_buffer;
-	bool depth_only;
+	bool depth_only, shadow;
+	unsigned int mvp_index; // 0 for non-shadow render
 } PigeonWGICommandBuffer;
 
 
@@ -37,6 +38,7 @@ typedef struct PerFrameData {
 
 	PigeonWGICommandBuffer upload_command_buffer;
     PigeonWGICommandBuffer depth_command_buffer;
+	PigeonWGICommandBuffer shadow_command_buffers[4];
     PigeonWGICommandBuffer render_command_buffer;
 
     PigeonVulkanMemoryAllocation uniform_buffer_memory;
@@ -104,6 +106,9 @@ typedef struct SingletonData
     FramebufferImageObjects render_image;
     FramebufferImageObjects bloom_image;
     FramebufferImageObjects bloom_gaussian_intermediate_image;
+    FramebufferImageObjects shadow_images[4];
+
+	bool shadow_framebuffer_assigned[4];
 
     PigeonVulkanFramebuffer depth_framebuffer;
     PigeonVulkanFramebuffer ssao_framebuffer;
@@ -112,6 +117,7 @@ typedef struct SingletonData
     PigeonVulkanFramebuffer render_framebuffer;
     PigeonVulkanFramebuffer bloom_framebuffer;
     PigeonVulkanFramebuffer bloom_gaussian_intermediate_framebuffer;
+    PigeonVulkanFramebuffer shadow_framebuffers[4]; // ** framebuffer may be bigger than necessary
 
 	PigeonVulkanDescriptorPool ssao_descriptor_pool;
 	PigeonVulkanDescriptorPool ssao_blur_descriptor_pool;
@@ -142,6 +148,8 @@ typedef struct SingletonData
 	unsigned int swapchain_image_index;
 	unsigned int previous_frame_index_mod;
 	unsigned int current_frame_index_mod;
+
+	PigeonWGIShadowParameters shadow_parameters[4];
 
 } SingletonData;
 
@@ -184,3 +192,11 @@ void pigeon_wgi_destroy_sync_objects(void);
 void pigeon_wgi_destroy_descriptor_pools(void);
 void pigeon_wgi_set_global_descriptors(void);
 ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void);
+
+ERROR_RETURN_TYPE pigeon_wgi_assign_shadow_framebuffers(void);
+void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDrawCallObject * draw_calls, unsigned int num_draw_calls);
+
+int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
+    PigeonWGIImageFormat format, unsigned int width, unsigned int height,
+    bool to_be_transfer_src, bool to_be_transfer_dst);
+

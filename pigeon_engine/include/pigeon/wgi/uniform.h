@@ -12,7 +12,7 @@ typedef struct PigeonWGIDrawCallObject {
     vec4 position_min;
     vec3 position_range;
     float ssao_intensity;
-    mat4 proj_view_model;
+    mat4 proj_view_model[5];
 
     mat4 model;
     mat4 normal_model_matrix;

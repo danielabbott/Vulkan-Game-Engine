@@ -9,6 +9,7 @@
 #include <pigeon/wgi/textures.h>
 #include <string.h>
 #include <cglm/affine.h>
+#include <cglm/clipspace/persp_rh_zo.h>
 #include <pigeon/util.h>
 
 
@@ -55,6 +56,9 @@ void pigeon_wgi_deinit(void)
 {
 	pigeon_vulkan_wait_idle();
 
+	memset(singleton_data.shadow_parameters, 0, sizeof singleton_data.shadow_parameters);
+	(void)pigeon_wgi_assign_shadow_framebuffers();
+
 	pigeon_wgi_destroy_per_frame_objects();
 	pigeon_wgi_destroy_sync_objects();
 	pigeon_wgi_destroy_default_textures();
@@ -73,21 +77,18 @@ void pigeon_wgi_deinit(void)
 // https://nlguillemot.wordpress.com/2016/12/07/reversed-z-in-opengl/
 void pigeon_wgi_perspective(mat4 m, float fovy, float aspect, float nearZ)
 {
-    float f = 1.0f / tanf(glm_rad(fovy) * 0.5f);
 
-	glm_mat4_zero(m);
+	glm_perspective_rh_zo(glm_rad(fovy), aspect, nearZ, 1000.0f, m);
 
-	// x
-	m[0][0] = f / aspect;
 
-	// y
-	m[1][1] = -f;
+    mat4 fix = {0};
+    fix[0][0] = 1;
+    fix[1][1] = -1;
+    fix[2][2] = -1;
+    fix[3][2] = 1;
+    fix[3][3] = 1;
 
-	// z
-	m[3][2] = nearZ;
-
-	// w
-	m[2][3] = -1;
+    glm_mat4_mul(fix, m, m);
 }
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix)
