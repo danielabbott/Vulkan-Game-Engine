@@ -123,7 +123,10 @@ static ERROR_RETURN_TYPE start(void)
 		.window_mode = PIGEON_WINDOW_MODE_WINDOWED,
 		.title = "Test 1"};
 
-	if (pigeon_wgi_init(window_parameters, true))
+	PigeonWGIRenderConfig cfg = {0};
+	cfg.ssao = true;
+	cfg.bloom = true;
+	if (pigeon_wgi_init(window_parameters, true, cfg))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -1097,7 +1100,7 @@ static void game_loop(void)
 
 	PigeonWGIShadowParameters shadows[4] = {{0}};
 	{
-		shadows[0].resolution = 1024;
+		shadows[0].resolution = 512;
 		shadows[0].near_plane = 6.0f;
 		shadows[0].far_plane = 13.0f;
 		shadows[0].sizeX = 6;

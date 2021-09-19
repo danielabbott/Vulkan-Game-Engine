@@ -106,7 +106,7 @@ static int create_device_local(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAll
 	PigeonVulkanMemoryRequirements mem_req;
 	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
 
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
+	PigeonVulkanMemoryTypePreferences preferences = { 0 };
 	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_MUST;
 	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT;
 	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT;
@@ -136,12 +136,12 @@ static int create_host_visible(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAll
 	PigeonVulkanMemoryRequirements mem_req;
 	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
 
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
+	PigeonVulkanMemoryTypePreferences preferences = { 0 };
 	preferences.device_local = maybe_device_local ? 
-		PIGEON_VULKAN_MEMORY_TYPE_PREFERED : PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT;
+		PIGEON_VULKAN_MEMORY_TYPE_PREFERRED : PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT;
 	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED;
+	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;
 
 	if (pigeon_vulkan_allocate_memory_dedicated(memory, mem_req, preferences, NULL, buffer)) {
 		pigeon_vulkan_destroy_buffer(buffer);
@@ -248,11 +248,11 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_staging_buffer_with_dedicated_memory(Pige
 	PigeonVulkanMemoryRequirements mem_req;
 	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
 
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
-	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	PigeonVulkanMemoryTypePreferences preferences = { 0 };
+	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;
 	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED;
+	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;
 
 	if (pigeon_vulkan_allocate_memory_dedicated(memory, mem_req, 
         preferences, NULL, buffer)) 

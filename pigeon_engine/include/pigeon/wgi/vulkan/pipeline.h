@@ -29,6 +29,9 @@ typedef struct PigeonVulkanPipeline {
 // N.b. Shader objects can be deleted after creating a pipeline
 int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline*, PigeonVulkanShader* vs, PigeonVulkanShader* fs, 
 	unsigned int push_constants_size, PigeonVulkanRenderPass*, PigeonVulkanDescriptorLayout*, 
-	const PigeonWGIPipelineConfig*);
+	const PigeonWGIPipelineConfig*,
+
+	// 1 value in sc_data for each specialisation constant. booleans are 0 (false) or 1 (true)
+	unsigned int specialisation_constants, uint32_t * sc_data);
 
 void pigeon_vulkan_destroy_pipeline(PigeonVulkanPipeline*);

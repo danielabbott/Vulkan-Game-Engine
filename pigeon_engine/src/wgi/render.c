@@ -11,10 +11,6 @@
 #include <pigeon/wgi/uniform.h>
 #include "singleton.h"
 
-int pigeon_wgi_create_framebuffers(void);
-void pigeon_wgi_destroy_framebuffers(void);
-void pigeon_wgi_set_global_descriptors(void);
-
 ERROR_RETURN_TYPE pigeon_wgi_create_sync_objects(void)
 {
     ASSERT_1(!pigeon_vulkan_create_fence(&singleton_data.swapchain_acquire_fence, false));
@@ -81,7 +77,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
 
 
         pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 2, 0, 
-            &singleton_data.ssao_blur_image2.image_view, &singleton_data.bilinear_sampler);
+            singleton_data.render_graph.ssao ? &singleton_data.ssao_blur_image2.image_view : &singleton_data.default_1px_white_texture_image_view, 
+            &singleton_data.bilinear_sampler);
 
 
         for(unsigned int j = 0; j < 4; j++) {
@@ -109,8 +106,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
 
         // Framebuffer is specific to swapchain image - NOT current frame index mod
 
-        create_framebuffer(&singleton_data.post_framebuffers[i],
-            NULL, pigeon_vulkan_get_swapchain_image_view(i), &singleton_data.rp_post);
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.post_framebuffers[i],
+            NULL, pigeon_vulkan_get_swapchain_image_view(i), &singleton_data.rp_post));
 
     }
     return 0;
@@ -189,11 +186,11 @@ static ERROR_RETURN_TYPE create_uniform_buffer(PigeonVulkanMemoryAllocation * me
 		&memory_req
 	));
 
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
-	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
+	PigeonVulkanMemoryTypePreferences preferences = { 0 };
+	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED;
 	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED;
+	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;
 
 	ASSERT_1 (!pigeon_vulkan_allocate_memory(memory, memory_req, preferences));
     ASSERT_1 (!pigeon_vulkan_map_memory(memory, NULL));
@@ -666,58 +663,59 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
     ASSERT_1(!pigeon_vulkan_start_submission(p, 2));
 
+
+    if(singleton_data.render_graph.bloom) {
    
-    // Generate bloom image from HDR (downsample)
+        // Generate bloom image from HDR (downsample)
 
-    struct DownsamplePushC {
-        float offset[2];
-        int samples;
-    };
+        float downsample_pushc[2] = {
+            1 / (float)sc_info.width, 1 / (float)sc_info.height
+        };
 
+        pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
+        pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
+            &singleton_data.bloom_framebuffer, sc_info.width/8, sc_info.height/8, false);
+        pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_downsample);
+        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_downsample, &singleton_data.bloom_downsample_descriptor_pool, 0);
+        pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_downsample, sizeof downsample_pushc, downsample_pushc);
+        pigeon_vulkan_end_render_pass(p, 2);
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_image.image);
 
-    struct DownsamplePushC downsample_pushc = {
-        {1 / (float)sc_info.width, 1 / (float)sc_info.height}, 4
-    };
-
-    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
-    pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
-        &singleton_data.bloom_framebuffer, sc_info.width/8, sc_info.height/8, false);
-    pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_downsample);
-    pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_downsample, &singleton_data.bloom_downsample_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_downsample, sizeof downsample_pushc, &downsample_pushc);
-    pigeon_vulkan_end_render_pass(p, 2);
-    pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_image.image);
-
+    }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 2, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE);
     }
+    
+    if(singleton_data.render_graph.bloom) {
 
-    // Gaussian blur bloom image
+        // Gaussian blur bloom image
 
-    float blur_pushc[2] = {0, 1/((float)sc_info.height/8.0f)};
+        float blur_pushc[2] = {0, 1/((float)sc_info.height/8.0f)};
 
-    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
-    pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
-        &singleton_data.bloom_gaussian_intermediate_framebuffer, sc_info.width/8, sc_info.height/8, false);
-    pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_gaussian);
-    pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_gaussian, &singleton_data.bloom_gaussian_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_gaussian, sizeof blur_pushc, blur_pushc);
-    pigeon_vulkan_end_render_pass(p, 2);
-    pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_gaussian_intermediate_image.image);
-
-
-    float blur_pushc2[2] = {1/((float)sc_info.width/8.0f), 0};
+        pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
+        pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
+            &singleton_data.bloom_gaussian_intermediate_framebuffer, sc_info.width/8, sc_info.height/8, false);
+        pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_gaussian);
+        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_gaussian, &singleton_data.bloom_gaussian_descriptor_pool, 0);
+        pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_gaussian, sizeof blur_pushc, blur_pushc);
+        pigeon_vulkan_end_render_pass(p, 2);
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_gaussian_intermediate_image.image);
 
 
-    pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
-    pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
-        &singleton_data.bloom_framebuffer, sc_info.width/8, sc_info.height/8, false);
-    pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_gaussian);
-    pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_gaussian, &singleton_data.bloom_intermediate_gaussian_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_gaussian, sizeof blur_pushc2, blur_pushc2);
-    pigeon_vulkan_end_render_pass(p, 2);
-    pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_image.image); 
+        float blur_pushc2[2] = {1/((float)sc_info.width/8.0f), 0};
+
+
+        pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
+        pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_gaussian, 
+            &singleton_data.bloom_framebuffer, sc_info.width/8, sc_info.height/8, false);
+        pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_gaussian);
+        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_gaussian, &singleton_data.bloom_intermediate_gaussian_descriptor_pool, 0);
+        pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_gaussian, sizeof blur_pushc2, blur_pushc2);
+        pigeon_vulkan_end_render_pass(p, 2);
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom_image.image); 
+
+    }
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
@@ -814,15 +812,18 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_d
             fb, w, h);
     }
 
-    
-    do_ssao(objects, sc_info, &pushc, debug_disable_ssao);
+    if(singleton_data.render_graph.ssao) {
+        do_ssao(objects, sc_info, &pushc, debug_disable_ssao);
+    }
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE);
     }
 
-    do_ssao_blur(objects, sc_info);
+    if(singleton_data.render_graph.ssao) {
+        do_ssao_blur(objects, sc_info);
+    }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_BLUR_DONE);
@@ -848,7 +849,10 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_d
 
 
 
-    pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 1, &singleton_data.ssao_blur_image2.image);
+    if(singleton_data.render_graph.ssao) {
+        pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 1, &singleton_data.ssao_blur_image2.image);
+    }
+
     use_secondary_command_buffer(&objects->primary_command_pool, 1,
         &objects->render_command_buffer, &singleton_data.rp_render,
         &singleton_data.render_framebuffer, sc_info.width, sc_info.height);

@@ -19,21 +19,25 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config)) return 1;
 
+
 	// ssao, blur
 	config.vertex_shader_depends_on_transfer = false;
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_NONE;
 	config.colour_image = PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR;
 	config.colour_image_is_swapchain = false;
 	config.clear_colour_image = false;
-
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao, config)) return 1;
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao_blur, config)) return 1; // TODO merge into 1
+	if(singleton_data.render_graph.ssao) {
+		if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao, config)) return 1;
+		if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao_blur, config)) return 1; // TODO merge into 1
+	}
 
 
     config.colour_image = pigeon_vulkan_compact_hdr_framebuffer_available() ?
     	PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR : PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
 
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_gaussian, config)) return 1;
+	if(singleton_data.render_graph.bloom) {
+		if (pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_gaussian, config)) return 1;
+	}
 
 	// render
 	config.fragment_shader_depends_on_transfer = true;
@@ -68,7 +72,7 @@ void pigeon_wgi_destroy_render_passes(void)
 
 static int create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path, const char * fs_path, 
 	PigeonVulkanRenderPass* render_pass, PigeonVulkanDescriptorLayout * descriptor_layout,
-	unsigned int push_constant_size)
+	unsigned int push_constant_size, unsigned int specialisation_constants, uint32_t * sc_data)
 {
 	if (!pipeline || !vs_path || !fs_path || !render_pass | !descriptor_layout || push_constant_size > 128) {
 		assert(false);
@@ -87,7 +91,7 @@ static int create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path,
 
 
 	int err = pigeon_vulkan_create_pipeline(pipeline, &vs, &fs, push_constant_size, render_pass, 
-		descriptor_layout, &config);
+		descriptor_layout, &config, specialisation_constants, sc_data);
 	pigeon_vulkan_destroy_shader(&vs);
 	pigeon_vulkan_destroy_shader(&fs);
 	if (err) {
@@ -98,7 +102,7 @@ static int create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path,
 
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects()
+ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 {
 #ifdef NDEBUG
 	#define SHADER_PATH(x) ("build/release/standard_assets/shaders/" x ".spv")
@@ -106,24 +110,34 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects()
 	#define SHADER_PATH(x) ("build/debug/standard_assets/shaders/" x ".spv")
 #endif
 
-	if (create_pipeine(&singleton_data.pipeline_ssao, SHADER_PATH("ssao.vert"), SHADER_PATH("ssao.frag"),
-		&singleton_data.rp_ssao, &singleton_data.one_texture_descriptor_layout, 20)) return 1;
+	if(singleton_data.render_graph.ssao) {
+		uint32_t sc_ssao_samples = 6;
 
-	if (create_pipeine(&singleton_data.pipeline_ssao_blur, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur.frag"),
-		&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
+		if (create_pipeine(&singleton_data.pipeline_ssao, SHADER_PATH("ssao.vert"), SHADER_PATH("ssao.frag"),
+			&singleton_data.rp_ssao, &singleton_data.one_texture_descriptor_layout, 20, 1, &sc_ssao_samples)) return 1;
 
-	if (create_pipeine(&singleton_data.pipeline_ssao_blur2, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur2.frag"),
-		&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
+		if (create_pipeine(&singleton_data.pipeline_ssao_blur, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur.frag"),
+			&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
 
-	if (create_pipeine(&singleton_data.pipeline_bloom_gaussian, SHADER_PATH("gaussian.vert"), SHADER_PATH("bloom_gaussian.frag"),
-		&singleton_data.rp_bloom_gaussian, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
+		if (create_pipeine(&singleton_data.pipeline_ssao_blur2, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur2.frag"),
+			&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
+	}
 
-	if (create_pipeine(&singleton_data.pipeline_downsample, SHADER_PATH("downsample.vert"), 
-		SHADER_PATH("downsample.frag"),
-		&singleton_data.rp_bloom_gaussian, &singleton_data.one_texture_descriptor_layout, 12)) return 1;
+	if(singleton_data.render_graph.bloom) {
+		if (create_pipeine(&singleton_data.pipeline_bloom_gaussian, SHADER_PATH("gaussian.vert"), SHADER_PATH("bloom_gaussian.frag"),
+			&singleton_data.rp_bloom_gaussian, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
+
+		uint32_t sc_bloom_samples = 4;
+
+		if (create_pipeine(&singleton_data.pipeline_downsample, SHADER_PATH("downsample.vert"), 
+			SHADER_PATH("downsample.frag"),
+			&singleton_data.rp_bloom_gaussian, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_bloom_samples)) return 1;
+	}
 		
+	uint32_t sc_use_bloom = singleton_data.render_graph.bloom ? 1 : 0;
+
 	if (create_pipeine(&singleton_data.pipeline_post, SHADER_PATH("post.vert"), SHADER_PATH("post.frag"),
-		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 20)) return 1;
+		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 20, 1, &sc_use_bloom)) return 1;
 
 #undef SHADER_PATH
 	return 0;
@@ -174,9 +188,10 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 	pipeline->pipeline = calloc(1, sizeof *pipeline->pipeline);
 	ASSERT_1(pipeline->pipeline);
 
+	uint32_t sc[2] = {singleton_data.render_graph.ssao ? 1 : 0, 4};
 
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs ? fs->shader : NULL,
-			8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, config)) {
+			8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, config, 2, sc)) {
 		free(pipeline->pipeline);
 		ASSERT_1(false);
 	}
@@ -201,7 +216,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 		config2.depth_test = true;
 		config2.depth_only = true;
 		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_depth_only, vs_depth_only->shader, NULL,
-				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2)) {
+				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2, 0, NULL)) {
 			free(pipeline->pipeline_shadow);
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			free(pipeline->pipeline);
@@ -211,7 +226,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 		config2.cull_mode = PIGEON_WGI_CULL_MODE_FRONT;
 
 		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_shadow, vs_depth_only->shader, NULL,
-				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2)) {
+				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2, 0, NULL)) {
 			free(pipeline->pipeline_shadow);
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_depth_only);

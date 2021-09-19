@@ -9,11 +9,13 @@
 #include "shadow.h"
 #define CGLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <cglm/types.h>
+#include "rendergraph.h"
 
 struct PigeonVulkanCommandPool;
 
 /* Returns 0 on success. If fails, call pigeon_wgi_deinit() to cleanup */
-ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu);
+ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu,
+	PigeonWGIRenderConfig render_graph);
 
 bool pigeon_wgi_close_requested(void);
 

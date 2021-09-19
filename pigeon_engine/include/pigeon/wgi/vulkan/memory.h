@@ -12,12 +12,12 @@ struct PigeonVulkanImage;
 typedef enum {
 	PIGEON_VULKAN_MEMORY_TYPE_DONT_CARE,
 	PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT,
-	PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT,
-	PIGEON_VULKAN_MEMORY_TYPE_PREFERED,
+	PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT,
+	PIGEON_VULKAN_MEMORY_TYPE_PREFERRED,
 	PIGEON_VULKAN_MEMORY_TYPE_MUST,
 } PigeonVulkanMemoryTypePerference;
 
-typedef struct PigeonVulkanMemoryTypePerferences {
+typedef struct PigeonVulkanMemoryTypePreferences {
 	PigeonVulkanMemoryTypePerference device_local;
 	PigeonVulkanMemoryTypePerference host_visible;
 	PigeonVulkanMemoryTypePerference host_coherent;
@@ -25,7 +25,7 @@ typedef struct PigeonVulkanMemoryTypePerferences {
 	// Non-cached memory is best for sequential writes on CPU and reads on GPU
 	// Cached memory is best for writes on GPU and reads on CPU
 	PigeonVulkanMemoryTypePerference host_cached;
-} PigeonVulkanMemoryTypePerferences;
+} PigeonVulkanMemoryTypePreferences;
 
 typedef struct PigeonVulkanMemoryRequirements
 {
@@ -46,12 +46,12 @@ typedef struct PigeonVulkanMemoryAllocation
 	bool is_dedicated;
 } PigeonVulkanMemoryAllocation;
 
-bool pigeon_vulkan_memory_type_possible(PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePerferences preferences);
+bool pigeon_vulkan_memory_type_possible(PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePreferences preferences);
 
 int pigeon_vulkan_allocate_memory(PigeonVulkanMemoryAllocation*, 
-	PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePerferences);
+	PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePreferences);
 int pigeon_vulkan_allocate_memory_dedicated(PigeonVulkanMemoryAllocation*, 
-	PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePerferences,
+	PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePreferences,
 	// One must be valid, the other NULL
 	struct PigeonVulkanImage* image, struct PigeonVulkanBuffer * buffer);
 

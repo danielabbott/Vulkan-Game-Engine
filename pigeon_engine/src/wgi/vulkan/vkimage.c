@@ -234,11 +234,11 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulka
 		&memory_req
 	))
 
-	PigeonVulkanMemoryTypePerferences preferences = { 0 };
-	preferences.device_local = device_local ? PIGEON_VULKAN_MEMORY_TYPE_MUST : PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
-	preferences.host_visible = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT : PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT : PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	PigeonVulkanMemoryTypePreferences preferences = { 0 };
+	preferences.device_local = device_local ? PIGEON_VULKAN_MEMORY_TYPE_MUST : PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;
+	preferences.host_visible = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT : PIGEON_VULKAN_MEMORY_TYPE_MUST;
+	preferences.host_coherent = device_local ? PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT : PIGEON_VULKAN_MEMORY_TYPE_PREFERRED;
+	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;
 
 	if (pigeon_vulkan_allocate_memory_dedicated(memory, memory_req, preferences,
         image, NULL)) {

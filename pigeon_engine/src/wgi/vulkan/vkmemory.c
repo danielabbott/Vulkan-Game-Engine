@@ -11,10 +11,10 @@ static void check_flag(int * score, VkMemoryPropertyFlags flags,
 {
 	if (flags & vk_flag) {
 		if (preference == PIGEON_VULKAN_MEMORY_TYPE_MUST
-			|| preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERED) {
+			|| preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERRED) {
 			(*score)++;
 		}
-		else if (preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT) {
+		else if (preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT) {
 			(*score)--;
 		}
 		else if (preference == PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT) {
@@ -25,18 +25,18 @@ static void check_flag(int * score, VkMemoryPropertyFlags flags,
 		if (preference == PIGEON_VULKAN_MEMORY_TYPE_MUST) {
 			*score = -99999;
 		}
-		else if (preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERED) {
+		else if (preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERRED) {
 			(*score)--;
 		}
 		else if (preference == PIGEON_VULKAN_MEMORY_TYPE_MUST_NOT
-			|| preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT) {
+			|| preference == PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT) {
 			(*score)++;
 		}
 	}
 }
 
 static int get_best_memory_type(uint32_t * best_memory_type_index,
-	PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePerferences preferences)
+	PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePreferences preferences)
 {
 	int* memory_type_scores = malloc(singleton_data.memory_properties.memoryTypeCount * sizeof *memory_type_scores);
 	ASSERT_1(memory_type_scores);
@@ -79,14 +79,14 @@ static int get_best_memory_type(uint32_t * best_memory_type_index,
 	return 0;
 }
 
-bool pigeon_vulkan_memory_type_possible(PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePerferences preferences)
+bool pigeon_vulkan_memory_type_possible(PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePreferences preferences)
 {
 	unsigned int best;
 	return get_best_memory_type(&best, memory_req, preferences) == 0;
 }
 
 static int do_allocatate(PigeonVulkanMemoryAllocation* memory, PigeonVulkanMemoryRequirements memory_req,	
-	PigeonVulkanMemoryTypePerferences preferences, bool dedicated, 
+	PigeonVulkanMemoryTypePreferences preferences, bool dedicated, 
 	PigeonVulkanImage* image, PigeonVulkanBuffer * buffer)
 {
 	ASSERT_1(memory);
@@ -119,13 +119,13 @@ static int do_allocatate(PigeonVulkanMemoryAllocation* memory, PigeonVulkanMemor
 }
 
 int pigeon_vulkan_allocate_memory(PigeonVulkanMemoryAllocation* memory, 
-	PigeonVulkanMemoryRequirements memory_req,	PigeonVulkanMemoryTypePerferences preferences)
+	PigeonVulkanMemoryRequirements memory_req,	PigeonVulkanMemoryTypePreferences preferences)
 {
 	return do_allocatate(memory, memory_req, preferences, false, NULL, NULL);
 }
 
 int pigeon_vulkan_allocate_memory_dedicated(PigeonVulkanMemoryAllocation* memory, 
-	PigeonVulkanMemoryRequirements memory_req,	PigeonVulkanMemoryTypePerferences preferences, 
+	PigeonVulkanMemoryRequirements memory_req,	PigeonVulkanMemoryTypePreferences preferences, 
 	PigeonVulkanImage* image, PigeonVulkanBuffer * buffer)
 {
 	return do_allocatate(memory, memory_req, preferences, singleton_data.dedicated_allocation_supported, image, buffer);

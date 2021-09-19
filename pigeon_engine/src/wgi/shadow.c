@@ -67,7 +67,7 @@ static ERROR_RETURN_TYPE create_shadow_framebuffer(PigeonWGIShadowParameters * p
     ASSERT_1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_images[framebuffer_index],
         PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, p->resolution, p->resolution, false, false));
 
-    ASSERT_1(!create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
+    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
         &singleton_data.shadow_images[framebuffer_index].image_view, NULL, &singleton_data.rp_depth));
     return 0;
 }

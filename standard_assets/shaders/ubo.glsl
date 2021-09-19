@@ -1,3 +1,6 @@
+#ifndef _UBO_GLSL_
+#define _UBO_GLSL_
+
 struct Light {
     vec4 neg_direction_and_is_shadow_caster; // a == 0 -> no shadows
     vec4 light_intensity__and__shadow_pixel_offset; // shadow_pixel_offset = 0.5 / resolution
@@ -52,3 +55,5 @@ struct DrawCallObject {
 layout(binding = 1, std430) readonly restrict buffer DrawCallsObject {
     DrawCallObject obj[64];
 } draw_call_objects;
+
+#endif

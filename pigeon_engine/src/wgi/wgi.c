@@ -11,11 +11,15 @@
 #include <cglm/affine.h>
 #include <cglm/clipspace/persp_rh_zo.h>
 #include <pigeon/util.h>
+#include <pigeon/wgi/rendergraph.h>
 
 
-ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu)
+ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, 
+	bool prefer_dedicated_gpu,
+	PigeonWGIRenderConfig render_graph)
 {
 	pigeon_wgi_deinit();
+	singleton_data.render_graph = render_graph;
 
 
 	ASSERT_1(!pigeon_create_window(window_parameters));
@@ -28,13 +32,13 @@ ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool
 	if (pigeon_wgi_create_descriptor_layouts()) return 1;
 	if (pigeon_wgi_create_samplers()) return 1;
 	if (pigeon_wgi_create_descriptor_pools()) return 1;
+	if (pigeon_wgi_create_default_textures()) return 1;
+
 	pigeon_wgi_set_global_descriptors();
 
 	/* SSAO shader, post-processing shader, etc. */
 	if (pigeon_wgi_create_standard_pipeline_objects()) return 1;
 
-	/* Default textures are 1px white, 1px black, 2x2px missing texture */
-	if (pigeon_wgi_create_default_textures()) return 1;
 
 	ASSERT_1(!pigeon_wgi_create_sync_objects());
 

@@ -1,5 +1,7 @@
 #version 450
 
+layout (constant_id = 0) const bool SC_BLOOM = true;
+
 layout(location = 0) in vec2 in_tex_coord;
 
 layout(location = 0) out vec4 out_colour;
@@ -17,7 +19,11 @@ layout(push_constant) uniform PushConstantsObject
 
 
 void main() {
-	vec3 bloom = texture(bloom_texture, gl_FragCoord.xy / push_constants.viewport_dimensions).rgb;
+	vec3 bloom;
+	
+	if(SC_BLOOM) {
+		bloom = texture(bloom_texture, gl_FragCoord.xy / push_constants.viewport_dimensions).rgb;
+	}
 
     const vec3 luminance_multipliers = vec3(0.2126, 0.7152, 0.0722);
 
@@ -60,7 +66,10 @@ void main() {
 
 	// Use blurred colour if contrast is high, otherwise use true value
 	vec3 colour = is_high_contrast*blurred_colour + (1-is_high_contrast)*true_colour;
-	colour += bloom * push_constants.bloom_intensity;
+
+	if(SC_BLOOM) {
+		colour += bloom * push_constants.bloom_intensity;
+	}
 
 
 

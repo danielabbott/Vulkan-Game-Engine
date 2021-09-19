@@ -1,5 +1,7 @@
 #version 450
 
+layout (constant_id = 0) const int SC_SSAO_SAMPLES = 8;
+
 layout(location = 0) in vec2 in_tex_coord;
 
 layout(location = 0) out float out_colour;
@@ -33,7 +35,6 @@ void main() {
 
 		vec2 surface_direction = normalize(vec2(depth - depth_right, depth - depth_down));
 
-		const int samples = 8; // TODO specialisation constant
 		const vec2 coordinate_offsets[16] = {
 			vec2(0.0678041678194117, -0.201228314587562),
 			vec2(-0.1470315643725863, -0.23561448942786556),
@@ -64,8 +65,8 @@ void main() {
 
 		float length_random_mul = random_value+0.5;		
 
-		for(int i = 0; i < samples; i++) {
-			vec2 p = push_constants.one_pixel * 40 * rotation_matrix * length_random_mul * coordinate_offsets[i];
+		for(int i = 0; i < SC_SSAO_SAMPLES; i++) {
+			vec2 p = push_constants.one_pixel * 40 * rotation_matrix * length_random_mul * coordinate_offsets[(i + int(random_value*16)) % 16];
 
 			// Flip points that are in the wrong direction
 			// if(dot(p, surface_direction) < 0) {
@@ -82,7 +83,7 @@ void main() {
 			// }
 			occlusion += min(1, sign(push_constants.ssao_cutoff - delta)+1) * smoothstep(0,1,delta/push_constants.ssao_cutoff);
 		}
-		occlusion /= float(samples);
+		occlusion /= float(SC_SSAO_SAMPLES);
 		occlusion *= 1.6;
 		occlusion = clamp(occlusion, 0.0, 1.0);
 	}

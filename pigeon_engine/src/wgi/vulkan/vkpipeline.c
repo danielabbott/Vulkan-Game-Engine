@@ -109,10 +109,11 @@ static int create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout*
 // N.b. Shader objects can be deleted after creating a pipeline
 int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanShader* vs, PigeonVulkanShader* fs,
 	unsigned int push_constants_size, PigeonVulkanRenderPass* render_pass,
-	PigeonVulkanDescriptorLayout* descriptor_layout, const PigeonWGIPipelineConfig* cfg)
+	PigeonVulkanDescriptorLayout* descriptor_layout, const PigeonWGIPipelineConfig* cfg,
+	unsigned int specialisation_constants, uint32_t * sc_data)
 {
 	if (!pipeline || !vs || !render_pass || !render_pass->vk_renderpass || !descriptor_layout || 
-			!descriptor_layout->handle || push_constants_size > 128) {
+			!descriptor_layout->handle || push_constants_size > 128 || specialisation_constants > 16) {
 		assert(false);
 		return 1;
 	}
@@ -121,14 +122,33 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 
 	VkPipelineShaderStageCreateInfo shaders[2] = { {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO},
 		{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO} };
+
+	
+
+	VkSpecializationInfo sc_info = {0};
+	VkSpecializationMapEntry sc_maps[16]; 
+
+	sc_info.mapEntryCount = specialisation_constants;
+	sc_info.pMapEntries = sc_maps;
+	sc_info.dataSize = specialisation_constants*4;
+	sc_info.pData = sc_data;
+	
+	for(unsigned int i = 0; i < specialisation_constants; i++) {
+		sc_maps[i].constantID = i;
+		sc_maps[i].offset = i*4;
+		sc_maps[i].size = 4;
+	}
+
 	shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	shaders[0].module = vs->vk_shader_module;
 	shaders[0].pName = "main";
+	shaders[0].pSpecializationInfo = &sc_info;
 
 	if (fs) {
 		shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 		shaders[1].module = fs->vk_shader_module;
 		shaders[1].pName = "main";
+		shaders[1].pSpecializationInfo = &sc_info;
 	}
 
 	VkPipelineVertexInputStateCreateInfo vertex_data_format = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };

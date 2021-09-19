@@ -13,6 +13,7 @@
 #include <pigeon/wgi/window.h>
 #include <pigeon/wgi/shadow.h>
 #include <pigeon/wgi/uniform.h>
+#include <pigeon/wgi/rendergraph.h>
 
 typedef struct FramebufferImageObjects {
     PigeonVulkanImage image;
@@ -74,6 +75,8 @@ typedef struct SingletonData
 	PigeonVulkanSampler bilinear_sampler;
 	PigeonVulkanSampler shadow_sampler;
 	PigeonVulkanSampler texture_sampler;
+
+	PigeonWGIRenderConfig render_graph;
 
 	PigeonVulkanRenderPass rp_depth;
 	PigeonVulkanRenderPass rp_ssao;

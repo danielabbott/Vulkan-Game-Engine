@@ -1,5 +1,8 @@
 #version 460
 
+layout (constant_id = 0) const bool SC_SSAO = true;
+layout (constant_id = 1) const int SC_SHADOW_SAMPLES = 4;
+
 layout(location = 0) in vec3 in_position_model_space;
 layout(location = 1) in vec2 in_uv;
 layout(location = 2) in flat uint in_draw_call_index;
@@ -27,7 +30,11 @@ void main() {
     vec2 tex_coord = gl_FragCoord.xy / ubo.viewport_size;
 
 
-    float occlusion = texture(ssao_image, tex_coord).r;
+    float occlusion = 0;
+
+    if(SC_SSAO) {
+        occlusion = texture(ssao_image, tex_coord).r;
+    }
 
 
     occlusion *= data.ssao_intensity;
@@ -55,8 +62,7 @@ void main() {
 
     vec3 colour = ubo.ambient;
 
-    vec3 worldpos = (data.model * vec4(in_position_model_space, 1)).xyz;
-	float random_value = rand(worldpos.xy) * rand(worldpos.yz);
+	float random_value = rand(tex_coord);
 
     float theta = random_value * 6.28;
 
@@ -80,36 +86,35 @@ void main() {
                 shadow_xyzw.z -= 0.001; // bias
 
 
-                const int samples = 6; // TODO specialisation constant
                 const vec2 coordinate_offsets[16] = {
-                    vec2(0.0678041678194117, -0.201228314587562),
-                    vec2(-0.1470315643725863, -0.23561448942786556),
-                    vec2(0.0673912238553391, 0.08216908015161421),
-                    vec2(-0.08953143685348366, -0.1637138143791691),
-                    vec2(-0.024097381680116083, -0.25873603435891573),
-                    vec2(0.20687725131395668, -0.1631832773408635),
-                    vec2(-0.6336758368043167, -0.4296463996108964),
-                    vec2(0.22061966936261895, -0.5449981869761349),
-                    vec2(0.5681063572166681, -0.5007253324496278),
-                    vec2(-0.0970165718482491, 0.12989274996743697),
-                    vec2(0.08002511555489548, -0.07213557095516908),
-                    vec2(0.17951370995000035, 0.22067782918838866),
-                    vec2(0.5236608021246758, 0.8271779047679781),
-                    vec2(-0.23596494705791657, 0.2543379168604699),
-                    vec2(0.6420671253801079, 0.12024643256643516),
-                    vec2(-0.530138178668724, 0.6031239228915898)
+                    vec2(0.4875777897915544, -0.5842024029676136),
+                    vec2(-0.3648700731469788, 0.056668034376749894),
+                    vec2(-0.12724161595106415, -0.09903190311673399),
+                    vec2(0.0375108787461495, -0.10743292521119407),
+                    vec2(-0.459155057942989, -0.2606492924060484),
+                    vec2(0.25521206628842774, 0.659339368524322),
+                    vec2(-0.5174528744502028, -0.8094710682528433),
+                    vec2(-0.03084910851411543, -0.33607143213936747),
+                    vec2(-0.41634260498132647, 0.20638500309903726),
+                    vec2(0.5427206636967147, 0.3225632302330816),
+                    vec2(0.17582566711558972, 0.32760362406125637),
+                    vec2(-0.3707020801065227, -0.7597524167803934),
+                    vec2(-0.6105668193569544, 0.7612826982853885),
+                    vec2(0.6155144516286416, -0.12755274266548586),
+                    vec2(-0.023345694378709314, 0.7177457877789012),
+                    vec2(0.14610311618695426, -0.35999266309384187),
                 };
 
                 float shadow = 0;
 
                 const vec2 shadow_texture_offset = vec2(l.light_intensity__and__shadow_pixel_offset.w);
-                const float spread = 1.0;
-                for(int j = 0; j < samples; j++) {
-                    vec2 o = rotation_matrix * coordinate_offsets[(i+j + int(random_value*16)) % 16] * shadow_texture_offset * spread;
+                const vec2 spread = vec2(2.3, 1.9);
+                for(int j = 0; j < SC_SHADOW_SAMPLES; j++) {
+                    vec2 o = rotation_matrix * coordinate_offsets[(i+j + int(random_value*16)) % 16] * spread * shadow_texture_offset;
 
                     shadow += texture(shadow_maps[i], vec3(shadow_xyzw.xy + o, shadow_xyzw.z)).r;
                 }
-                intensity *= shadow/float(samples);                
+                intensity *= shadow/float(SC_SHADOW_SAMPLES);             
             }
         }
         colour += intensity*l.light_intensity__and__shadow_pixel_offset.rgb;

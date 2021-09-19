@@ -22,11 +22,11 @@ int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
         to_be_transfer_src, to_be_transfer_dst, &memory_requirements));
     
 
-    static const PigeonVulkanMemoryTypePerferences memory_preferences = { 
+    static const PigeonVulkanMemoryTypePreferences memory_preferences = { 
         .device_local = PIGEON_VULKAN_MEMORY_TYPE_MUST,
-        .host_visible = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT,
-        .host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT,
-        .host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT
+        .host_visible = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT,
+        .host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT,
+        .host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT
     };
 
 	if (pigeon_vulkan_allocate_memory_dedicated(&objects->memory, memory_requirements, memory_preferences,
@@ -47,37 +47,47 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, 
         sc_info.width, sc_info.height, false, false)) return 1;
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
-        sc_info.width, sc_info.height, false, false)) return 1;
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
-        sc_info.width/2, sc_info.height, false, false)) return 1;
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image2, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
-        sc_info.width/2, sc_info.height/2, false, false)) return 1;
+
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.render_image, hdr_format, 
         sc_info.width, sc_info.height, true, false)) return 1;
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_image, hdr_format, 
-        sc_info.width/8, sc_info.height/8, false, true)) return 1;
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image, hdr_format, 
-        sc_info.width/8, sc_info.height/8, false, false)) return 1;
 
-
-    create_framebuffer(&singleton_data.depth_framebuffer,
-        &singleton_data.depth_image.image_view, NULL, &singleton_data.rp_depth);
-    create_framebuffer(&singleton_data.ssao_framebuffer, 
-        NULL, &singleton_data.ssao_image.image_view, &singleton_data.rp_ssao);
-    create_framebuffer(&singleton_data.ssao_blur_framebuffer, 
-        NULL, &singleton_data.ssao_blur_image.image_view, &singleton_data.rp_ssao_blur);
-    create_framebuffer(&singleton_data.ssao_blur_framebuffer2, 
-        NULL, &singleton_data.ssao_blur_image2.image_view, &singleton_data.rp_ssao_blur);
-    create_framebuffer(&singleton_data.render_framebuffer, 
+    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.depth_framebuffer,
+        &singleton_data.depth_image.image_view, NULL, &singleton_data.rp_depth));
+    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.render_framebuffer, 
         &singleton_data.depth_image.image_view, &singleton_data.render_image.image_view, 
-        &singleton_data.rp_render);
-    create_framebuffer(&singleton_data.bloom_framebuffer, 
-        NULL, &singleton_data.bloom_image.image_view, 
-        &singleton_data.rp_bloom_gaussian);
-    create_framebuffer(&singleton_data.bloom_gaussian_intermediate_framebuffer, 
-        NULL, &singleton_data.bloom_gaussian_intermediate_image.image_view, 
-        &singleton_data.rp_bloom_gaussian);
+        &singleton_data.rp_render));
+
+    if(singleton_data.render_graph.ssao) {
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width, sc_info.height, false, false)) return 1;
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width/2, sc_info.height, false, false)) return 1;
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image2, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width/2, sc_info.height/2, false, false)) return 1;
+
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_framebuffer, 
+            NULL, &singleton_data.ssao_image.image_view, &singleton_data.rp_ssao));
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_blur_framebuffer, 
+            NULL, &singleton_data.ssao_blur_image.image_view, &singleton_data.rp_ssao_blur));
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_blur_framebuffer2, 
+            NULL, &singleton_data.ssao_blur_image2.image_view, &singleton_data.rp_ssao_blur));
+    }
+
+    if(singleton_data.render_graph.bloom) {
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_image, hdr_format, 
+            sc_info.width/8, sc_info.height/8, false, true)) return 1;
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image, hdr_format, 
+            sc_info.width/8, sc_info.height/8, false, false)) return 1;
+
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.bloom_framebuffer, 
+            NULL, &singleton_data.bloom_image.image_view, 
+            &singleton_data.rp_bloom_gaussian));
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.bloom_gaussian_intermediate_framebuffer, 
+            NULL, &singleton_data.bloom_gaussian_intermediate_image.image_view, 
+            &singleton_data.rp_bloom_gaussian));
+    }
+
+
 
     return 0;
 }

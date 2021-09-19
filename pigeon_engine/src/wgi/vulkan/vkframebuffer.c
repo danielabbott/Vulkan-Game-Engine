@@ -3,7 +3,7 @@
 #include <pigeon/util.h>
 
 
-int create_framebuffer(PigeonVulkanFramebuffer* framebuffer, 
+ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebuffer, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanRenderPass* render_pass)
 {
     assert(framebuffer && render_pass);
