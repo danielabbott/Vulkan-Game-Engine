@@ -56,6 +56,7 @@ typedef struct PigeonWGIPipelineConfig {
 	bool depth_test;
 	bool depth_write;
 	bool depth_only;
+	bool wireframe;
 
 	PigeonWGIVertexAttributeType vertex_attributes[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES];
 } PigeonWGIPipelineConfig;

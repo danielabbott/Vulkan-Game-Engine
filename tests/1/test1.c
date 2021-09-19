@@ -559,7 +559,7 @@ static void destroy_meshes(void)
 
 static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 	const char *vs_shader_path, const char *vs_depth_only_shader_path, const char *fs_shader_path,
-	PigeonWGIPipelineConfig *config, PigeonWGIPipeline * transparent_pipeline)
+	PigeonWGIPipelineConfig *config, PigeonWGIPipeline * transparent_pipeline, PigeonWGIPipeline * wireframe_pipeline)
 {
 	bool has_depth_only = vs_depth_only_shader_path != NULL;
 
@@ -629,8 +629,15 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 	if(transparent_pipeline) {
 		config->blend_function = PIGEON_WGI_BLEND_NORMAL;
 		config->depth_write = false;
-		err2 = pigeon_wgi_create_pipeline(transparent_pipeline, &vs,
-			NULL, &fs, config);
+		err2 = pigeon_wgi_create_pipeline(transparent_pipeline, &vs, NULL, &fs, config);
+	}
+
+	int err3 = 0;
+	if(wireframe_pipeline) {
+		config->blend_function = PIGEON_WGI_BLEND_NONE;
+		config->depth_write = true;
+		config->wireframe = true;
+		err3 = pigeon_wgi_create_pipeline(wireframe_pipeline, &vs, has_depth_only ? &vs_depth : NULL, &fs, config);
 	}
 
 										 
@@ -644,7 +651,7 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 		free(vs_depth_spv);
 	free(fs_spv);
 
-	ASSERT_1(!err && !err2);
+	ASSERT_1(!err && !err2 && !err3);
 	return 0;
 }
 
@@ -675,7 +682,7 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 	config.depth_test = true;
 
 	ASSERT_1(!create_pipeline(&skybox_pipeline,
-		SHADER_PATH("skybox.vert"), NULL, SHADER_PATH("skybox.frag"), &config, NULL));
+		SHADER_PATH("skybox.vert"), NULL, SHADER_PATH("skybox.frag"), &config, NULL, NULL));
 
 	ASSERT_1(!verify_model_vertex_attribs());
 
@@ -687,7 +694,8 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 
 	ASSERT_1(!create_pipeline(&render_pipeline,
 		SHADER_PATH("object.vert"), SHADER_PATH("object.vert.depth"), SHADER_PATH("object.frag"), 
-		&config, &render_pipeline_transparent));
+		&config, &render_pipeline_transparent, NULL));
+
 
 	return 0;
 

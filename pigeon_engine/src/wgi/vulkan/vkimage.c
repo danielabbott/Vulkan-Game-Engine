@@ -56,7 +56,7 @@ VkFormat pigeon_get_vulkan_image_format(PigeonWGIImageFormat f)
 int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat format,
 	unsigned width, unsigned int height, unsigned int layers, unsigned int mip_levels,
 	bool linear_tiling, bool preinitialised,
-	bool to_be_sampled, bool to_be_attatched,
+	bool to_be_sampled, bool to_be_attached,
 	bool to_be_transfer_src, bool to_be_transfer_dst,
 	PigeonVulkanMemoryRequirements* memory_requirements)
 {
@@ -76,10 +76,13 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 	image_create_info.initialLayout = preinitialised ? VK_IMAGE_LAYOUT_PREINITIALIZED : VK_IMAGE_LAYOUT_UNDEFINED;
 
 	if (to_be_sampled) {
-		image_create_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+		image_create_info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (pigeon_wgi_image_format_is_depth(format)) {
+			image_create_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		}
 	}
 
-	if (to_be_attatched) {
+	if (to_be_attached) {
 		if (pigeon_wgi_image_format_is_depth(format)) {
 			image_create_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		}

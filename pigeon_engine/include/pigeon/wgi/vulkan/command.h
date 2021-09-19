@@ -46,6 +46,11 @@ void pigeon_vulkan_transition_transfer_src_to_shader_read(PigeonVulkanCommandPoo
 void pigeon_vulkan_transition_transfer_dst_to_shader_read(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanImage*);
 
+void pigeon_vulkan_clear_image(PigeonVulkanCommandPool*, unsigned int buffer_index,
+	PigeonVulkanImage*, float r, float g, float b, float a);
+void pigeon_vulkan_clear_depth_image(PigeonVulkanCommandPool*, unsigned int buffer_index,
+	PigeonVulkanImage*, float d);
+
 void pigeon_vulkan_transfer_buffer_to_image(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanBuffer*, uint64_t buffer_offset,
 	PigeonVulkanImage*, unsigned int array_layer, unsigned int image_x, unsigned int image_y,

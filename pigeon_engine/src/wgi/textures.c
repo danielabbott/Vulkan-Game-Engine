@@ -123,51 +123,54 @@ void pigeon_wgi_destroy_samplers(void)
 static ERROR_RETURN_TYPE create_default_image_objects(void)
 {
 	PigeonVulkanMemoryRequirements memory_req;
+	PigeonVulkanMemoryRequirements memory_req2;
 
 	if (pigeon_vulkan_create_image(
 		&singleton_data.default_1px_white_texture_image,
 		PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_LINEAR,
 		1, 1, 1, 1,
-		true, true,
-		true, false,
 		false, false,
+		true, false,
+		false, true,
 		&memory_req
+	)) return 1;
+
+	if (pigeon_vulkan_create_image(
+		&singleton_data.default_shadow_map_image,
+		PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24,
+		1, 1, 1, 1,
+		false, false,
+		true, false,
+		false, true,
+		&memory_req2
 	)) return 1;
 
 	PigeonVulkanMemoryTypePerferences preferences = { 0 };
 	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
-	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_MUST;
-	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED;
+	preferences.host_visible = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
+	preferences.host_coherent = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
 	preferences.host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERED_NOT;
 
 	if (pigeon_vulkan_allocate_memory(&singleton_data.default_textures_memory, memory_req, preferences)) return 1;
+	if (pigeon_vulkan_allocate_memory(&singleton_data.default_shadow_map_memory, memory_req2, preferences)) return 1;
 
 	if (pigeon_vulkan_image_bind_memory(&singleton_data.default_1px_white_texture_image,
 		&singleton_data.default_textures_memory, 0)) return 1;
+	if (pigeon_vulkan_image_bind_memory(&singleton_data.default_shadow_map_image,
+		&singleton_data.default_shadow_map_memory, 0)) return 1;
 
 	if (pigeon_vulkan_create_image_view(&singleton_data.default_1px_white_texture_image_view,
 		&singleton_data.default_1px_white_texture_image, false)) return 1;
 	if (pigeon_vulkan_create_image_view(&singleton_data.default_1px_white_texture_array_image_view,
 		&singleton_data.default_1px_white_texture_image, true)) return 1;
+	if (pigeon_vulkan_create_image_view(&singleton_data.default_shadow_map_image_view,
+		&singleton_data.default_shadow_map_image, false)) return 1;
 
 	return 0;
 }
 
-static ERROR_RETURN_TYPE set_default_image_data(void)
-{
-	uint32_t* image_data = NULL;
 
-	if (pigeon_vulkan_map_memory(&singleton_data.default_textures_memory, (void**)&image_data)) return 1;
-
-	*image_data = UINT32_MAX;
-
-
-	int err = pigeon_vulkan_flush_memory(&singleton_data.default_textures_memory, 0, 4);
-	pigeon_vulkan_unmap_memory(&singleton_data.default_textures_memory);
-	return err;
-}
-
-static ERROR_RETURN_TYPE transition_default_image()
+static ERROR_RETURN_TYPE transition_default_images()
 {
 	PigeonVulkanCommandPool command_pool;
 	if (pigeon_vulkan_create_command_pool(&command_pool, 1, true, false)) return 1;
@@ -187,8 +190,13 @@ static ERROR_RETURN_TYPE transition_default_image()
 		return 1;
 	}
 
-	pigeon_vulkan_transition_image_preinit_to_shader_read(&command_pool, 0, &singleton_data.default_1px_white_texture_image);
+	pigeon_vulkan_transition_image_to_transfer_dst(&command_pool, 0, &singleton_data.default_1px_white_texture_image);
+	pigeon_vulkan_clear_image(&command_pool, 0, &singleton_data.default_1px_white_texture_image, 1.0f, 1.0f, 1.0f, 1.0f);
+	pigeon_vulkan_transition_transfer_dst_to_shader_read(&command_pool, 0, &singleton_data.default_1px_white_texture_image);
 
+	pigeon_vulkan_transition_image_to_transfer_dst(&command_pool, 0, &singleton_data.default_shadow_map_image);
+	pigeon_vulkan_clear_depth_image(&command_pool, 0, &singleton_data.default_shadow_map_image, 0.0f);
+	pigeon_vulkan_transition_transfer_dst_to_shader_read(&command_pool, 0, &singleton_data.default_shadow_map_image);
 
 	if (pigeon_vulkan_submit(&command_pool, 0, &fence)) {
 		CLEANUP();
@@ -209,8 +217,7 @@ static ERROR_RETURN_TYPE transition_default_image()
 ERROR_RETURN_TYPE pigeon_wgi_create_default_textures(void)
 {
 	if (create_default_image_objects()) return 1;
-	if (set_default_image_data()) return 1;
-	if (transition_default_image()) return 1;
+	if (transition_default_images()) return 1;
 	return 0;
 }
 
@@ -224,6 +231,13 @@ void pigeon_wgi_destroy_default_textures(void)
 		pigeon_vulkan_destroy_image(&singleton_data.default_1px_white_texture_image);
 	if (singleton_data.default_textures_memory.vk_device_memory)
 		pigeon_vulkan_free_memory(&singleton_data.default_textures_memory);
+
+	if (singleton_data.default_shadow_map_image_view.vk_image_view)
+		pigeon_vulkan_destroy_image_view(&singleton_data.default_shadow_map_image_view);
+	if (singleton_data.default_shadow_map_image.vk_image)
+		pigeon_vulkan_destroy_image(&singleton_data.default_shadow_map_image);
+	if (singleton_data.default_shadow_map_memory.vk_device_memory)
+		pigeon_vulkan_free_memory(&singleton_data.default_shadow_map_memory);
 }
 
 ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void)

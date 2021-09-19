@@ -43,15 +43,10 @@ typedef struct PerFrameData {
 
     PigeonVulkanMemoryAllocation uniform_buffer_memory;
     PigeonVulkanBuffer uniform_buffer;
-    
-    // PigeonVulkanMemoryAllocation shadow_uniform_buffer_memory[MAX_SHADOW_CASTERS];
-    // PigeonVulkanBuffer shadow_uniform_buffer[MAX_SHADOW_CASTERS];
 
     // These are per-frame because the uniform buffer is per-frame
 	PigeonVulkanDescriptorPool depth_descriptor_pool;
 	PigeonVulkanDescriptorPool render_descriptor_pool;
-
-    // PigeonVulkanQueryPool query_pool; // Timers
 
     bool commands_in_progress;
     PigeonVulkanFence pre_render_done_fence;
@@ -95,9 +90,14 @@ typedef struct SingletonData
 	PigeonVulkanPipeline pipeline_post;
 
 	PigeonVulkanMemoryAllocation default_textures_memory;
+	PigeonVulkanMemoryAllocation default_shadow_map_memory;
+
 	PigeonVulkanImage default_1px_white_texture_image;
 	PigeonVulkanImageView default_1px_white_texture_image_view;
 	PigeonVulkanImageView default_1px_white_texture_array_image_view;
+
+	PigeonVulkanImage default_shadow_map_image;
+	PigeonVulkanImageView default_shadow_map_image_view;
 
     FramebufferImageObjects depth_image;
     FramebufferImageObjects ssao_image;

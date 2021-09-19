@@ -117,7 +117,8 @@ void pigeon_vulkan_transition_image_preinit_to_shader_read(PigeonVulkanCommandPo
 	image_memory_barrier.srcQueueFamilyIndex = image_memory_barrier.dstQueueFamilyIndex = singleton_data.general_queue_family;
 	image_memory_barrier.image = image->vk_image;
 
-	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.subresourceRange.aspectMask = pigeon_wgi_image_format_is_depth(image->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	image_memory_barrier.subresourceRange.levelCount = image->mip_levels;
 	image_memory_barrier.subresourceRange.layerCount = image->layers;
 
@@ -146,7 +147,8 @@ void pigeon_vulkan_transition_image_to_transfer_dst(PigeonVulkanCommandPool* com
 	image_memory_barrier.srcQueueFamilyIndex = image_memory_barrier.dstQueueFamilyIndex = singleton_data.general_queue_family;
 	image_memory_barrier.image = image->vk_image;
 
-	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.subresourceRange.aspectMask = pigeon_wgi_image_format_is_depth(image->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	image_memory_barrier.subresourceRange.levelCount = image->mip_levels;
 	image_memory_barrier.subresourceRange.layerCount = image->layers;
 
@@ -317,7 +319,8 @@ void pigeon_vulkan_wait_and_blit_image(PigeonVulkanCommandPool* command_pool, un
 	image_memory_barriers[0].dstQueueFamilyIndex = singleton_data.general_queue_family;
 	image_memory_barriers[0].image = src->vk_image;
 
-	image_memory_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barriers[0].subresourceRange.aspectMask = pigeon_wgi_image_format_is_depth(src->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	image_memory_barriers[0].subresourceRange.levelCount = src->mip_levels;
 	image_memory_barriers[0].subresourceRange.layerCount = src->layers;
 
@@ -331,7 +334,8 @@ void pigeon_vulkan_wait_and_blit_image(PigeonVulkanCommandPool* command_pool, un
 	image_memory_barriers[1].dstQueueFamilyIndex = singleton_data.general_queue_family;
 	image_memory_barriers[1].image = dst->vk_image;
 
-	image_memory_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barriers[1].subresourceRange.aspectMask = pigeon_wgi_image_format_is_depth(dst->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	image_memory_barriers[1].subresourceRange.levelCount = dst->mip_levels;
 	image_memory_barriers[1].subresourceRange.layerCount = dst->layers;
 
@@ -346,9 +350,11 @@ void pigeon_vulkan_wait_and_blit_image(PigeonVulkanCommandPool* command_pool, un
 	);
 
 	VkImageBlit region = {0};
-	region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.srcSubresource.aspectMask = pigeon_wgi_image_format_is_depth(src->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	region.srcSubresource.layerCount = 1;
-	region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.dstSubresource.aspectMask = pigeon_wgi_image_format_is_depth(dst->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	region.dstSubresource.layerCount = 1;
 
 	region.srcOffsets[1].x = (int32_t)src->width;
@@ -407,11 +413,13 @@ void pigeon_vulkan_transition_transfer_dst_to_shader_read(PigeonVulkanCommandPoo
 	image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_memory_barrier.newLayout = pigeon_wgi_image_format_is_depth(image->format) ? 
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_memory_barrier.srcQueueFamilyIndex = image_memory_barrier.dstQueueFamilyIndex = singleton_data.general_queue_family;
 	image_memory_barrier.image = image->vk_image;
 
-	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.subresourceRange.aspectMask = pigeon_wgi_image_format_is_depth(image->format) ?
+		VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	image_memory_barrier.subresourceRange.levelCount = image->mip_levels;
 	image_memory_barrier.subresourceRange.layerCount = image->layers;
 
@@ -448,7 +456,8 @@ void pigeon_vulkan_transfer_buffer_to_image(PigeonVulkanCommandPool* command_poo
 		assert(o+size <= buffer->size);
 
 		regions[mip].bufferOffset = o;
-		regions[mip].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		regions[mip].imageSubresource.aspectMask = pigeon_wgi_image_format_is_depth(image->format) ?
+			VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 		regions[mip].imageSubresource.mipLevel = mip;
 		regions[mip].imageSubresource.layerCount = 1;
 		regions[mip].imageSubresource.baseArrayLayer = array_layer;
@@ -468,6 +477,43 @@ void pigeon_vulkan_transfer_buffer_to_image(PigeonVulkanCommandPool* command_poo
 
 	vkCmdCopyBufferToImage(get_cmd_buf(command_pool, buffer_index), buffer->vk_buffer,
 	image->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mip_levels, regions);
+}
+
+
+void pigeon_vulkan_clear_image(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
+	PigeonVulkanImage* image, float r, float g, float b, float a)
+{
+	VkClearColorValue clearc = {{0}};
+	clearc.float32[0] = r;
+	clearc.float32[1] = g;
+	clearc.float32[2] = b;
+	clearc.float32[3] = a;
+
+	VkImageSubresourceRange range = {0};
+	range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	range.levelCount = image->mip_levels;
+	range.layerCount = image->layers;
+
+
+	vkCmdClearColorImage(get_cmd_buf(command_pool, buffer_index), image->vk_image,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearc, 1, &range);
+}
+
+
+void pigeon_vulkan_clear_depth_image(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
+	PigeonVulkanImage* image, float d)
+{
+	VkClearDepthStencilValue clear = {0};
+	clear.depth = d;
+
+	VkImageSubresourceRange range = {0};
+	range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	range.levelCount = image->mip_levels;
+	range.layerCount = 1;
+
+
+	vkCmdClearDepthStencilImage(get_cmd_buf(command_pool, buffer_index), image->vk_image,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &range);
 }
 	
 

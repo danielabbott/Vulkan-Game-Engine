@@ -86,7 +86,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
 
         for(unsigned int j = 0; j < 4; j++) {
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, j, 
-                &singleton_data.default_1px_white_texture_image_view, &singleton_data.shadow_sampler);
+                &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
         }
 
         // TODO do in bulk
@@ -324,7 +324,7 @@ ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls
         PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[i];
         if(!p->resolution) {
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
-                &singleton_data.default_1px_white_texture_image_view, &singleton_data.shadow_sampler);
+                &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
             continue;
         }
         unsigned int j = (unsigned)p->framebuffer_index;

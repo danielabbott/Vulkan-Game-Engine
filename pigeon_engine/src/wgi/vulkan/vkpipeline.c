@@ -186,6 +186,7 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 	else {
 		rasterizer.cullMode = VK_CULL_MODE_NONE;
 	}
+	rasterizer.polygonMode = cfg->wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
 	VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
