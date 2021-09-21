@@ -76,11 +76,12 @@ void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 typedef struct PigeonWGIPipeline {
 	struct PigeonVulkanPipeline * pipeline;
 	struct PigeonVulkanPipeline * pipeline_depth_only;
-	struct PigeonVulkanPipeline * pipeline_shadow;
+	struct PigeonVulkanPipeline * pipeline_shadow_map;
+	struct PigeonVulkanPipeline * pipeline_shadow_image;
 	bool has_fragment_shader;
 } PigeonWGIPipeline;
 
 // Shaders can be destroyed after creating the pipeline.
-int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* vs_depth_only, 
-	PigeonWGIShader* fs, const PigeonWGIPipelineConfig*);
+ERROR_RETURN_TYPE pigeon_wgi_create_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* vs_depth_only, 
+	PigeonWGIShader* fs, PigeonWGIShader* fs_shadow, const PigeonWGIPipelineConfig*);
 void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline*);

@@ -15,7 +15,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.vertex_shader_depends_on_transfer = true;
 	config.fragment_shader_depends_on_transfer = false;
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP;
-	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24;
+	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
 
 	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config)) return 1;
 
@@ -26,12 +26,20 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.colour_image = PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR;
 	config.colour_image_is_swapchain = false;
 	config.clear_colour_image = false;
-	if(singleton_data.render_graph.ssao) {
-		if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao, config)) return 1;
-		if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao_blur, config)) return 1; // TODO merge into 1
-	}
+	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao_shadow_blur, config)) return 1;
 
 
+	// shadow images
+
+	config.vertex_shader_depends_on_transfer = true;
+	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_READ_ONLY;
+	config.clear_colour_image = true;
+	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_shadow_image, config)) return 1;
+
+
+	config.clear_colour_image = false;
+	config.vertex_shader_depends_on_transfer = false;
+	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_NONE;
     config.colour_image = pigeon_vulkan_compact_hdr_framebuffer_available() ?
     	PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR : PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
 
@@ -62,8 +70,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 void pigeon_wgi_destroy_render_passes(void)
 {
 	if (singleton_data.rp_depth.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_depth);
-	if (singleton_data.rp_ssao.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao);
-	if (singleton_data.rp_ssao_blur.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao_blur);
+	if (singleton_data.rp_ssao_shadow_blur.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao_shadow_blur);
+	if (singleton_data.rp_shadow_image.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_shadow_image);
 	if (singleton_data.rp_bloom_gaussian.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_bloom_gaussian);
 	if (singleton_data.rp_render.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_render);
 	if (singleton_data.rp_post.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_post);
@@ -114,14 +122,20 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 		uint32_t sc_ssao_samples = 6;
 
 		if (create_pipeine(&singleton_data.pipeline_ssao, SHADER_PATH("ssao.vert"), SHADER_PATH("ssao.frag"),
-			&singleton_data.rp_ssao, &singleton_data.one_texture_descriptor_layout, 20, 1, &sc_ssao_samples)) return 1;
+			&singleton_data.rp_ssao_shadow_blur, &singleton_data.one_texture_descriptor_layout, 20, 1, &sc_ssao_samples)) return 1;
 
 		if (create_pipeine(&singleton_data.pipeline_ssao_blur, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur.frag"),
-			&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
+			&singleton_data.rp_ssao_shadow_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
 
 		if (create_pipeine(&singleton_data.pipeline_ssao_blur2, SHADER_PATH("gaussian.vert"), SHADER_PATH("ssao_blur2.frag"),
-			&singleton_data.rp_ssao_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
+			&singleton_data.rp_ssao_shadow_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
 	}
+
+	if (create_pipeine(&singleton_data.pipeline_shadow_blur, SHADER_PATH("gaussian.vert"), SHADER_PATH("shadow_blur.frag"),
+		&singleton_data.rp_ssao_shadow_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
+
+	if (create_pipeine(&singleton_data.pipeline_shadow_blur2, SHADER_PATH("gaussian.vert"), SHADER_PATH("shadow_blur2.frag"),
+		&singleton_data.rp_ssao_shadow_blur, &singleton_data.one_texture_descriptor_layout, 12, 0, NULL)) return 1;
 
 	if(singleton_data.render_graph.bloom) {
 		if (create_pipeine(&singleton_data.pipeline_bloom_gaussian, SHADER_PATH("gaussian.vert"), SHADER_PATH("bloom_gaussian.frag"),
@@ -148,6 +162,8 @@ void pigeon_wgi_destroy_standard_pipeline_objects()
 	if (singleton_data.pipeline_ssao.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao);
 	if (singleton_data.pipeline_ssao_blur.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao_blur);
 	if (singleton_data.pipeline_ssao_blur2.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao_blur2);
+	if (singleton_data.pipeline_shadow_blur.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_shadow_blur);
+	if (singleton_data.pipeline_shadow_blur2.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_shadow_blur2);
 	if (singleton_data.pipeline_downsample.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample);
 	if (singleton_data.pipeline_bloom_gaussian.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_bloom_gaussian);
 	if (singleton_data.pipeline_post.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_post);
@@ -180,10 +196,11 @@ void pigeon_wgi_destroy_shader(PigeonWGIShader* shader)
 	}
 }
 
-int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs, PigeonWGIShader* vs_depth_only, 
-	PigeonWGIShader* fs, const PigeonWGIPipelineConfig* config)
+ERROR_RETURN_TYPE pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs, PigeonWGIShader* vs_depth_only, 
+	PigeonWGIShader* fs, PigeonWGIShader* fs_shadow, const PigeonWGIPipelineConfig* config)
 {
 	ASSERT_1(pipeline && vs && fs && config);
+	ASSERT_1((vs_depth_only == NULL) == (fs_shadow == NULL));
 
 	pipeline->pipeline = calloc(1, sizeof *pipeline->pipeline);
 	ASSERT_1(pipeline->pipeline);
@@ -191,47 +208,78 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs,
 	uint32_t sc[2] = {singleton_data.render_graph.ssao ? 1 : 0, 4};
 
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs ? fs->shader : NULL,
-			8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, config, 2, sc)) {
+		8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, config, 2, sc))
+	{
 		free(pipeline->pipeline);
 		ASSERT_1(false);
 	}
 
-	if(vs_depth_only) {
+	if(vs_depth_only && fs_shadow) {
 		pipeline->pipeline_depth_only = calloc(1, sizeof *pipeline->pipeline_depth_only);
 		if(!pipeline->pipeline_depth_only) {
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			free(pipeline->pipeline);
 			ASSERT_1(false);
 		}
-		pipeline->pipeline_shadow = calloc(1, sizeof *pipeline->pipeline_shadow);
-		if(!pipeline->pipeline_shadow) {
-			free(pipeline->pipeline_depth_only);
+		pipeline->pipeline_shadow_map = calloc(1, sizeof *pipeline->pipeline_shadow_map);
+		if(!pipeline->pipeline_shadow_map) {
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			free(pipeline->pipeline);
+			free(pipeline->pipeline_depth_only);
 			ASSERT_1(false);
 		}
+		pipeline->pipeline_shadow_image = calloc(1, sizeof *pipeline->pipeline_shadow_image);
+		if(!pipeline->pipeline_shadow_image) {
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
+			free(pipeline->pipeline);
+			free(pipeline->pipeline_shadow_map);
+			free(pipeline->pipeline_depth_only);
+			ASSERT_1(false);
+		}
+
+		
 
 		PigeonWGIPipelineConfig config2 = *config;
 		config2.depth_write = true;
 		config2.depth_test = true;
 		config2.depth_only = true;
 		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_depth_only, vs_depth_only->shader, NULL,
-				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2, 0, NULL)) {
-			free(pipeline->pipeline_shadow);
+				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2, 0, NULL))
+		{
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			free(pipeline->pipeline);
 			free(pipeline->pipeline_depth_only);
+			free(pipeline->pipeline_shadow_map);
+			free(pipeline->pipeline_shadow_image);
 		}
 
 		config2.cull_mode = PIGEON_WGI_CULL_MODE_FRONT;
 
-		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_shadow, vs_depth_only->shader, NULL,
-				8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2, 0, NULL)) {
-			free(pipeline->pipeline_shadow);
+		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_shadow_map, vs_depth_only->shader, NULL,
+			8, &singleton_data.rp_depth, &singleton_data.depth_descriptor_layout, &config2, 0, NULL))
+		{
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_depth_only);
 			free(pipeline->pipeline);
 			free(pipeline->pipeline_depth_only);
+			free(pipeline->pipeline_shadow_map);
+			free(pipeline->pipeline_shadow_image);
+		}
+
+		config2.cull_mode = PIGEON_WGI_CULL_MODE_BACK;
+		config2.depth_write = false;
+		config2.depth_only = false;
+
+		if(pigeon_vulkan_create_pipeline(pipeline->pipeline_shadow_image, vs->shader, fs_shadow->shader,
+			8, &singleton_data.rp_shadow_image, &singleton_data.shadow_image_descriptor_layout, &config2, 0, NULL))
+		{
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_depth_only);
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_shadow_map);
+			free(pipeline->pipeline);
+			free(pipeline->pipeline_depth_only);
+			free(pipeline->pipeline_shadow_map);
+			free(pipeline->pipeline_shadow_image);
 		}
 	}
 
@@ -250,10 +298,10 @@ void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline* pipeline)
 			free(pipeline->pipeline_depth_only);
 			pipeline->pipeline_depth_only = NULL;
 		}
-		if(pipeline->pipeline_shadow) {
-			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_shadow);
-			free(pipeline->pipeline_shadow);
-			pipeline->pipeline_shadow = NULL;
+		if(pipeline->pipeline_shadow_map) {
+			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_shadow_map);
+			free(pipeline->pipeline_shadow_map);
+			pipeline->pipeline_shadow_map = NULL;
 		}
 	}
 	else {

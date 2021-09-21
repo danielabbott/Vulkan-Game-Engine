@@ -45,7 +45,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     PigeonWGIImageFormat hdr_format = pigeon_vulkan_compact_hdr_framebuffer_available() ?
         PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR : PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR;
     
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, 
         sc_info.width, sc_info.height, false, false)) return 1;
 
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.render_image, hdr_format, 
@@ -57,20 +57,31 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
         &singleton_data.depth_image.image_view, &singleton_data.render_image.image_view, 
         &singleton_data.rp_render));
 
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.tmp_u8_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+        sc_info.width, sc_info.height, false, false)) return 1;
+    if(pigeon_wgi_create_framebuffer_images(&singleton_data.tmp_u8_image_blur1, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+        sc_info.width/2, sc_info.height, false, false)) return 1;
+
+    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.tmp_u8_framebuffer, 
+        NULL, &singleton_data.tmp_u8_image.image_view, &singleton_data.rp_ssao_shadow_blur));
+    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.tmp_u8_framebuffer_blur1, 
+        NULL, &singleton_data.tmp_u8_image_blur1.image_view, &singleton_data.rp_ssao_shadow_blur));
+
     if(singleton_data.render_graph.ssao) {
-        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
-            sc_info.width, sc_info.height, false, false)) return 1;
-        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
-            sc_info.width/2, sc_info.height, false, false)) return 1;
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_blur_image2, PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
             sc_info.width/2, sc_info.height/2, false, false)) return 1;
-
-        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_framebuffer, 
-            NULL, &singleton_data.ssao_image.image_view, &singleton_data.rp_ssao));
-        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_blur_framebuffer, 
-            NULL, &singleton_data.ssao_blur_image.image_view, &singleton_data.rp_ssao_blur));
         ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_blur_framebuffer2, 
-            NULL, &singleton_data.ssao_blur_image2.image_view, &singleton_data.rp_ssao_blur));
+            NULL, &singleton_data.ssao_blur_image2.image_view, &singleton_data.rp_ssao_shadow_blur));
+    }
+
+    for(unsigned int i = 0; i < 4; i++) {
+        // TODO allocate as needed
+
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_blur2_images[i], PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width/2, sc_info.height/2, false, false)) return 1;
+
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_blur2_framebuffers[i], 
+            NULL, &singleton_data.shadow_blur2_images[i].image_view, &singleton_data.rp_ssao_shadow_blur));
     }
 
     if(singleton_data.render_graph.bloom) {
@@ -87,6 +98,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
             &singleton_data.rp_bloom_gaussian));
     }
 
+    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_image_framebuffer, 
+        &singleton_data.depth_image.image_view, &singleton_data.tmp_u8_image.image_view, 
+        &singleton_data.rp_shadow_image));
 
 
     return 0;
@@ -103,10 +117,12 @@ void pigeon_wgi_destroy_framebuffers(void)
 {
     if(singleton_data.depth_framebuffer.vk_framebuffer) 
         pigeon_vulkan_destroy_framebuffer(&singleton_data.depth_framebuffer);
-    if(singleton_data.ssao_framebuffer.vk_framebuffer) 
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_framebuffer);
-    if(singleton_data.ssao_blur_framebuffer.vk_framebuffer) 
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_blur_framebuffer);
+
+    if(singleton_data.tmp_u8_framebuffer.vk_framebuffer) 
+        pigeon_vulkan_destroy_framebuffer(&singleton_data.tmp_u8_framebuffer);
+    if(singleton_data.tmp_u8_framebuffer_blur1.vk_framebuffer) 
+        pigeon_vulkan_destroy_framebuffer(&singleton_data.tmp_u8_framebuffer_blur1);
+
     if(singleton_data.ssao_blur_framebuffer2.vk_framebuffer) 
         pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_blur_framebuffer2);
     if(singleton_data.render_framebuffer.vk_framebuffer) 
@@ -117,12 +133,26 @@ void pigeon_wgi_destroy_framebuffers(void)
         pigeon_vulkan_destroy_framebuffer(&singleton_data.bloom_framebuffer);
 
     destroy_framebuffer_images(&singleton_data.depth_image);
-    destroy_framebuffer_images(&singleton_data.ssao_image);
-    destroy_framebuffer_images(&singleton_data.ssao_blur_image);
+    destroy_framebuffer_images(&singleton_data.tmp_u8_image);
+    destroy_framebuffer_images(&singleton_data.tmp_u8_image_blur1);
     destroy_framebuffer_images(&singleton_data.ssao_blur_image2);
     destroy_framebuffer_images(&singleton_data.render_image);
     destroy_framebuffer_images(&singleton_data.bloom_image);
     destroy_framebuffer_images(&singleton_data.bloom_gaussian_intermediate_image);
+
+    for(unsigned int i = 0; i < 4; i++) {
+        if(singleton_data.shadow_blur2_framebuffers[i].vk_framebuffer) 
+            pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_blur2_framebuffers[i]);
+        destroy_framebuffer_images(&singleton_data.shadow_blur2_images[i]);
+    }
+
+    if(singleton_data.shadow_map_framebuffer.vk_framebuffer) 
+        pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_map_framebuffer);
+    destroy_framebuffer_images(&singleton_data.shadow_map_image);
+
+    
+    if(singleton_data.shadow_image_framebuffer.vk_framebuffer) 
+        pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_image_framebuffer);
 }
 
 

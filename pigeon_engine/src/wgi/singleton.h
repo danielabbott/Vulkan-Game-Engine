@@ -39,7 +39,8 @@ typedef struct PerFrameData {
 
 	PigeonWGICommandBuffer upload_command_buffer;
     PigeonWGICommandBuffer depth_command_buffer;
-	PigeonWGICommandBuffer shadow_command_buffers[4];
+	PigeonWGICommandBuffer shadow_map_command_buffers[4];
+	PigeonWGICommandBuffer shadow_image_command_buffers[4];
     PigeonWGICommandBuffer render_command_buffer;
 
     PigeonVulkanMemoryAllocation uniform_buffer_memory;
@@ -48,6 +49,7 @@ typedef struct PerFrameData {
     // These are per-frame because the uniform buffer is per-frame
 	PigeonVulkanDescriptorPool depth_descriptor_pool;
 	PigeonVulkanDescriptorPool render_descriptor_pool;
+	PigeonVulkanDescriptorPool shadow_image_descriptor_pool;
 
     bool commands_in_progress;
     PigeonVulkanFence pre_render_done_fence;
@@ -68,7 +70,9 @@ typedef struct SingletonData
 	PigeonVulkanDescriptorLayout render_descriptor_layout;
 	PigeonVulkanDescriptorLayout depth_descriptor_layout;
 	PigeonVulkanDescriptorLayout shadow_map_descriptor_layout;
+	PigeonVulkanDescriptorLayout shadow_image_descriptor_layout;
 	PigeonVulkanDescriptorLayout one_texture_descriptor_layout;
+	PigeonVulkanDescriptorLayout blur_descriptor_layout;
 	PigeonVulkanDescriptorLayout post_descriptor_layout;
 
 	PigeonVulkanSampler nearest_filter_sampler;
@@ -79,8 +83,8 @@ typedef struct SingletonData
 	PigeonWGIRenderConfig render_graph;
 
 	PigeonVulkanRenderPass rp_depth;
-	PigeonVulkanRenderPass rp_ssao;
-	PigeonVulkanRenderPass rp_ssao_blur;
+	PigeonVulkanRenderPass rp_ssao_shadow_blur; // ssao, ssao blur, shadow blur
+	PigeonVulkanRenderPass rp_shadow_image;
 	PigeonVulkanRenderPass rp_render;
 	PigeonVulkanRenderPass rp_bloom_gaussian;
 	PigeonVulkanRenderPass rp_post;
@@ -88,43 +92,52 @@ typedef struct SingletonData
 	PigeonVulkanPipeline pipeline_ssao;
 	PigeonVulkanPipeline pipeline_ssao_blur;
 	PigeonVulkanPipeline pipeline_ssao_blur2;
+	PigeonVulkanPipeline pipeline_shadow_blur;
+	PigeonVulkanPipeline pipeline_shadow_blur2;
 	PigeonVulkanPipeline pipeline_downsample;
 	PigeonVulkanPipeline pipeline_bloom_gaussian;
 	PigeonVulkanPipeline pipeline_post;
 
 	PigeonVulkanMemoryAllocation default_textures_memory;
-	PigeonVulkanMemoryAllocation default_shadow_map_memory;
 
 	PigeonVulkanImage default_1px_white_texture_image;
 	PigeonVulkanImageView default_1px_white_texture_image_view;
 	PigeonVulkanImageView default_1px_white_texture_array_image_view;
 
-	PigeonVulkanImage default_shadow_map_image;
-	PigeonVulkanImageView default_shadow_map_image_view;
-
     FramebufferImageObjects depth_image;
-    FramebufferImageObjects ssao_image;
-    FramebufferImageObjects ssao_blur_image;
+    FramebufferImageObjects tmp_u8_image; // same size as viewport
+    FramebufferImageObjects tmp_u8_image_blur1; // half width
     FramebufferImageObjects ssao_blur_image2;
     FramebufferImageObjects render_image;
     FramebufferImageObjects bloom_image;
     FramebufferImageObjects bloom_gaussian_intermediate_image;
-    FramebufferImageObjects shadow_images[4];
 
-	bool shadow_framebuffer_assigned[4];
 
     PigeonVulkanFramebuffer depth_framebuffer;
-    PigeonVulkanFramebuffer ssao_framebuffer;
-    PigeonVulkanFramebuffer ssao_blur_framebuffer;
+    PigeonVulkanFramebuffer tmp_u8_framebuffer;
+    PigeonVulkanFramebuffer tmp_u8_framebuffer_blur1;
     PigeonVulkanFramebuffer ssao_blur_framebuffer2;
     PigeonVulkanFramebuffer render_framebuffer;
     PigeonVulkanFramebuffer bloom_framebuffer;
     PigeonVulkanFramebuffer bloom_gaussian_intermediate_framebuffer;
-    PigeonVulkanFramebuffer shadow_framebuffers[4]; // ** framebuffer may be bigger than necessary
+
+
+
+    FramebufferImageObjects shadow_map_image; // >= size of highest resolution shadow map
+    PigeonVulkanFramebuffer shadow_map_framebuffer;
+
+	// tmp_u8_image + depth buffer
+	PigeonVulkanFramebuffer shadow_image_framebuffer;
+
+	// Half-resolution screen-space light-specific images
+    FramebufferImageObjects shadow_blur2_images[4];
+    PigeonVulkanFramebuffer shadow_blur2_framebuffers[4];
+
+
 
 	PigeonVulkanDescriptorPool ssao_descriptor_pool;
-	PigeonVulkanDescriptorPool ssao_blur_descriptor_pool;
-	PigeonVulkanDescriptorPool ssao_blur_descriptor_pool2;
+	PigeonVulkanDescriptorPool blur1_descriptor_pool;
+	PigeonVulkanDescriptorPool blur2_descriptor_pool;
 	PigeonVulkanDescriptorPool bloom_downsample_descriptor_pool;
 	PigeonVulkanDescriptorPool bloom_gaussian_descriptor_pool;
 	PigeonVulkanDescriptorPool bloom_intermediate_gaussian_descriptor_pool;

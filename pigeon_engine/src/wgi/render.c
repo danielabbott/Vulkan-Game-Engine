@@ -48,32 +48,43 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
         objects->depth_command_buffer.depth_only = true;
         objects->depth_command_buffer.mvp_index = 0;
         objects->render_command_buffer.mvp_index = 0;
-        objects->shadow_command_buffers[0].depth_only = true;
-        objects->shadow_command_buffers[1].depth_only = true;
-        objects->shadow_command_buffers[2].depth_only = true;
-        objects->shadow_command_buffers[3].depth_only = true;
-        objects->shadow_command_buffers[0].shadow = true;
-        objects->shadow_command_buffers[1].shadow = true;
-        objects->shadow_command_buffers[2].shadow = true;
-        objects->shadow_command_buffers[3].shadow = true;
-        objects->shadow_command_buffers[0].mvp_index = 1;
-        objects->shadow_command_buffers[1].mvp_index = 2;
-        objects->shadow_command_buffers[2].mvp_index = 3;
-        objects->shadow_command_buffers[3].mvp_index = 4;
+        
+        objects->shadow_map_command_buffers[0].depth_only = true;
+        objects->shadow_map_command_buffers[1].depth_only = true;
+        objects->shadow_map_command_buffers[2].depth_only = true;
+        objects->shadow_map_command_buffers[3].depth_only = true;
+        objects->shadow_map_command_buffers[0].shadow = true;
+        objects->shadow_map_command_buffers[1].shadow = true;
+        objects->shadow_map_command_buffers[2].shadow = true;
+        objects->shadow_map_command_buffers[3].shadow = true;
+        objects->shadow_map_command_buffers[0].mvp_index = 1;
+        objects->shadow_map_command_buffers[1].mvp_index = 2;
+        objects->shadow_map_command_buffers[2].mvp_index = 3;
+        objects->shadow_map_command_buffers[3].mvp_index = 4;
+
+        objects->shadow_image_command_buffers[0].shadow = true;
+        objects->shadow_image_command_buffers[1].shadow = true;
+        objects->shadow_image_command_buffers[2].shadow = true;
+        objects->shadow_image_command_buffers[3].shadow = true;
         
         
         // Uniform buffers are (re)created as needed and the descriptors are set there too
 
         ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->depth_command_buffer.command_pool, 1, false, false));
-        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_command_buffers[0].command_pool, 1, false, false));
-        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_command_buffers[1].command_pool, 1, false, false));
-        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_command_buffers[2].command_pool, 1, false, false));
-        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_command_buffers[3].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_map_command_buffers[0].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_map_command_buffers[1].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_map_command_buffers[2].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_map_command_buffers[3].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_image_command_buffers[0].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_image_command_buffers[1].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_image_command_buffers[2].command_pool, 1, false, false));
+        ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->shadow_image_command_buffers[3].command_pool, 1, false, false));
         ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->upload_command_buffer.command_pool, 1, false, false));
         ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->render_command_buffer.command_pool, 1, false, false));
 
         ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->depth_descriptor_pool, 1, &singleton_data.depth_descriptor_layout));
         ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->render_descriptor_pool, 1, &singleton_data.render_descriptor_layout));
+        ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->shadow_image_descriptor_pool, 1, &singleton_data.shadow_image_descriptor_layout));
 
 
         pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 2, 0, 
@@ -83,8 +94,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
 
         for(unsigned int j = 0; j < 4; j++) {
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, j, 
-                &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
+                &singleton_data.default_1px_white_texture_image_view, &singleton_data.nearest_filter_sampler);            
         }
+
 
         // TODO do in bulk
         for(unsigned int j = 0; j < 90; j++) {
@@ -102,12 +114,13 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
 
         
         ASSERT_1(!pigeon_vulkan_create_timer_query_pool(&objects->timer_query_pool, PIGEON_WGI_TIMERS_COUNT));
-
+        
 
         // Framebuffer is specific to swapchain image - NOT current frame index mod
 
         ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.post_framebuffers[i],
             NULL, pigeon_vulkan_get_swapchain_image_view(i), &singleton_data.rp_post));
+
 
     }
     return 0;
@@ -143,15 +156,21 @@ void pigeon_wgi_destroy_per_frame_objects()
             pigeon_vulkan_destroy_descriptor_pool(&objects->depth_descriptor_pool);
         if(objects->render_descriptor_pool.vk_descriptor_pool)
             pigeon_vulkan_destroy_descriptor_pool(&objects->render_descriptor_pool);
+        if(objects->shadow_image_descriptor_pool.vk_descriptor_pool)
+            pigeon_vulkan_destroy_descriptor_pool(&objects->shadow_image_descriptor_pool);
+            
 
         if(objects->render_command_buffer.command_pool.vk_command_pool)
             pigeon_vulkan_destroy_command_pool(&objects->render_command_buffer.command_pool);
         if(objects->depth_command_buffer.command_pool.vk_command_pool)
             pigeon_vulkan_destroy_command_pool(&objects->depth_command_buffer.command_pool);
 
-        for(unsigned int j = 0; j < 4; j++)
-            if(objects->shadow_command_buffers[j].command_pool.vk_command_pool)
-                pigeon_vulkan_destroy_command_pool(&objects->shadow_command_buffers[j].command_pool);
+        for(unsigned int j = 0; j < 4; j++) {
+            if(objects->shadow_map_command_buffers[j].command_pool.vk_command_pool)
+                pigeon_vulkan_destroy_command_pool(&objects->shadow_map_command_buffers[j].command_pool);
+            if(objects->shadow_image_command_buffers[j].command_pool.vk_command_pool)
+                pigeon_vulkan_destroy_command_pool(&objects->shadow_image_command_buffers[j].command_pool);
+        }
 
         if(objects->upload_command_buffer.command_pool.vk_command_pool)
             pigeon_vulkan_destroy_command_pool(&objects->upload_command_buffer.command_pool);
@@ -229,10 +248,12 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
 
         unsigned int uniform_offset = 0;
         
-            
+    
         pigeon_vulkan_set_descriptor_uniform_buffer2(&objects->render_descriptor_pool, 0, 0, 0,
             &objects->uniform_buffer, uniform_offset, sizeof(PigeonWGISceneUniformData));
         pigeon_vulkan_set_descriptor_uniform_buffer2(&objects->depth_descriptor_pool, 0, 0, 0,
+            &objects->uniform_buffer, uniform_offset, sizeof(PigeonWGISceneUniformData));
+        pigeon_vulkan_set_descriptor_uniform_buffer2(&objects->shadow_image_descriptor_pool, 0, 0, 0,
             &objects->uniform_buffer, uniform_offset, sizeof(PigeonWGISceneUniformData));
 
         uniform_offset += ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
@@ -241,6 +262,9 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
             &objects->uniform_buffer, uniform_offset,
             sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls);
         pigeon_vulkan_set_descriptor_ssbo2(&objects->depth_descriptor_pool, 0, 1, 0,
+            &objects->uniform_buffer, uniform_offset,
+            sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls);
+        pigeon_vulkan_set_descriptor_ssbo2(&objects->shadow_image_descriptor_pool, 0, 1, 0,
             &objects->uniform_buffer, uniform_offset,
             sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls);
     }
@@ -321,13 +345,14 @@ ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls
         PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[i];
         if(!p->resolution) {
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
-                &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
+                &singleton_data.default_1px_white_texture_image_view, &singleton_data.nearest_filter_sampler);
             continue;
         }
-        unsigned int j = (unsigned)p->framebuffer_index;
         pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
-            &singleton_data.shadow_images[j].image_view, &singleton_data.shadow_sampler);
+            &singleton_data.shadow_blur2_images[i].image_view, &singleton_data.bilinear_sampler);
     }
+    pigeon_vulkan_set_descriptor_texture(&objects->shadow_image_descriptor_pool, 0, 2, 0, 
+        &singleton_data.shadow_map_image.image_view, &singleton_data.shadow_sampler);
 
     return 0;
 }
@@ -367,10 +392,16 @@ PigeonWGICommandBuffer * pigeon_wgi_get_depth_command_buffer(void)
     return &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].depth_command_buffer;
 }
 
-PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light_index)
+PigeonWGICommandBuffer * pigeon_wgi_get_shadow_map_command_buffer(unsigned int light_index)
 {
     ASSERT_0(light_index < 4);
-    return &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].shadow_command_buffers[light_index];
+    return &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].shadow_map_command_buffers[light_index];
+}
+
+PigeonWGICommandBuffer * pigeon_wgi_get_shadow_image_command_buffer(unsigned int light_index)
+{
+    ASSERT_0(light_index < 4);
+    return &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].shadow_image_command_buffers[light_index];
 }
 
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void)
@@ -407,16 +438,27 @@ ERROR_RETURN_TYPE pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer * comma
             vp_w = sc_info.width;
             vp_h = sc_info.height;
         }
-        else {
-            ASSERT_1(command_buffer >= &objects->shadow_command_buffers[0] && 
-                command_buffer < &objects->shadow_command_buffers[0]+4);
-            ASSERT_1(command_buffer->mvp_index > 0 && command_buffer->mvp_index < 5)
+        else if(command_buffer >= &objects->shadow_map_command_buffers[0] && 
+            command_buffer < &objects->shadow_map_command_buffers[0]+4)
+        {
+            ASSERT_1(command_buffer->mvp_index > 0 && command_buffer->mvp_index < 5);
 
             rp = &singleton_data.rp_depth;
-            unsigned int j = (unsigned)singleton_data.shadow_parameters[command_buffer->mvp_index-1].framebuffer_index;
-            fb = &singleton_data.shadow_framebuffers[j];
-            vp_w = singleton_data.shadow_images[j].image.width;
-            vp_h = singleton_data.shadow_images[j].image.height;
+            PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[command_buffer->mvp_index-1];
+
+            fb = &singleton_data.shadow_map_framebuffer;
+            vp_w = vp_h = p->resolution;
+        }
+        else {
+            ASSERT_1(command_buffer >= &objects->shadow_image_command_buffers[0] && 
+                command_buffer < &objects->shadow_image_command_buffers[0]+4);
+            ASSERT_1(!command_buffer->mvp_index);
+
+            rp = &singleton_data.rp_shadow_image;
+            
+            fb = &singleton_data.shadow_image_framebuffer;
+            vp_w = sc_info.width;
+            vp_h = sc_info.height;
         }
 
         ASSERT_1(!pigeon_vulkan_start_submission2(&command_buffer->command_pool, 0, rp, fb));
@@ -445,15 +487,17 @@ static void draw_setup_common(PigeonWGICommandBuffer* command_buffer, PigeonWGIP
     PigeonVulkanPipeline ** vpipeline, PigeonWGIMultiMesh* mesh)
 {
     *vpipeline = command_buffer->depth_only ?
-        (command_buffer->shadow ? pipeline->pipeline_shadow : pipeline->pipeline_depth_only)
-            : pipeline->pipeline;
+        (command_buffer->shadow ? pipeline->pipeline_shadow_map : pipeline->pipeline_depth_only)
+            : (command_buffer->shadow ? pipeline->pipeline_shadow_image : pipeline->pipeline);
 
     pigeon_vulkan_bind_pipeline(&command_buffer->command_pool, 0, *vpipeline);
     
     pigeon_vulkan_bind_descriptor_set(&command_buffer->command_pool, 0, *vpipeline, 
         command_buffer->depth_only ?
         &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].depth_descriptor_pool :
-        &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].render_descriptor_pool, 0);
+        (command_buffer->shadow ? &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].shadow_image_descriptor_pool :
+            &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].render_descriptor_pool), 
+        0);
 
     unsigned int attribute_count = 0;
     for (; attribute_count < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; attribute_count++) {
@@ -622,37 +666,38 @@ static void do_ssao(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info, P
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
     pigeon_vulkan_set_viewport_size(p, 0, sc_info.width, sc_info.height);
     pigeon_vulkan_wait_for_depth_write(p, 0, &singleton_data.depth_image.image);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao, 
-        &singleton_data.ssao_framebuffer, sc_info.width, sc_info.height, false);
+    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao_shadow_blur, 
+        &singleton_data.tmp_u8_framebuffer, sc_info.width, sc_info.height, false);
     pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_ssao);
     pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_ssao, &singleton_data.ssao_descriptor_pool, 0);
     pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_ssao, sizeof ssao_pushc, &ssao_pushc);
     pigeon_vulkan_end_render_pass(p, 0);
 }
 
-static void do_ssao_blur(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info)
+static void do_blur(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info,
+    PigeonVulkanFramebuffer * blur2_fb, PigeonVulkanPipeline* blur1p, PigeonVulkanPipeline* blur2p)
 {
     float blur_pushc[2] = {1 / (float)sc_info.width, 1 / (float)sc_info.height};
 
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
-    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.ssao_image.image);
+    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.tmp_u8_image.image);
     pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, sc_info.width/2, sc_info.height);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao_blur, 
-        &singleton_data.ssao_blur_framebuffer, sc_info.width/2, sc_info.height, false);
-    pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_ssao_blur);
-    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_ssao_blur, &singleton_data.ssao_blur_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_ssao_blur, sizeof blur_pushc, blur_pushc);
+    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao_shadow_blur, 
+        &singleton_data.tmp_u8_framebuffer_blur1, sc_info.width/2, sc_info.height, false);
+    pigeon_vulkan_bind_pipeline(p, 0, blur1p);
+    pigeon_vulkan_bind_descriptor_set(p, 0, blur1p, &singleton_data.blur1_descriptor_pool, 0);
+    pigeon_vulkan_draw(p, 0, 0, 3, 1, blur1p, sizeof blur_pushc, blur_pushc);
     pigeon_vulkan_end_render_pass(p, 0);
 
     blur_pushc[0] *= 2;
 
-    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.ssao_blur_image.image);
+    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.tmp_u8_image_blur1.image);
     pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, sc_info.width/2, sc_info.height/2);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao_blur, 
-        &singleton_data.ssao_blur_framebuffer2, sc_info.width/2, sc_info.height/2, false);
-    pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_ssao_blur2);
-    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_ssao_blur2, &singleton_data.ssao_blur_descriptor_pool2, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_ssao_blur2, sizeof blur_pushc, blur_pushc);
+    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_ssao_shadow_blur, 
+        blur2_fb, sc_info.width/2, sc_info.height/2, false);
+    pigeon_vulkan_bind_pipeline(p, 0, blur2p);
+    pigeon_vulkan_bind_descriptor_set(p, 0, blur2p, &singleton_data.blur2_descriptor_pool, 0);
+    pigeon_vulkan_draw(p, 0, 0, 3, 1, blur2p, sizeof blur_pushc, blur_pushc);
     pigeon_vulkan_end_render_pass(p, 0);
 }
 
@@ -794,39 +839,62 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_d
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE);
     }
 
-    // Shadows
-    for(unsigned int i = 0; i < 4; i++) {
-        PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[i];
-        if(!p->resolution) continue;
-
-        ASSERT_1(p->framebuffer_index >= 0);
-        ASSERT_1(objects->shadow_command_buffers[i].has_been_recorded);
-
-        unsigned int j = (unsigned)p->framebuffer_index;
-        unsigned int w = singleton_data.shadow_images[j].image.width;
-        unsigned int h = singleton_data.shadow_images[j].image.height;
-        PigeonVulkanFramebuffer* fb = &singleton_data.shadow_framebuffers[j];
-    
-        use_secondary_command_buffer(&objects->primary_command_pool, 0,
-            &objects->shadow_command_buffers[i], &singleton_data.rp_depth,
-            fb, w, h);
-    }
-
     if(singleton_data.render_graph.ssao) {
         do_ssao(objects, sc_info, &pushc, debug_disable_ssao);
     }
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE);
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_DONE);
     }
 
     if(singleton_data.render_graph.ssao) {
-        do_ssao_blur(objects, sc_info);
+        do_blur(objects, sc_info, &singleton_data.ssao_blur_framebuffer2, &singleton_data.pipeline_ssao_blur, &singleton_data.pipeline_ssao_blur2);
     }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_BLUR_DONE);
+    }
+
+
+
+    // Shadows
+    for(unsigned int i = 0; i < 4; i++) {
+        PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[i];
+        if(!p->resolution) continue;
+
+        // Shadow map
+
+        ASSERT_1(objects->shadow_map_command_buffers[i].has_been_recorded);
+
+        unsigned int w = p->resolution;
+        unsigned int h = p->resolution;
+        PigeonVulkanFramebuffer* fb = &singleton_data.shadow_map_framebuffer;
+    
+        use_secondary_command_buffer(&objects->primary_command_pool, 0,
+            &objects->shadow_map_command_buffers[i], &singleton_data.rp_depth,
+            fb, w, h);
+
+        pigeon_vulkan_wait_for_depth_write(&objects->primary_command_pool, 0, &singleton_data.shadow_map_image.image);
+
+
+        // Shadow image
+        ASSERT_1(objects->shadow_image_command_buffers[i].has_been_recorded);
+
+        w = sc_info.width;
+        h = sc_info.height;
+        fb = &singleton_data.shadow_image_framebuffer;
+    
+        use_secondary_command_buffer(&objects->primary_command_pool, 0,
+            &objects->shadow_image_command_buffers[i], &singleton_data.rp_shadow_image,
+            fb, w, h);
+
+        do_blur(objects, sc_info, &singleton_data.shadow_blur2_framebuffers[i],
+            &singleton_data.pipeline_shadow_blur, &singleton_data.pipeline_shadow_blur2);
+    }
+
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SHADOWS_DONE);
     }
 
     ASSERT_1(!pigeon_vulkan_submit3(&objects->primary_command_pool, 0, &objects->pre_render_done_fence, 
@@ -838,16 +906,12 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_d
 
     ASSERT_1 (!pigeon_vulkan_start_submission(&objects->primary_command_pool, 1));
 
+
     // Wait for shadows
     for(unsigned int i = 0; i < 4; i++) {
-        PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[i];
-        if(!p->resolution) break;
-        unsigned int j = (unsigned)p->framebuffer_index;
-        pigeon_vulkan_wait_for_depth_write(&objects->primary_command_pool, 1, 
-            &singleton_data.shadow_images[j].image);
+        if(!singleton_data.shadow_parameters[i].resolution) continue;
+        pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 1, &singleton_data.shadow_blur2_images[i].image);
     }
-
-
 
     if(singleton_data.render_graph.ssao) {
         pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 1, &singleton_data.ssao_blur_image2.image);

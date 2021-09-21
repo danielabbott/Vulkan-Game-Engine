@@ -26,17 +26,6 @@ static void ortho_rh_z_1_0(float left, float right,
 }
 
 
-static int shadow_compare(const void *i0_, const void *i1_)
-{
-	const unsigned int *i0 = i0_;
-	const unsigned int *i1 = i1_;
-
-	PigeonWGIShadowParameters *p0 = &singleton_data.shadow_parameters[*i0];
-	PigeonWGIShadowParameters *p1 = &singleton_data.shadow_parameters[*i1];
-
-	return (int)p1->resolution - (int)p0->resolution;
-}
-
 static ERROR_RETURN_TYPE validate(void)
 {
     for(unsigned int i = 0; i < 4; i++) {
@@ -45,6 +34,7 @@ static ERROR_RETURN_TYPE validate(void)
 
         ASSERT_1(p->resolution % 2 == 0);
         ASSERT_1(p->resolution <= 4096);
+        ASSERT_1(p->resolution >= 16);
         ASSERT_1(p->near_plane > 0);
         ASSERT_1(p->sizeX > 0);
         ASSERT_1(p->sizeY > 0);
@@ -55,90 +45,54 @@ static ERROR_RETURN_TYPE validate(void)
         ortho_rh_z_1_0(-x, x, y, -y, p->near_plane, p->far_plane, ortho);
 
         glm_mat4_mul(ortho, p->view_matrix, p->proj_view);
-
-        p->framebuffer_index = -1;
     }
     return 0;
 }
 
 
-static ERROR_RETURN_TYPE create_shadow_framebuffer(PigeonWGIShadowParameters * p, unsigned int framebuffer_index)
+static ERROR_RETURN_TYPE check_fb_size(void)
 {
-    ASSERT_1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_images[framebuffer_index],
-        PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, p->resolution, p->resolution, false, false));
+    unsigned int min_w=0, min_h=0;
 
-    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
-        &singleton_data.shadow_images[framebuffer_index].image_view, NULL, &singleton_data.rp_depth));
+    for(unsigned int i = 0; i < 4; i++) {
+        if(singleton_data.shadow_parameters[i].resolution > min_w) {
+            min_w = singleton_data.shadow_parameters[i].resolution;
+        }
+        if(singleton_data.shadow_parameters[i].resolution > min_h) {
+            min_h = singleton_data.shadow_parameters[i].resolution;
+        }
+    }
+
+    if(!min_w || !min_h) return 0;
+
+    if(!singleton_data.shadow_map_image.image.vk_image || 
+        (min_w > singleton_data.shadow_map_image.image.width
+        || min_h > singleton_data.shadow_map_image.image.height))
+    {
+        if(singleton_data.shadow_map_image.image.vk_image) {
+            // Delete
+
+            pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_map_framebuffer);            
+            pigeon_vulkan_destroy_image_view(&singleton_data.shadow_map_image.image_view);
+            pigeon_vulkan_free_memory(&singleton_data.shadow_map_image.memory);
+            pigeon_vulkan_destroy_image(&singleton_data.shadow_map_image.image);
+        }
+
+        ASSERT_1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_map_image,
+            PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, min_w, min_h, false, false));
+
+        ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_map_framebuffer,
+            &singleton_data.shadow_map_image.image_view, NULL, &singleton_data.rp_depth));
+    }
+
     return 0;
 }
 
+// TODO rename
 ERROR_RETURN_TYPE pigeon_wgi_assign_shadow_framebuffers(void)
 {
     ASSERT_1(!validate());
-
-    unsigned int shadow_param_indices_sorted[4] = {0, 1, 2, 3};
-    qsort(shadow_param_indices_sorted, sizeof shadow_param_indices_sorted[0], 4, shadow_compare);
-
-    memset(singleton_data.shadow_framebuffer_assigned, 0, sizeof singleton_data.shadow_framebuffer_assigned);
-
-    // Assign framebuffer from already allocated framebuffers
-
-    for(unsigned int param_index_ = 0; param_index_ < 4; param_index_++) {
-	    PigeonWGIShadowParameters *p = &singleton_data.shadow_parameters[shadow_param_indices_sorted[param_index_]];
-        p->framebuffer_index = -1;
-        if(!p->resolution) break;
-
-        // Find the smallest framebuffer that is not assigned
-        int chosen_framebuffer_index = -1;
-        unsigned int chosen_framebuffer_width = 99999;
-        unsigned int chosen_framebuffer_height = 99999;
-
-        for(unsigned int i = 0; i < 4; i++) {
-            if(!singleton_data.shadow_framebuffers->vk_framebuffer) continue;
-            if(singleton_data.shadow_framebuffer_assigned[i]) continue;
-
-            if(singleton_data.shadow_images[i].image.width >= p->resolution &&
-                singleton_data.shadow_images[i].image.width < chosen_framebuffer_width &&
-                singleton_data.shadow_images[i].image.height >= p->resolution &&
-                singleton_data.shadow_images[i].image.height < chosen_framebuffer_height)
-            {
-                if(chosen_framebuffer_index >= 0) singleton_data.shadow_framebuffer_assigned[chosen_framebuffer_index] = false;
-
-                chosen_framebuffer_index = (int)i;
-                singleton_data.shadow_framebuffer_assigned[i] = true;
-                chosen_framebuffer_width = singleton_data.shadow_images[i].image.width;
-                chosen_framebuffer_height = singleton_data.shadow_images[i].image.height;
-            }
-        }
-        p->framebuffer_index = chosen_framebuffer_index;
-    }
-
-    // Delete unassigned
-    for(unsigned int i = 0; i < 4; i++) {
-        if(singleton_data.shadow_framebuffers[i].vk_framebuffer && !singleton_data.shadow_framebuffer_assigned[i]) {
-            pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_framebuffers[i]);
-            pigeon_vulkan_destroy_image_view(&singleton_data.shadow_images[i].image_view);
-            pigeon_vulkan_free_memory(&singleton_data.shadow_images[i].memory);
-            pigeon_vulkan_destroy_image(&singleton_data.shadow_images[i].image);
-        }
-    }
-
-    // Create new framebuffers
-
-    for(unsigned int param_index_ = 0; param_index_ < 4; param_index_++) {
-	    PigeonWGIShadowParameters *p = &singleton_data.shadow_parameters[shadow_param_indices_sorted[param_index_]];
-        if(!p->resolution || p->framebuffer_index >= 0) break;
-
-        for(unsigned int i = 0; i < 4; i++) {
-            if(singleton_data.shadow_framebuffer_assigned[i]) continue;
-            singleton_data.shadow_framebuffer_assigned[i] = true;
-            p->framebuffer_index = (int)i;
-
-            ASSERT_1(!create_shadow_framebuffer(p, i));
-            break;
-        }
-
-    }
+    ASSERT_1(!check_fb_size());
 
     return 0;
 }

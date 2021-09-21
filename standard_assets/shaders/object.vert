@@ -19,7 +19,7 @@ layout(location = 3) out mat3 out_tangent_to_world;
 layout(push_constant) uniform PushConstantsObject
 {
 	uint draw_call_index_offset;
-    uint model_view_proj_index;
+    uint light_index;
 } push_constants;
 
 
@@ -32,7 +32,7 @@ void main() {
     DrawCallObject data = draw_call_objects.obj[draw_call_index];
     vec3 p = vec3(x,y,z) * data.position_range.xyz + data.position_min.xyz;
     
-    gl_Position = data.modelViewProj[push_constants.model_view_proj_index] * vec4(p, 1.0);
+    gl_Position = data.modelViewProj[push_constants.light_index] * vec4(p, 1.0);
     
 
 #ifndef DEPTH_ONLY

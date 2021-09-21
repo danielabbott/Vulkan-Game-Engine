@@ -23,8 +23,9 @@ typedef enum {
     PIGEON_WGI_TIMER_START,
     PIGEON_WGI_TIMER_UPLOAD_DONE,
     PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE,
-    PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE,
+    PIGEON_WGI_TIMER_SSAO_DONE,
     PIGEON_WGI_TIMER_SSAO_BLUR_DONE,
+    PIGEON_WGI_TIMER_SHADOWS_DONE,
     PIGEON_WGI_TIMER_RENDER_DONE,
     PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE,
     PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE,
@@ -53,7 +54,8 @@ typedef struct PigeonWGICommandBuffer PigeonWGICommandBuffer;
 // ! Discard the command buffer pointers after presenting the frame !
 PigeonWGICommandBuffer * pigeon_wgi_get_upload_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_depth_command_buffer(void);
-PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light_index);
+PigeonWGICommandBuffer * pigeon_wgi_get_shadow_map_command_buffer(unsigned int light_index);
+PigeonWGICommandBuffer * pigeon_wgi_get_shadow_image_command_buffer(unsigned int light_index);
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
 
 ERROR_RETURN_TYPE pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);

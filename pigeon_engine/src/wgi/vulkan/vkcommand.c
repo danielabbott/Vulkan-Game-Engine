@@ -202,9 +202,9 @@ void pigeon_vulkan_start_render_pass(PigeonVulkanCommandPool* command_pool, unsi
 	unsigned int clear_values_count = 1;
 
 	if(render_pass->has_colour_image) {
-		clear_values[0].color.float32[0] = 0.0f;
+		clear_values[0].color.float32[0] = 1.0f;
 		clear_values[0].color.float32[1] = 1.0f;
-		clear_values[0].color.float32[2] = 0.5f;
+		clear_values[0].color.float32[2] = 1.0f;
 		clear_values[0].color.float32[3] = 1.0f;
 	}
 

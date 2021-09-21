@@ -560,13 +560,16 @@ static void destroy_meshes(void)
 		pigeon_wgi_destroy_multimesh(&mesh);
 }
 
+// TODO refactor
 static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
-	const char *vs_shader_path, const char *vs_depth_only_shader_path, const char *fs_shader_path,
+	const char *vs_shader_path, const char *vs_depth_only_shader_path,
+	const char *fs_shader_path, const char *fs_shadow_shader_path,
 	PigeonWGIPipelineConfig *config, PigeonWGIPipeline * transparent_pipeline, PigeonWGIPipeline * wireframe_pipeline)
 {
 	bool has_depth_only = vs_depth_only_shader_path != NULL;
+	bool has_shadow = fs_shadow_shader_path != NULL;
 
-	unsigned long vs_spv_len = 0, fs_spv_len = 0, vs_depth_spv_len = 0;
+	unsigned long vs_spv_len = 0, fs_spv_len = 0, vs_depth_spv_len = 0, fs_shadow_spv_len = 0;
 
 	uint32_t *vs_spv = (uint32_t *)load_file(vs_shader_path, 0, &vs_spv_len);
 	ASSERT__1(vs_spv, "Error loading vertex shader");
@@ -580,6 +583,7 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 	}
 
 	uint32_t *vs_depth_spv = NULL;
+	uint32_t *fs_shadow_spv = NULL;
 
 	if (has_depth_only)
 	{
@@ -593,10 +597,24 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 		}
 	}
 
-	PigeonWGIShader vs = { 0 }, vs_depth = { 0 }, fs = { 0 };
+	if (has_shadow)
+	{
+		fs_shadow_spv = (uint32_t *)load_file(fs_shadow_shader_path, 0, &fs_shadow_spv_len);
+		if (!fs_shadow_spv)
+		{
+			ERRLOG("Error loading depth-only vertex shader");
+			if(has_depth_only) free(vs_depth_spv);
+			free(vs_spv);
+			free(fs_spv);
+			return 1;
+		}
+	}
+
+	PigeonWGIShader vs = { 0 }, vs_depth = { 0 }, fs = { 0 }, fs_shadow = { 0 };
 	if (pigeon_wgi_create_shader(&vs, vs_spv, (uint32_t)vs_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
 	{
 		free(vs_spv);
+		if(has_shadow) free(fs_shadow_spv);
 		if (has_depth_only)
 			free(vs_depth_spv);
 		free(fs_spv);
@@ -605,6 +623,7 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 	if (pigeon_wgi_create_shader(&fs, fs_spv, (uint32_t)fs_spv_len, PIGEON_WGI_SHADER_TYPE_FRAGMENT))
 	{
 		free(vs_spv);
+		if(has_shadow) free(fs_shadow_spv);
 		if (has_depth_only)
 			free(vs_depth_spv);
 		free(fs_spv);
@@ -616,6 +635,7 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 	{
 		if (pigeon_wgi_create_shader(&vs_depth, vs_depth_spv, (uint32_t)vs_depth_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
 		{
+			if(has_shadow) free(fs_shadow_spv);
 			free(vs_spv);
 			free(vs_depth_spv);
 			free(fs_spv);
@@ -625,14 +645,29 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 		}
 	}
 
+	if (has_shadow)
+	{
+		if (pigeon_wgi_create_shader(&fs_shadow, fs_shadow_spv, (uint32_t)fs_shadow_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
+		{
+			free(fs_shadow_spv);
+			free(vs_spv);
+			if(has_depth_only) free(vs_depth_spv);
+			free(fs_spv);
+			pigeon_wgi_destroy_shader(&vs);
+			pigeon_wgi_destroy_shader(&fs);
+			return 1;
+		}
+	}
+
 	int err = pigeon_wgi_create_pipeline(pipeline, &vs,
-		has_depth_only ? &vs_depth : NULL, &fs, config);
+		has_depth_only ? &vs_depth : NULL, &fs, has_shadow ? &fs_shadow : NULL, config);
 
 	int err2 = 0;
 	if(transparent_pipeline) {
 		config->blend_function = PIGEON_WGI_BLEND_NORMAL;
 		config->depth_write = false;
-		err2 = pigeon_wgi_create_pipeline(transparent_pipeline, &vs, NULL, &fs, config);
+		err2 = pigeon_wgi_create_pipeline(transparent_pipeline, &vs, 
+		has_depth_only ? &vs_depth : NULL, &fs, has_shadow ? &fs_shadow : NULL, config);
 	}
 
 	int err3 = 0;
@@ -640,7 +675,7 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 		config->blend_function = PIGEON_WGI_BLEND_NONE;
 		config->depth_write = true;
 		config->wireframe = true;
-		err3 = pigeon_wgi_create_pipeline(wireframe_pipeline, &vs, has_depth_only ? &vs_depth : NULL, &fs, config);
+		err3 = pigeon_wgi_create_pipeline(wireframe_pipeline, &vs, has_depth_only ? &vs_depth : NULL, &fs, NULL, config);
 	}
 
 										 
@@ -652,6 +687,8 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
 	free(vs_spv);
 	if (has_depth_only)
 		free(vs_depth_spv);
+	if (has_shadow)
+		free(fs_shadow_spv);
 	free(fs_spv);
 
 	ASSERT_1(!err && !err2 && !err3);
@@ -685,7 +722,7 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 	config.depth_test = true;
 
 	ASSERT_1(!create_pipeline(&skybox_pipeline,
-		SHADER_PATH("skybox.vert"), NULL, SHADER_PATH("skybox.frag"), &config, NULL, NULL));
+		SHADER_PATH("skybox.vert"), NULL, SHADER_PATH("skybox.frag"), NULL, &config, NULL, NULL));
 
 	ASSERT_1(!verify_model_vertex_attribs());
 
@@ -696,7 +733,8 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 		   sizeof config.vertex_attributes);
 
 	ASSERT_1(!create_pipeline(&render_pipeline,
-		SHADER_PATH("object.vert"), SHADER_PATH("object.vert.depth"), SHADER_PATH("object.frag"), 
+		SHADER_PATH("object.vert"), SHADER_PATH("object.vert.depth"),
+		SHADER_PATH("object.frag"), SHADER_PATH("shadow.frag"),
 		&config, &render_pipeline_transparent, NULL));
 
 
@@ -716,7 +754,7 @@ static void destroy_pipelines(void)
 }
 
 
-static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only,
+static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only, bool shadow,
 	unsigned int multidraw_draw_count, unsigned int non_transparent_draw_calls)
 {
 	assert(command_buffer);
@@ -726,7 +764,9 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh, 0, non_transparent_draw_calls, 0);
 	
 	if (!depth_only) {
-		pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
+		if(!shadow)
+			pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
+
 		pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline_transparent, &mesh, non_transparent_draw_calls,
 			multidraw_draw_count-non_transparent_draw_calls, non_transparent_draw_calls);
 	}
@@ -1041,9 +1081,10 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 	printf("Render time statistics (300-frame average):\n");
 	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
 	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tSSAO and Shadow Maps: %f\n", values[PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
-	printf("\tSSAO blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
+	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
+	printf("\tSSAO blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_DONE]);
+	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOWS_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SHADOWS_DONE]);
 	printf("\tBloom Downsample: %f\n", values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
 	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
 	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
@@ -1169,7 +1210,8 @@ static void game_loop(void)
 
 		PigeonWGICommandBuffer *upload_command_buffer = pigeon_wgi_get_upload_command_buffer();
 		PigeonWGICommandBuffer *depth_command_buffer = pigeon_wgi_get_depth_command_buffer();
-		PigeonWGICommandBuffer *shadow_command_buffer = pigeon_wgi_get_shadow_command_buffer(0);
+		PigeonWGICommandBuffer *shadow_command_buffer = pigeon_wgi_get_shadow_map_command_buffer(0);
+		PigeonWGICommandBuffer *shadow_command_buffer2 = pigeon_wgi_get_shadow_image_command_buffer(0);
 		PigeonWGICommandBuffer *render_command_buffer = pigeon_wgi_get_render_command_buffer();
 
 		if (frame_number == 0)
@@ -1199,11 +1241,13 @@ static void game_loop(void)
 			arr = arr->next;
 		}
 
-		if (render_frame(depth_command_buffer, true, total_draw_calls, non_transparent_draw_calls))
+		if (render_frame(depth_command_buffer, true, false, total_draw_calls, non_transparent_draw_calls))
 			return;
-		if (render_frame(shadow_command_buffer, true, total_draw_calls, non_transparent_draw_calls))
+		if (render_frame(shadow_command_buffer, true, true, total_draw_calls, non_transparent_draw_calls))
 			return;
-		if (render_frame(render_command_buffer, false, total_draw_calls, non_transparent_draw_calls))
+		if (render_frame(shadow_command_buffer2, false, true, total_draw_calls, non_transparent_draw_calls))
+			return;
+		if (render_frame(render_command_buffer, false, false, total_draw_calls, non_transparent_draw_calls))
 			return;
 
 		

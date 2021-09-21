@@ -15,7 +15,6 @@ typedef struct PigeonWGIShadowParameters {
 
     // set by pigeon_wgi_set_frame, do not touch
 
-    int framebuffer_index; 
     mat4 proj_view;
 } PigeonWGIShadowParameters;
 
