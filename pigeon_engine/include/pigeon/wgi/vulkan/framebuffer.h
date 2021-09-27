@@ -13,4 +13,8 @@ typedef struct PigeonVulkanFramebuffer
 ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer*, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanRenderPass*);
 
+ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer*, 
+    PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanImageView * colour2,
+    PigeonVulkanRenderPass*);
+
 void pigeon_vulkan_destroy_framebuffer(PigeonVulkanFramebuffer*);

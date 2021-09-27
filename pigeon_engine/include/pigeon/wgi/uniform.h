@@ -54,12 +54,15 @@ typedef struct PigeonWGISceneUniformData {
     float one_pixel_y;
     float time;
     uint32_t number_of_lights;
-    float rsvd2;
+	float ssao_cutoff;
     float rsvd3;
 
     PigeonWGILight lights[4];
     vec3 ambient;
     float rsvd4;
+    
+    float znear;
+    float zfar;
 } PigeonWGISceneUniformData;
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix);

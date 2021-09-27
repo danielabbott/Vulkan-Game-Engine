@@ -55,7 +55,14 @@ ERROR_RETURN_TYPE pigeon_create_window(PigeonWindowParameters window_parameters)
 		glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
 		glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
 		glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-		pigeon_wgi_glfw_window = glfwCreateWindow(mode->width, mode->height, window_parameters.title, monitor, NULL);
+
+		unsigned int w = window_parameters.width;
+		unsigned int h = window_parameters.height;
+
+		if(!w) w = (unsigned)mode->width;
+		if(!h) h = (unsigned)mode->height;
+
+		pigeon_wgi_glfw_window = glfwCreateWindow((int)w, (int)h, window_parameters.title, monitor, NULL);
 	}
 	else if (window_parameters.window_mode == PIGEON_WINDOW_MODE_FULLSCREEN) {
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();

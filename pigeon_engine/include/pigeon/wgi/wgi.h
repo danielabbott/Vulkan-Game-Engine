@@ -15,7 +15,9 @@ struct PigeonVulkanCommandPool;
 
 /* Returns 0 on success. If fails, call pigeon_wgi_deinit() to cleanup */
 ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu,
-	PigeonWGIRenderConfig render_graph);
+	PigeonWGIRenderConfig render_graph, float znear, float zfar);
+
+void pigeon_wgi_set_depth_range(float znear, float zfar);
 
 bool pigeon_wgi_close_requested(void);
 
@@ -23,8 +25,9 @@ typedef enum {
     PIGEON_WGI_TIMER_START,
     PIGEON_WGI_TIMER_UPLOAD_DONE,
     PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE,
-    PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE,
-    PIGEON_WGI_TIMER_SSAO_BLUR_DONE,
+    PIGEON_WGI_TIMER_SHADOW_MAPS_DONE,
+    PIGEON_WGI_TIMER_LIGHT_PASS_DONE,
+    PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE,
     PIGEON_WGI_TIMER_RENDER_DONE,
     PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE,
     PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE,
@@ -54,6 +57,7 @@ typedef struct PigeonWGICommandBuffer PigeonWGICommandBuffer;
 PigeonWGICommandBuffer * pigeon_wgi_get_upload_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_depth_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light_index);
+PigeonWGICommandBuffer * pigeon_wgi_get_light_pass_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
 
 ERROR_RETURN_TYPE pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);
@@ -75,7 +79,7 @@ void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, Pi
 ERROR_RETURN_TYPE pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 
 // If returns 2, call pigeon_wgi_recreate_swapchain. Do *NOT* call present again; start the next frame.
-ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_ssao, bool debug_disable_bloom);
+ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_bloom);
 
 
 // Returns 2 (fail) if the window is minimised or smaller than 16x16 pixels
@@ -91,4 +95,5 @@ uint32_t pigeon_wgi_get_time_millis(void);
 float pigeon_wgi_get_time_seconds(void);
 double pigeon_wgi_get_time_seconds_double(void);
 
-void pigeon_wgi_perspective(mat4 m, float fovy, float aspect, float nearZ);
+// call pigeon_wgi_set_depth_range to set depth range variables
+void pigeon_wgi_perspective(mat4 m, float fovy, float aspect);

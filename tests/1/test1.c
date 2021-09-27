@@ -84,7 +84,7 @@ typedef struct GO
 
 GO game_objects[NUM_GAME_OBJECTS] = {
 	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {1, 1, 1}},
-	{0, {-3, 1.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {1.1f, 0.5f, 1.15f}},
+	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {1.1f, 0.5f, 1.15f}},
 	{1, {0, 0, -4}, {1, 1, 1}, {0, 0.1f, 0}, {1, 1, 1}},
 };
 
@@ -118,15 +118,18 @@ static void key_callback(PigeonWGIKeyEvent e)
 static ERROR_RETURN_TYPE start(void)
 {
 	PigeonWindowParameters window_parameters = {
-		.width = 800,
-		.height = 600,
+		.width = 1280,
+		.height = 720,
+		// .width = 800,
+		// .height = 600,
 		.window_mode = PIGEON_WINDOW_MODE_WINDOWED,
 		.title = "Test 1"};
 
 	PigeonWGIRenderConfig cfg = {0};
 	cfg.ssao = true;
 	cfg.bloom = true;
-	if (pigeon_wgi_init(window_parameters, true, cfg))
+	cfg.shadow_casting_lights = 1;
+	if (pigeon_wgi_init(window_parameters, true, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -224,9 +227,9 @@ static ERROR_RETURN_TYPE load_model_assets(void)
 		}
 		ASSERT_1(model_assets[i].type == PIGEON_ASSET_TYPE_MODEL);
 		ASSERT_1(model_assets[i].mesh_meta.attribute_types[0] == PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED &&
-			model_assets[i].mesh_meta.attribute_types[1] == PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL &&
-			model_assets[i].mesh_meta.attribute_types[2] == PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT &&
-			model_assets[i].mesh_meta.attribute_types[3] == PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT &&
+			model_assets[i].mesh_meta.attribute_types[1] == PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT &&
+			model_assets[i].mesh_meta.attribute_types[2] == PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL &&
+			model_assets[i].mesh_meta.attribute_types[3] == PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT &&
 			!model_assets[i].mesh_meta.attribute_types[4]
 		);
 		ASSERT_1(!pigeon_load_asset_data(&model_assets[i], model_file_paths[i][1]));
@@ -560,104 +563,6 @@ static void destroy_meshes(void)
 		pigeon_wgi_destroy_multimesh(&mesh);
 }
 
-static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline *pipeline,
-	const char *vs_shader_path, const char *vs_depth_only_shader_path, const char *fs_shader_path,
-	PigeonWGIPipelineConfig *config, PigeonWGIPipeline * transparent_pipeline, PigeonWGIPipeline * wireframe_pipeline)
-{
-	bool has_depth_only = vs_depth_only_shader_path != NULL;
-
-	unsigned long vs_spv_len = 0, fs_spv_len = 0, vs_depth_spv_len = 0;
-
-	uint32_t *vs_spv = (uint32_t *)load_file(vs_shader_path, 0, &vs_spv_len);
-	ASSERT__1(vs_spv, "Error loading vertex shader");
-
-	uint32_t *fs_spv = (uint32_t *)load_file(fs_shader_path, 0, &fs_spv_len);
-	if (!fs_spv)
-	{
-		ERRLOG("Error loading fragment shader");
-		free(vs_spv);
-		return 1;
-	}
-
-	uint32_t *vs_depth_spv = NULL;
-
-	if (has_depth_only)
-	{
-		vs_depth_spv = (uint32_t *)load_file(vs_depth_only_shader_path, 0, &vs_depth_spv_len);
-		if (!vs_depth_spv)
-		{
-			ERRLOG("Error loading depth-only vertex shader");
-			free(vs_spv);
-			free(fs_spv);
-			return 1;
-		}
-	}
-
-	PigeonWGIShader vs = { 0 }, vs_depth = { 0 }, fs = { 0 };
-	if (pigeon_wgi_create_shader(&vs, vs_spv, (uint32_t)vs_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
-	{
-		free(vs_spv);
-		if (has_depth_only)
-			free(vs_depth_spv);
-		free(fs_spv);
-		return 1;
-	}
-	if (pigeon_wgi_create_shader(&fs, fs_spv, (uint32_t)fs_spv_len, PIGEON_WGI_SHADER_TYPE_FRAGMENT))
-	{
-		free(vs_spv);
-		if (has_depth_only)
-			free(vs_depth_spv);
-		free(fs_spv);
-		pigeon_wgi_destroy_shader(&vs);
-		return 1;
-	}
-
-	if (has_depth_only)
-	{
-		if (pigeon_wgi_create_shader(&vs_depth, vs_depth_spv, (uint32_t)vs_depth_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
-		{
-			free(vs_spv);
-			free(vs_depth_spv);
-			free(fs_spv);
-			pigeon_wgi_destroy_shader(&vs);
-			pigeon_wgi_destroy_shader(&fs);
-			return 1;
-		}
-	}
-
-	int err = pigeon_wgi_create_pipeline(pipeline, &vs,
-		has_depth_only ? &vs_depth : NULL, &fs, config);
-
-	int err2 = 0;
-	if(transparent_pipeline) {
-		config->blend_function = PIGEON_WGI_BLEND_NORMAL;
-		config->depth_write = false;
-		err2 = pigeon_wgi_create_pipeline(transparent_pipeline, &vs, NULL, &fs, config);
-	}
-
-	int err3 = 0;
-	if(wireframe_pipeline) {
-		config->blend_function = PIGEON_WGI_BLEND_NONE;
-		config->depth_write = true;
-		config->wireframe = true;
-		err3 = pigeon_wgi_create_pipeline(wireframe_pipeline, &vs, has_depth_only ? &vs_depth : NULL, &fs, config);
-	}
-
-										 
-
-	pigeon_wgi_destroy_shader(&vs);
-	if (has_depth_only)
-		pigeon_wgi_destroy_shader(&vs_depth);
-	pigeon_wgi_destroy_shader(&fs);
-	free(vs_spv);
-	if (has_depth_only)
-		free(vs_depth_spv);
-	free(fs_spv);
-
-	ASSERT_1(!err && !err2 && !err3);
-	return 0;
-}
-
 static ERROR_RETURN_TYPE verify_model_vertex_attribs(void)
 {
 	// Check all models have the same attributes
@@ -673,19 +578,111 @@ static ERROR_RETURN_TYPE verify_model_vertex_attribs(void)
 	return 0;
 }
 
-static ERROR_RETURN_TYPE create_pipelines(void)
-{
 #ifdef NDEBUG
 #define SHADER_PATH(x) ("build/release/standard_assets/shaders/" x ".spv")
 #else
 #define SHADER_PATH(x) ("build/debug/standard_assets/shaders/" x ".spv")
 #endif
 
+static ERROR_RETURN_TYPE create_skybox_pipeline(void)
+{
+	unsigned long vs_spv_len = 0, fs_spv_len = 0;
+
+	uint32_t *vs_spv = (uint32_t *)load_file(SHADER_PATH("skybox.vert"), 0, &vs_spv_len);
+	ASSERT__1(vs_spv, "Error loading vertex shader");
+
+	uint32_t *fs_spv = (uint32_t *)load_file(SHADER_PATH("skybox.frag"), 0, &fs_spv_len);
+	if (!fs_spv)
+	{
+		free(vs_spv);
+		ASSERT__1(false, "Error loading fragment shader");
+	}
+
+	PigeonWGIShader vs = { 0 }, fs = { 0 };
+
+	if (pigeon_wgi_create_shader(&vs, vs_spv, (uint32_t)vs_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
+	{
+		free(vs_spv);
+		free(fs_spv);
+		ASSERT_1(false);
+	}
+
+	if (pigeon_wgi_create_shader(&fs, fs_spv, (uint32_t)fs_spv_len, PIGEON_WGI_SHADER_TYPE_FRAGMENT))
+	{
+		pigeon_wgi_destroy_shader(&vs);
+		free(vs_spv);
+		free(fs_spv);
+		ASSERT_1(false);
+	}
+
+	int err = pigeon_wgi_create_skybox_pipeline(&skybox_pipeline, &vs, &fs);
+
+	
+	pigeon_wgi_destroy_shader(&vs);
+	pigeon_wgi_destroy_shader(&fs);
+	free(vs_spv);
+	free(fs_spv);
+
+	ASSERT_1(!err);
+	return 0;
+}
+
+static void create_pipeline_cleanup(uint32_t * spv_data[6], PigeonWGIShader shaders[6])
+{
+	for(unsigned int i = 0; i < 6; i++) {
+		if(spv_data[i]) free(spv_data[i]);
+		if(shaders[i].shader) pigeon_wgi_destroy_shader(&shaders[i]);
+	}	
+}
+
+static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline * pipeline,
+	const char * shader_paths[6], PigeonWGIPipelineConfig * config)
+{
+
+	PigeonWGIShaderType shader_types[6] = {
+		PIGEON_WGI_SHADER_TYPE_VERTEX,
+		PIGEON_WGI_SHADER_TYPE_VERTEX,
+		PIGEON_WGI_SHADER_TYPE_VERTEX,
+		PIGEON_WGI_SHADER_TYPE_FRAGMENT,
+		PIGEON_WGI_SHADER_TYPE_FRAGMENT,
+		PIGEON_WGI_SHADER_TYPE_FRAGMENT
+	};
+
+	unsigned long spv_lengths[6] = {0};
+	uint32_t * spv_data[6] = {0};
+	PigeonWGIShader shaders[6] = {{0}};
+
+
+	#define CHECK(x) \
+		if(!(x)) { \
+			create_pipeline_cleanup(spv_data, shaders); \
+			ASSERT_1(false); \
+		}
+
+	for(unsigned int i = 0; i < 6; i++) {
+		if(shader_paths[i]) {
+			spv_data[i] = (uint32_t *)load_file(shader_paths[i], 0, &spv_lengths[i]);
+			CHECK(spv_data[i]);
+			CHECK(!pigeon_wgi_create_shader(&shaders[i], spv_data[i], (uint32_t)spv_lengths[i], shader_types[i]));
+		}	
+	}
+
+	int err = pigeon_wgi_create_pipeline(pipeline, &shaders[0], &shaders[1], &shaders[2],
+		shaders[3].shader ? &shaders[3] : NULL, &shaders[4], &shaders[5], config);
+
+	create_pipeline_cleanup(spv_data, shaders);
+
+	ASSERT_1(!err);
+
+	return 0;
+}
+
+static ERROR_RETURN_TYPE create_pipelines(void)
+{
+	ASSERT_1(!create_skybox_pipeline());
+
 	PigeonWGIPipelineConfig config = {0};
 	config.depth_test = true;
-
-	ASSERT_1(!create_pipeline(&skybox_pipeline,
-		SHADER_PATH("skybox.vert"), NULL, SHADER_PATH("skybox.frag"), &config, NULL, NULL));
 
 	ASSERT_1(!verify_model_vertex_attribs());
 
@@ -695,12 +692,28 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 	memcpy(config.vertex_attributes, model_assets[0].mesh_meta.attribute_types,
 		   sizeof config.vertex_attributes);
 
-	ASSERT_1(!create_pipeline(&render_pipeline,
-		SHADER_PATH("object.vert"), SHADER_PATH("object.vert.depth"), SHADER_PATH("object.frag"), 
-		&config, &render_pipeline_transparent, NULL));
 
+	const char * shader_paths[6] = {
+		SHADER_PATH("object.vert.depth"),
+		SHADER_PATH("object.vert.light"),
+		SHADER_PATH("object.vert"),
+		NULL,
+		SHADER_PATH("object_light.frag"),
+		SHADER_PATH("object.frag")
+	};
+
+	ASSERT_1(!create_pipeline(&render_pipeline, shader_paths, &config));
+
+
+	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
+	shader_paths[0] = SHADER_PATH("object.vert.depth_alpha");
+	shader_paths[3] = SHADER_PATH("object_depth_alpha.frag");
+
+	ASSERT_1(!create_pipeline(&render_pipeline_transparent, shader_paths, &config));
 
 	return 0;
+
+
 
 #undef SHADER_PATH
 }
@@ -716,7 +729,7 @@ static void destroy_pipelines(void)
 }
 
 
-static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only,
+static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only, bool light_pass,
 	unsigned int multidraw_draw_count, unsigned int non_transparent_draw_calls)
 {
 	assert(command_buffer);
@@ -725,11 +738,12 @@ static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bo
 
 	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh, 0, non_transparent_draw_calls, 0);
 	
-	if (!depth_only) {
+	if (!depth_only && !light_pass) {
 		pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
-		pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline_transparent, &mesh, non_transparent_draw_calls,
-			multidraw_draw_count-non_transparent_draw_calls, non_transparent_draw_calls);
 	}
+
+	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline_transparent, &mesh, non_transparent_draw_calls,
+		multidraw_draw_count-non_transparent_draw_calls, non_transparent_draw_calls);
 
 	ASSERT_1(!pigeon_wgi_end_command_buffer(command_buffer));
 	return 0;
@@ -750,7 +764,7 @@ static void set_scene_uniform_data(PigeonWGISceneUniformData *scene_uniform_data
 	glm_euler_xyz(inverted_angles, rot_mat);
 	glm_mat4_mul(rot_mat, scene_uniform_data->view, scene_uniform_data->view);
 
-	pigeon_wgi_perspective(scene_uniform_data->proj, 45, (float)window_width / (float)window_height, 0.1f);
+	pigeon_wgi_perspective(scene_uniform_data->proj, 45, (float)window_width / (float)window_height);
 
 	glm_mat4_mul(scene_uniform_data->proj, scene_uniform_data->view, scene_uniform_data->proj_view);
 	scene_uniform_data->viewport_size[0] = (float)window_width;
@@ -761,12 +775,14 @@ static void set_scene_uniform_data(PigeonWGISceneUniformData *scene_uniform_data
 	scene_uniform_data->ambient[0] = 0.3f;
 	scene_uniform_data->ambient[1] = 0.3f;
 	scene_uniform_data->ambient[2] = 0.3f;
+	// scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.0003f;
+	scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.01f;
 
 	scene_uniform_data->number_of_lights = 1;
 	PigeonWGILight *light = &scene_uniform_data->lights[0];
-	light->intensity[0] = 8;
-	light->intensity[1] = 8;
-	light->intensity[2] = 8;
+	light->intensity[0] = 7;
+	light->intensity[1] = 7;
+	light->intensity[2] = 7;
 	light->neg_direction[0] = 0.1f;
 	light->neg_direction[1] = 1.0f;
 	light->neg_direction[2] = 0.5f;
@@ -1041,9 +1057,10 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 	printf("Render time statistics (300-frame average):\n");
 	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
 	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tSSAO and Shadow Maps: %f\n", values[PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
-	printf("\tSSAO blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_AND_SHADOW_DONE]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
+	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
+	printf("\tLight Pass: %f\n", values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
+	printf("\tLight Blur: %f\n", values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE]);
 	printf("\tBloom Downsample: %f\n", values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
 	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
 	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
@@ -1100,7 +1117,7 @@ static void game_loop(void)
 
 	PigeonWGIShadowParameters shadows[4] = {{0}};
 	{
-		shadows[0].resolution = 512;
+		shadows[0].resolution = 2048;
 		shadows[0].near_plane = 6.0f;
 		shadows[0].far_plane = 13.0f;
 		shadows[0].sizeX = 6;
@@ -1170,6 +1187,7 @@ static void game_loop(void)
 		PigeonWGICommandBuffer *upload_command_buffer = pigeon_wgi_get_upload_command_buffer();
 		PigeonWGICommandBuffer *depth_command_buffer = pigeon_wgi_get_depth_command_buffer();
 		PigeonWGICommandBuffer *shadow_command_buffer = pigeon_wgi_get_shadow_command_buffer(0);
+		PigeonWGICommandBuffer *light_pass_command_buffer = pigeon_wgi_get_light_pass_command_buffer();
 		PigeonWGICommandBuffer *render_command_buffer = pigeon_wgi_get_render_command_buffer();
 
 		if (frame_number == 0)
@@ -1199,16 +1217,18 @@ static void game_loop(void)
 			arr = arr->next;
 		}
 
-		if (render_frame(depth_command_buffer, true, total_draw_calls, non_transparent_draw_calls))
+		if (render_frame(depth_command_buffer, true, false, total_draw_calls, non_transparent_draw_calls))
 			return;
-		if (render_frame(shadow_command_buffer, true, total_draw_calls, non_transparent_draw_calls))
+		if (render_frame(shadow_command_buffer, true, false, total_draw_calls, non_transparent_draw_calls))
 			return;
-		if (render_frame(render_command_buffer, false, total_draw_calls, non_transparent_draw_calls))
+		if (render_frame(light_pass_command_buffer, false, true, total_draw_calls, non_transparent_draw_calls))
+			return;
+		if (render_frame(render_command_buffer, false, false, total_draw_calls, non_transparent_draw_calls))
 			return;
 
 		
 
-		int present_frame_error = pigeon_wgi_present_frame(debug_disable_ssao, debug_disable_bloom);
+		int present_frame_error = pigeon_wgi_present_frame(debug_disable_bloom);
 		if (present_frame_error == 2)
 		{
 			if (recreate_swapchain()) return;

@@ -404,13 +404,16 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
         ' ' + str(position_value_range[2]) + '\n'
 
 
-    asset_text_file += 'VERTEX-ATTRIBUTES POSITION-NORMALISED NORMAL'
+    asset_text_file += 'VERTEX-ATTRIBUTES POSITION-NORMALISED'
+
+    if export_uv:
+        asset_text_file += ' UV-FLOAT'
+
+    asset_text_file += ' NORMAL'
 
     if export_tangents:
         asset_text_file += ' TANGENT'
     
-    if export_uv:
-        asset_text_file += ' UV-FLOAT'
     
 
     asset_text_file += '\n'
@@ -443,7 +446,7 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
         if m.normal_texture != '':
             asset_text_file += 'NORMAL-MAP ' + m.normal_texture + '\n'
 
-    writers = [ByteArrayWriter(), ByteArrayWriter()]
+    writers = [ByteArrayWriter()]
 
 
     for v in vertices:
@@ -459,33 +462,6 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
         datum = (datum_a << 30) | datum_rgb
 
         writers[0].writeDWord(datum)
-
-
-    for v in vertices:
-        nx = int(v.normal[0] * 511.0)
-        ny = int(v.normal[1] * 511.0)
-        nz = int(v.normal[2] * 511.0)
-        
-        datum = (nx & 1023) | ((ny & 1023) << 10) | ((nz & 1023) << 20)
-        writers[1].writeDWord(datum)
-
-    if export_tangents:
-        w = ByteArrayWriter()
-        writers.append(w)
-        for v in vertices:
-            if v.tangent is None:
-                v.tangent = [0.0, 0.0, 0.0]
-            if v.bitangent_sign is None:
-                v.bitangent_sign = 0
-
-            x = int((v.tangent[0]) * 511.0)
-            y = int((v.tangent[1]) * 511.0)
-            z = int((v.tangent[2]) * 511.0)
-            bi = int((v.bitangent_sign) * 1.0)
-            
-            datum = (x & 1023) | ((y & 1023) << 10) | ((z & 1023) << 20) | ((bi & 3) << 30)
-            w.writeDWord(datum)
-    
 
     if export_uv:
         w = ByteArrayWriter()
@@ -505,6 +481,36 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
 
                 w.writeFloat(v.uv[0])
                 w.writeFloat(1-v.uv[1])
+
+    w = ByteArrayWriter()
+    writers.append(w)
+    for v in vertices:
+
+        nx = int(v.normal[0] * 511.0)
+        ny = int(v.normal[1] * 511.0)
+        nz = int(v.normal[2] * 511.0)
+        
+        datum = (nx & 1023) | ((ny & 1023) << 10) | ((nz & 1023) << 20)
+        w.writeDWord(datum)
+
+    if export_tangents:
+        w = ByteArrayWriter()
+        writers.append(w)
+        for v in vertices:
+            if v.tangent is None:
+                v.tangent = [0.0, 0.0, 0.0]
+            if v.bitangent_sign is None:
+                v.bitangent_sign = 0
+
+            x = int((v.tangent[0]) * 511.0)
+            y = int((v.tangent[1]) * 511.0)
+            z = int((v.tangent[2]) * 511.0)
+            bi = int((v.bitangent_sign) * 1.0)
+            
+            datum = (x & 1023) | ((y & 1023) << 10) | ((z & 1023) << 20) | ((bi & 3) << 30)
+            w.writeDWord(datum)
+    
+
 
     if indices_count > 0:
         w = ByteArrayWriter()

@@ -73,14 +73,11 @@ void pigeon_vulkan_destroy_shader(PigeonVulkanShader* shader)
 	}
 }
 
-static int create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout* descriptor_layout,
+static ERROR_RETURN_TYPE create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout* descriptor_layout,
 	unsigned int push_constants_size)
 {
-	if (!layout || !descriptor_layout) {
-		assert(false);
-		return 1;
-	}
-	assert(!*layout);
+	ASSERT_1(layout && !*layout);
+	if(descriptor_layout) ASSERT_1(descriptor_layout->handle);
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 
@@ -107,18 +104,16 @@ static int create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout*
 }
 
 // N.b. Shader objects can be deleted after creating a pipeline
-int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanShader* vs, PigeonVulkanShader* fs,
+ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanShader* vs, PigeonVulkanShader* fs,
 	unsigned int push_constants_size, PigeonVulkanRenderPass* render_pass,
 	PigeonVulkanDescriptorLayout* descriptor_layout, const PigeonWGIPipelineConfig* cfg,
 	unsigned int specialisation_constants, uint32_t * sc_data)
 {
-	if (!pipeline || !vs || !render_pass || !render_pass->vk_renderpass || !descriptor_layout || 
-			!descriptor_layout->handle || push_constants_size > 128 || specialisation_constants > 16) {
-		assert(false);
-		return 1;
+	if (!pipeline || !vs || !render_pass || !render_pass->vk_renderpass || push_constants_size > 128 || specialisation_constants > 16) {
+		ASSERT_1(false);
 	}
 
-	if (create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size)) return 1;
+	ASSERT_1 (!create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size)) ;
 
 	VkPipelineShaderStageCreateInfo shaders[2] = { {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO},
 		{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO} };
@@ -208,6 +203,11 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 	}
 	rasterizer.polygonMode = cfg->wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
+	if(cfg->depth_bias) {
+		rasterizer.depthBiasEnable = true;
+		rasterizer.depthBiasSlopeFactor = -1;
+	}
+
 	VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -225,22 +225,23 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 		depth_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	}
 
-	VkPipelineColorBlendAttachmentState blend = {0};
-	blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+	VkPipelineColorBlendAttachmentState blend[2] = {{0}};
+	blend[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+	blend[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
 
 	if (!cfg->depth_only && cfg->blend_function == PIGEON_WGI_BLEND_NORMAL) {
-		blend.blendEnable = VK_TRUE;
-		blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		blend.colorBlendOp = VK_BLEND_OP_ADD;
-		blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-		blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-		blend.alphaBlendOp = VK_BLEND_OP_ADD;
+		blend[0].blendEnable = VK_TRUE;
+		blend[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		blend[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		blend[0].colorBlendOp = VK_BLEND_OP_ADD;
+		blend[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		blend[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		blend[0].alphaBlendOp = VK_BLEND_OP_ADD;
 	}
 
 	VkPipelineColorBlendStateCreateInfo blend2 = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-	blend2.attachmentCount = 1;
-	blend2.pAttachments = &blend;
+	blend2.attachmentCount = render_pass->has_2_colour_images ? 2 : 1;
+	blend2.pAttachments = blend;
 
 
 	VkGraphicsPipelineCreateInfo pipeline_create = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
@@ -262,10 +263,8 @@ int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanSh
 
 	if (vkCreateGraphicsPipelines(vkdev, VK_NULL_HANDLE, 1, &pipeline_create,
 			NULL, &pipeline->vk_pipeline) != VK_SUCCESS) {
-		ERRLOG("vkCreateGraphicsPipelines error");
 		vkDestroyPipelineLayout(vkdev, pipeline->vk_pipeline_layout, NULL);
-		pipeline->vk_pipeline_layout = NULL;
-		return 1;
+		ASSERT__1(false, "vkCreateGraphicsPipelines error");
 	}
 	return 0;
 }

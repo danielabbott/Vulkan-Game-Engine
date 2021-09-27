@@ -3,7 +3,6 @@
 #include "singleton.h"
 #include <cglm/cam.h>
 
-// code taken from cglm, changed so z = z-1
 static void ortho_rh_z_1_0(float left, float right,
                 float bottom,  float top,
                 float nearZ, float farZ,
@@ -11,18 +10,8 @@ static void ortho_rh_z_1_0(float left, float right,
 
   glm_ortho_rh_zo(left, right,
                 bottom,  top,
-                nearZ, farZ,
+                farZ, nearZ,
                  dest);
-
-    mat4 fix = {0};
-    fix[0][0] = 1;
-    fix[1][1] = 1;
-    fix[2][2] = -1;
-    fix[3][2] = 1;
-    fix[3][3] = 1;
-
-    glm_mat4_mul(fix, dest, dest);
-
 }
 
 
@@ -65,7 +54,7 @@ static ERROR_RETURN_TYPE validate(void)
 static ERROR_RETURN_TYPE create_shadow_framebuffer(PigeonWGIShadowParameters * p, unsigned int framebuffer_index)
 {
     ASSERT_1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_images[framebuffer_index],
-        PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24, p->resolution, p->resolution, false, false));
+        PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, p->resolution, p->resolution, false, false));
 
     ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
         &singleton_data.shadow_images[framebuffer_index].image_view, NULL, &singleton_data.rp_depth));

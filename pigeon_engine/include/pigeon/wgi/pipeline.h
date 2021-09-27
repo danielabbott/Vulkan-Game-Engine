@@ -56,6 +56,7 @@ typedef struct PigeonWGIPipelineConfig {
 	bool depth_test;
 	bool depth_write;
 	bool depth_only;
+	bool depth_bias;
 	bool wireframe;
 
 	PigeonWGIVertexAttributeType vertex_attributes[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES];
@@ -74,13 +75,22 @@ ERROR_RETURN_TYPE pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, ui
 void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 
 typedef struct PigeonWGIPipeline {
+	struct PigeonVulkanPipeline * pipeline_depth;
+	struct PigeonVulkanPipeline * pipeline_shadow_map;
+	struct PigeonVulkanPipeline * pipeline_light;
 	struct PigeonVulkanPipeline * pipeline;
-	struct PigeonVulkanPipeline * pipeline_depth_only;
-	struct PigeonVulkanPipeline * pipeline_shadow;
-	bool has_fragment_shader;
+	bool blend_enabled;
 } PigeonWGIPipeline;
 
 // Shaders can be destroyed after creating the pipeline.
-int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* vs_depth_only, 
-	PigeonWGIShader* fs, const PigeonWGIPipelineConfig*);
+
+int pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* fs);
+
+int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, 
+	PigeonWGIShader* vs_depth, 
+	PigeonWGIShader* vs_light, PigeonWGIShader* vs, 
+	PigeonWGIShader* fs_depth, // NULL for opaque objects
+	PigeonWGIShader* fs_light, PigeonWGIShader* fs,
+	const PigeonWGIPipelineConfig*);
+
 void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline*);

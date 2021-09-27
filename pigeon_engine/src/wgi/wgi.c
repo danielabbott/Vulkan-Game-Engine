@@ -13,13 +13,39 @@
 #include <pigeon/util.h>
 #include <pigeon/wgi/rendergraph.h>
 
+static ERROR_RETURN_TYPE set_render_graph(PigeonWGIRenderConfig render_cfg)
+{
+	singleton_data.render_graph = render_cfg;
+
+	ASSERT_1(render_cfg.shadow_casting_lights >= 0 && render_cfg.shadow_casting_lights <= 2);
+	singleton_data.light_image_components = render_cfg.ssao ? 1 : 0;
+	singleton_data.light_image_components += render_cfg.shadow_casting_lights;
+
+	if(singleton_data.light_image_components == 0) {
+		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_NONE;
+	}
+	else if(singleton_data.light_image_components == 1) {
+		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR;
+	}
+	else if(singleton_data.light_image_components == 2) {
+		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR;
+	}
+	else {
+		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_A2B10G10R10_LINEAR;
+	}
+
+	return 0;
+}
 
 ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, 
 	bool prefer_dedicated_gpu,
-	PigeonWGIRenderConfig render_graph)
+	PigeonWGIRenderConfig render_cfg, float znear, float zfar)
 {
 	pigeon_wgi_deinit();
-	singleton_data.render_graph = render_graph;
+	ASSERT_1(!set_render_graph(render_cfg));
+	
+
+	pigeon_wgi_set_depth_range(znear, zfar);
 
 
 	ASSERT_1(!pigeon_create_window(window_parameters));
@@ -36,7 +62,6 @@ ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters,
 
 	pigeon_wgi_set_global_descriptors();
 
-	/* SSAO shader, post-processing shader, etc. */
 	if (pigeon_wgi_create_standard_pipeline_objects()) return 1;
 
 
@@ -47,13 +72,29 @@ ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters,
 
 
 
-
 	return 0;
 }
 
 void pigeon_wgi_wait_idle(void)
 {
 	pigeon_vulkan_wait_idle();
+}
+
+
+ERROR_RETURN_TYPE pigeon_wgi_recreate_swapchain(void)
+{
+    pigeon_wgi_wait_idle();
+    pigeon_wgi_destroy_per_frame_objects();
+	pigeon_wgi_destroy_framebuffers();
+    pigeon_vulkan_destroy_swapchain();
+
+    int err = pigeon_vulkan_create_swapchain();
+    if(err) return err;
+
+    ASSERT_1(!pigeon_wgi_create_framebuffers());
+    pigeon_wgi_set_global_descriptors();
+    ASSERT_1(!pigeon_wgi_create_per_frame_objects());
+    return 0;
 }
 
 void pigeon_wgi_deinit(void)
@@ -78,21 +119,17 @@ void pigeon_wgi_deinit(void)
 	memset(&singleton_data, 0, sizeof singleton_data);
 }
 
-// https://nlguillemot.wordpress.com/2016/12/07/reversed-z-in-opengl/
-void pigeon_wgi_perspective(mat4 m, float fovy, float aspect, float nearZ)
+void pigeon_wgi_set_depth_range(float znear, float zfar)
+{
+	singleton_data.znear = znear;
+	singleton_data.zfar = zfar;
+}
+
+void pigeon_wgi_perspective(mat4 m, float fovy, float aspect)
 {
 
-	glm_perspective_rh_zo(glm_rad(fovy), aspect, nearZ, 1000.0f, m);
-
-
-    mat4 fix = {0};
-    fix[0][0] = 1;
-    fix[1][1] = -1;
-    fix[2][2] = -1;
-    fix[3][2] = 1;
-    fix[3][3] = 1;
-
-    glm_mat4_mul(fix, m, m);
+	glm_perspective_rh_zo(glm_rad(fovy), aspect, singleton_data.zfar, singleton_data.znear, m);
+    m[1][1] *= -1.0f;
 }
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix)

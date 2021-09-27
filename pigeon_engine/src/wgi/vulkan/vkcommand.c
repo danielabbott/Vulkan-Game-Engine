@@ -198,18 +198,23 @@ void pigeon_vulkan_start_render_pass(PigeonVulkanCommandPool* command_pool, unsi
 	begin.renderArea.extent.width = viewport_width;
 	begin.renderArea.extent.height = viewport_height;
 
-	VkClearValue clear_values[2] = {{{{0}}}};
-	unsigned int clear_values_count = 1;
+	VkClearValue clear_values[3] = {{{{0}}}};
 
+	unsigned int i = 0;
 	if(render_pass->has_colour_image) {
-		clear_values[0].color.float32[0] = 0.0f;
-		clear_values[0].color.float32[1] = 1.0f;
-		clear_values[0].color.float32[2] = 0.5f;
 		clear_values[0].color.float32[3] = 1.0f;
+		i++;
+	}
+	if(render_pass->has_2_colour_images) {
+		clear_values[1].color.float32[3] = 1.0f;
+		i++;
+	}
+	if(render_pass->has_writeable_depth_image) {
+		i++;
 	}
 
 
-	begin.clearValueCount = clear_values_count;
+	begin.clearValueCount = i;
 	begin.pClearValues = clear_values;
 
 	vkCmdBeginRenderPass(get_cmd_buf(command_pool, buffer_index), &begin, 

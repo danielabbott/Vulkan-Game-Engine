@@ -26,6 +26,8 @@ typedef enum {
 	// Linear non-colour formats
 	PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR,
 	PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR,
+	PIGEON_WGI_IMAGE_FORMAT_RG_U16_LINEAR,
+	PIGEON_WGI_IMAGE_FORMAT_A2B10G10R10_LINEAR,
 
 	// Compressed formats (all srgb except ETC1). Not guaranteed to be supported
 

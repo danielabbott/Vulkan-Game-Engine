@@ -19,11 +19,13 @@ layout(binding = 0, std140) uniform UniformBufferObject {
     float one_pixel_y;
     float time;
     uint number_of_lights;
-    float rsvd2;
+	float ssao_cutoff;
     float rsvd3;
     Light lights[4];
     vec3 ambient;
     float rsvd4;
+    float znear;
+    float zfar;
 } ubo;
 
 

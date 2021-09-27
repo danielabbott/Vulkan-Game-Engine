@@ -27,7 +27,7 @@ typedef struct PigeonVulkanPipeline {
 
 
 // N.b. Shader objects can be deleted after creating a pipeline
-int pigeon_vulkan_create_pipeline(PigeonVulkanPipeline*, PigeonVulkanShader* vs, PigeonVulkanShader* fs, 
+ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline*, PigeonVulkanShader* vs, PigeonVulkanShader* fs, 
 	unsigned int push_constants_size, PigeonVulkanRenderPass*, PigeonVulkanDescriptorLayout*, 
 	const PigeonWGIPipelineConfig*,
 

@@ -24,13 +24,20 @@ typedef struct PigeonVulkanRenderPassConfig {
 	bool colour_image_is_swapchain; // used if colour_image != none
 	bool clear_colour_image; // false = ignore previous contents of framebuffer
 	bool leave_as_transfer_src; // If render target is going to be blitted or loaded to host memory
+
+	PigeonWGIImageFormat colour_image2;
+	// 2nd colour attatchment can not be swapchain
+	bool clear_colour_image2;
+	bool leave_as_transfer_src2;
 } PigeonVulkanRenderPassConfig;
 
 
 typedef struct PigeonVulkanRenderPass {
 	struct VkRenderPass_T* vk_renderpass;
 	bool has_colour_image;
+	bool has_2_colour_images;
 	bool has_depth_image;
+	bool has_writeable_depth_image;
 } PigeonVulkanRenderPass;
 
 ERROR_RETURN_TYPE pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass*, PigeonVulkanRenderPassConfig);
