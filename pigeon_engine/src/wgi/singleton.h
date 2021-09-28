@@ -68,7 +68,6 @@ typedef struct PerFrameData {
 typedef struct SingletonData
 {
 	PigeonVulkanDescriptorLayout depth_descriptor_layout;
-	PigeonVulkanDescriptorLayout light_pass_descriptor_layout;
 	PigeonVulkanDescriptorLayout one_texture_descriptor_layout;
 	PigeonVulkanDescriptorLayout two_texture_descriptor_layout;
 	PigeonVulkanDescriptorLayout render_descriptor_layout;

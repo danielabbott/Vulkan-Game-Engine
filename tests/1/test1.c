@@ -706,6 +706,7 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
+	config.cull_mode = PIGEON_WGI_CULL_MODE_NONE;
 	shader_paths[0] = SHADER_PATH("object.vert.depth_alpha");
 	shader_paths[3] = SHADER_PATH("object_depth_alpha.frag");
 
@@ -775,8 +776,7 @@ static void set_scene_uniform_data(PigeonWGISceneUniformData *scene_uniform_data
 	scene_uniform_data->ambient[0] = 0.3f;
 	scene_uniform_data->ambient[1] = 0.3f;
 	scene_uniform_data->ambient[2] = 0.3f;
-	// scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.0003f;
-	scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.01f;
+	scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.02f;
 
 	scene_uniform_data->number_of_lights = 1;
 	PigeonWGILight *light = &scene_uniform_data->lights[0];

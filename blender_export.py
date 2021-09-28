@@ -231,6 +231,10 @@ def get_mesh_data(flat_shading, export_tangents):
 
             if len(colour_input.links) > 0:
                 texture_node = colour_input.links[0].from_node
+                if isinstance(texture_node, bpy.types.ShaderNodeMixRGB):
+                    mix_node = texture_node.inputs['Color1']
+                    if len(mix_node.links) > 0:
+                        texture_node = mix_node.links[0].from_node
                 if isinstance(texture_node, bpy.types.ShaderNodeTexImage):
                     m.texture = texture_node.image.filepath.split('/')[-1]
                     m.colour = [0.8, 0.8, 0.8]

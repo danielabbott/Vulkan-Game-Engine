@@ -51,7 +51,8 @@ layout(location = 3) out vec3 out_normal;
 layout(location = 0) out vec3 out_normal;
 layout(location = 1) out vec2 out_uv;
 layout(location = 2) out flat uint out_draw_call_index;
-layout(location = 3) out mat3 out_tangent_to_world;
+layout(location = 3) out vec3 out_position_model_space;
+layout(location = 4) out mat3 out_tangent_to_world;
 
 #endif
 
@@ -85,7 +86,7 @@ void main() {
 
     // position
 
-#ifdef OBJECT_LIGHT
+#if defined(OBJECT_LIGHT) || defined(OBJECT)
     out_position_model_space = p.xyz;
 #endif
 

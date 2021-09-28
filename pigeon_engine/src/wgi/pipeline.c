@@ -194,6 +194,7 @@ int pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShad
 
 	PigeonWGIPipelineConfig config = {0};
 	config.depth_test = true;
+	config.depth_cmp_equal = true;
 
 	pipeline->pipeline = calloc(1, sizeof *pipeline->pipeline);
 	ASSERT_1(pipeline->pipeline);
@@ -242,21 +243,22 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	PigeonWGIPipelineConfig config2 = *config;
 	config2.depth_write = false;
 	config2.depth_test = true;
+	config2.depth_cmp_equal = true;
 
-	uint32_t ssao_enabled = singleton_data.render_graph.ssao ? 1 : 0;
+	uint32_t sc_render[2] = {singleton_data.render_graph.ssao ? 1 : 0, 
+		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1};
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs->shader,
-		8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, &config2, 1, &ssao_enabled))
+		8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, &config2, 2, sc_render))
 	{
 		free(pipeline->pipeline);
 		ERR();
 	}
 
-	
-
+	config2.depth_cmp_equal = true;
 	uint32_t sc[4] = {singleton_data.render_graph.ssao ? 8 : 0, 4,
 		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1, 2};
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline_light, vs_light->shader, fs_light->shader,
-		8, &singleton_data.rp_light_pass, &singleton_data.light_pass_descriptor_layout, &config2, 4, sc))
+		8, &singleton_data.rp_light_pass, &singleton_data.render_descriptor_layout, &config2, 4, sc))
 	{
 		pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
 		ERR();
@@ -265,6 +267,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	config2.depth_write = true;
 	config2.depth_test = true;
 	config2.depth_only = true;
+	config2.depth_cmp_equal = false;
 
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline_depth, vs_depth->shader, fs_depth ? fs_depth->shader : NULL,
 		8, &singleton_data.rp_depth, 

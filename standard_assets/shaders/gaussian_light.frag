@@ -112,22 +112,19 @@ void main() {
 	// Others
 
 	for(float j = -1; j <= 1; j += 2) {
-		vec2 offset = j*1.5*push_constants.one_pixel*1.5;
+		vec2 offset = j*1.5*push_constants.one_pixel;
 		float prev_depth = centre_depth;
-		COLOUR_TYPE prev_colour = centre_colour;
 
 		for(int i = 0; i < NUMBER_OF_WEIGHTS; i += 1) {
 			vec2 p = in_tex_coord + offset;
-			float d = relinearise_depth(texture(depth_buffer, p).r);
+			float d = relinearise_depth(texture(depth_buffer, p + push_constants.one_pixel*0.5).r);
 
 			if(abs(d - prev_depth) < 0.07) {
 				COLOUR_TYPE c = texture(src_image, p).COLOUR_COMPONENTS;
 				final_colour += c * weights[i];
-				prev_colour = c;
-				prev_depth = d;
 			}
 			else {
-				final_colour += prev_colour * weights[i];
+				final_colour += centre_colour * weights[i];
 			}
 
 			offset += j*2*push_constants.one_pixel*1.5;

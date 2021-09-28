@@ -1,17 +1,21 @@
 #version 460
 
 layout (constant_id = 0) const bool SC_SSAO_ENABLED = true;
+layout (constant_id = 1) const bool SC_TRANSPARENT = false;
 
 
 layout(location = 0) in vec3 in_normal;
 layout(location = 1) in vec2 in_uv;
 layout(location = 2) in flat uint in_draw_call_index;
-layout(location = 3) in mat3 in_tangent_to_world;
+layout(location = 3) in vec3 in_position_model_space;
+layout(location = 4) in mat3 in_tangent_to_world;
 
 layout(location = 0) out vec4 out_colour;
 
 
 layout(binding = 2) uniform sampler2D shadow_texture;
+
+layout(binding = 3) uniform sampler2DShadow shadow_maps[4];
 
 layout(binding = 4) uniform sampler2DArray textures[90];
 
@@ -23,7 +27,11 @@ void main() {
     vec2 tex_coord = gl_FragCoord.xy / ubo.viewport_size;
 
     vec3 colour = ubo.ambient;
-    vec4 shadow_values = texture(shadow_texture, tex_coord);
+    vec4 shadow_values;
+    
+    if(!SC_TRANSPARENT) {
+        shadow_values= texture(shadow_texture, tex_coord);
+    }
 
     /* Normal map */
 
@@ -49,15 +57,22 @@ void main() {
         float intensity = max(dot(normal_detailed, normalize(l.neg_direction)), 0.0);
 
         if(l.is_shadow_caster != 0.0) {
-            intensity = min(intensity, shadow_values[shadow_values_index]);
-
-            shadow_values_index++;
+            if(SC_TRANSPARENT) {
+                vec4 shadow_xyzw = data.modelViewProj[i+1] * vec4(in_position_model_space, 1.0);
+                shadow_xyzw.xy = shadow_xyzw.xy*0.5 + vec2(0.5);
+                shadow_xyzw.z += 0.0001; // bias
+                intensity *= texture(shadow_maps[i], vec3(shadow_xyzw.xy, shadow_xyzw.z)).r;
+            }
+            else {
+                intensity = min(intensity, shadow_values[shadow_values_index]);
+                shadow_values_index++;
+            }
         }
 
         colour += intensity*l.light_intensity__and__shadow_pixel_offset.rgb;
     }
 
-    if(SC_SSAO_ENABLED) {
+    if(SC_SSAO_ENABLED && !SC_TRANSPARENT) {
         colour *= shadow_values.r*shadow_values.r;
     }
 
@@ -72,16 +87,19 @@ void main() {
         vec4 tex_val = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index));
         tex_val.rgb *= 1.2;
 
-
-        if(data.under_colour.a == 1) {
-            colour *= mix(data.under_colour.rgb, tex_val.rgb, tex_val.a);
+        if(SC_TRANSPARENT) {
+            colour *= tex_val.rgb;
+            alpha = tex_val.a;
         }
         else {
-            colour *= tex_val.rgb;
-            if(data.under_colour.a == 2) {
-                alpha = tex_val.a;
+            if(data.under_colour.a == 1) {
+                colour *= mix(data.under_colour.rgb, tex_val.rgb, tex_val.a);
+            }
+            else {
+                colour *= tex_val.rgb;
             }
         }
+        
     }
 
 

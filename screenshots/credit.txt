@@ -1,1 +1,3 @@
-Sponza Atrium model by Frank Meinl / Marko Dabrovic, not included in this repository.
+Sponza Atrium model (not included in this repository)
+Marko Dabrovic, Frank Meinl, Morgan McGuire, Themaister
+https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/Sponza

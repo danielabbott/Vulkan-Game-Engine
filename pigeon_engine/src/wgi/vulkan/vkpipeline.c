@@ -218,11 +218,11 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, 
 	if (cfg->depth_write) {
 		depth_state.depthWriteEnable = VK_TRUE;
 	}
-	if (cfg->depth_only) {
-		depth_state.depthCompareOp = VK_COMPARE_OP_GREATER;
+	if (cfg->depth_cmp_equal) {
+		depth_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	}
 	else {
-		depth_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+		depth_state.depthCompareOp = VK_COMPARE_OP_GREATER;
 	}
 
 	VkPipelineColorBlendAttachmentState blend[2] = {{0}};

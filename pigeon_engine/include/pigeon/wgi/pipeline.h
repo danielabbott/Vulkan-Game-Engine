@@ -56,6 +56,7 @@ typedef struct PigeonWGIPipelineConfig {
 	bool depth_test;
 	bool depth_write;
 	bool depth_only;
+	bool depth_cmp_equal; // if true, uses GREATER_OR_EQUAL instead of GREATER
 	bool depth_bias;
 	bool wireframe;
 

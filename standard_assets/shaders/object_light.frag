@@ -29,6 +29,24 @@ float rand(vec2 co){
 }
 
 void main() {
+
+    /* Transparency */
+
+    DrawCallObject data = draw_call_objects.obj[in_draw_call_index]; 
+    float alpha = 1;
+
+    if(SC_FETCH_ALPHA && data.texture_sampler_index_plus1 >= 1) {
+        vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
+        alpha = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index)).a;
+
+        if(alpha < 1.0) {
+            discard;
+        }
+    }
+
+    /**/
+
+
     vec2 tex_coord = gl_FragCoord.xy / ubo.viewport_size;
 
 	float random_value = rand(tex_coord);
@@ -40,7 +58,6 @@ void main() {
         sin(theta), cos(theta)
     );
 
-    DrawCallObject data = draw_call_objects.obj[in_draw_call_index]; 
 
     vec3 normal = in_normal;
 
@@ -103,23 +120,9 @@ void main() {
         output_value_index++;
     }
 
-    /* Transparency */
-
-    float alpha = 1;
-
-    if(SC_FETCH_ALPHA && data.texture_sampler_index_plus1 >= 1) {
-        vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
-        alpha = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index)).a;
-    }
-
 
     if(SC_COLOUR_COMPONENTS == 3) {
-        if(SC_FETCH_ALPHA) {
-            out_shadow_values = vec4(output_value, alpha);
-        }
-        else {
-            out_shadow_values = vec4(output_value, 1);
-        }  
+        out_shadow_values = vec4(output_value, 1);
     }
     else if(SC_COLOUR_COMPONENTS == 2) {
         out_shadow_values = vec4(output_value.rg, 0, 1);

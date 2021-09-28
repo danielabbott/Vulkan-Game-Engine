@@ -70,7 +70,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
         ASSERT_1(!pigeon_vulkan_create_command_pool(&objects->render_command_buffer.command_pool, 1, false, false));
 
         ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->depth_descriptor_pool, 1, &singleton_data.depth_descriptor_layout));
-        ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->light_pass_descriptor_pool, 1, &singleton_data.light_pass_descriptor_layout));
+        ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->light_pass_descriptor_pool, 1, &singleton_data.render_descriptor_layout));
         ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->render_descriptor_pool, 1, &singleton_data.render_descriptor_layout));
 
         pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 2, 0, 
@@ -78,6 +78,8 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
 
         for(unsigned int j = 0; j < 4; j++) {
             pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, j, 
+                &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, j, 
                 &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
         }
 
@@ -333,10 +335,14 @@ ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls
         if(!p->resolution) {
             pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, i, 
                 &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
+                &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
             continue;
         }
         unsigned int j = (unsigned)p->framebuffer_index;
         pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, i, 
+            &singleton_data.shadow_images[j].image_view, &singleton_data.shadow_sampler);
+        pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
             &singleton_data.shadow_images[j].image_view, &singleton_data.shadow_sampler);
     }
 

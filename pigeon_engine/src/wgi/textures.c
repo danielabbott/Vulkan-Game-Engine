@@ -86,7 +86,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[2].fragment_shader_accessible = true;
 	bindings[2].elements = 1;
 
-	// Shadow map textures or detailed light delta
+	// Shadow map textures
 	bindings[3].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
 	bindings[3].fragment_shader_accessible = true;
 	bindings[3].elements = 4;
@@ -96,11 +96,6 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[4].fragment_shader_accessible = true;
 	bindings[4].elements = 90;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.light_pass_descriptor_layout, 5, bindings));
-
-
-
-	bindings[3].elements = 1;
 	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.render_descriptor_layout, 5, bindings));
 
 
@@ -114,8 +109,6 @@ void pigeon_wgi_destroy_descriptor_layouts(void)
 		pigeon_vulkan_destroy_descriptor_layout(&singleton_data.render_descriptor_layout);
 	if (singleton_data.depth_descriptor_layout.handle)
 		pigeon_vulkan_destroy_descriptor_layout(&singleton_data.depth_descriptor_layout);
-	if (singleton_data.light_pass_descriptor_layout.handle)
-		pigeon_vulkan_destroy_descriptor_layout(&singleton_data.light_pass_descriptor_layout);
 	if (singleton_data.one_texture_descriptor_layout.handle)
 		pigeon_vulkan_destroy_descriptor_layout(&singleton_data.one_texture_descriptor_layout);
 	if (singleton_data.two_texture_descriptor_layout.handle)
