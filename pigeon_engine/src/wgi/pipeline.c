@@ -16,7 +16,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP;
 	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
 
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config)) return 1;
+	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config));
 
 
 
@@ -27,14 +27,14 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.colour_image = singleton_data.light_framebuffer_image_format;
 	config.clear_colour_image = true;
 
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_light_pass, config)) return 1;
+	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_pass, config));
 
 
 
 	// light blur
 	memset(&config, 0, sizeof config);
 	config.colour_image = singleton_data.light_framebuffer_image_format;
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_light_blur, config)) return 1;
+	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_blur, config));
 
 
     PigeonWGIImageFormat hdr_format = pigeon_vulkan_compact_hdr_framebuffer_available() ?
@@ -44,21 +44,21 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	memset(&config, 0, sizeof config);
 	config.fragment_shader_depends_on_transfer = true;
 	config.colour_image = hdr_format;
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_blur, config)) return 1;
+	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_blur, config));
 
 	// render
 	memset(&config, 0, sizeof config);
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_READ_ONLY;
 	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
 	config.colour_image = hdr_format;
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_render, config)) return 1;
+	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_render, config));
 
 	// post
 	memset(&config, 0, sizeof config);
     PigeonVulkanSwapchainInfo sc_info = pigeon_vulkan_get_swapchain_info();
 	config.colour_image = sc_info.format;
 	config.colour_image_is_swapchain = true;
-	if (pigeon_vulkan_make_render_pass(&singleton_data.rp_post, config)) return 1;
+	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_post, config));
 
 	return 0;
 
@@ -128,6 +128,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 	}
 	else if(singleton_data.light_image_components == 3) {
 		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.3");
+	}
+	else if(singleton_data.light_image_components == 4) {
+		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.4");
 	}
 
 	if (gaussian_light_frag_path && 
@@ -256,7 +259,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 
 	config2.depth_cmp_equal = true;
 	uint32_t sc[4] = {singleton_data.render_graph.ssao ? 8 : 0, 4,
-		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1, 2};
+		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1, singleton_data.light_image_components};
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline_light, vs_light->shader, fs_light->shader,
 		8, &singleton_data.rp_light_pass, &singleton_data.render_descriptor_layout, &config2, 4, sc))
 	{

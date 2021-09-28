@@ -61,7 +61,7 @@ void main() {
 
     vec3 normal = in_normal;
 
-    vec3 output_value; // 1 = no shadow, 0 = full shadow
+    vec4 output_value; // 0 = full shadow, 1 = no shadow
 
     /* SSAO */
 
@@ -120,9 +120,11 @@ void main() {
         output_value_index++;
     }
 
-
-    if(SC_COLOUR_COMPONENTS == 3) {
-        out_shadow_values = vec4(output_value, 1);
+    if(SC_COLOUR_COMPONENTS == 4) {
+        out_shadow_values = output_value;
+    }
+    else if(SC_COLOUR_COMPONENTS == 3) {
+        out_shadow_values = vec4(output_value.rgb, 1);
     }
     else if(SC_COLOUR_COMPONENTS == 2) {
         out_shadow_values = vec4(output_value.rg, 0, 1);

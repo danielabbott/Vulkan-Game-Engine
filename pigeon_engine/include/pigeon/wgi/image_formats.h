@@ -6,13 +6,12 @@
 typedef enum {
 	PIGEON_WGI_IMAGE_FORMAT_NONE,
 
-	// Colour formats
+	// SRGB Colour formats
 
-	PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_LINEAR,
 	PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB, // RGBA texture
 	PIGEON_WGI_IMAGE_FORMAT_BGRA_U8_SRGB, // swapchain
 
-	// HDR colour formats
+	// HDR linear colour formats
 
 	PIGEON_WGI_IMAGE_FORMAT_RGBA_F16_LINEAR,
 	PIGEON_WGI_IMAGE_FORMAT_B10G11R11_UF_LINEAR, // Support not guaranteed 
@@ -23,11 +22,13 @@ typedef enum {
 	PIGEON_WGI_IMAGE_FORMAT_DEPTH_U24,
 	PIGEON_WGI_IMAGE_FORMAT_DEPTH_U16,
 
-	// Linear non-colour formats
+	// Linear colour/data formats
+	
 	PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR,
 	PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR,
 	PIGEON_WGI_IMAGE_FORMAT_RG_U16_LINEAR,
 	PIGEON_WGI_IMAGE_FORMAT_A2B10G10R10_LINEAR,
+	PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_LINEAR,
 
 	// Compressed formats (all srgb except ETC1). Not guaranteed to be supported
 

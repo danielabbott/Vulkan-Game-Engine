@@ -1,6 +1,11 @@
 #version 450
 
-#ifdef COLOUR_TYPE_RGB
+#ifdef COLOUR_TYPE_RGBA
+
+#define COLOUR_TYPE vec4
+#define COLOUR_COMPONENTS rgba
+
+#elif defined(COLOUR_TYPE_RGB)
 
 #define COLOUR_TYPE vec3
 #define COLOUR_COMPONENTS rgb
@@ -113,13 +118,12 @@ void main() {
 
 	for(float j = -1; j <= 1; j += 2) {
 		vec2 offset = j*1.5*push_constants.one_pixel;
-		float prev_depth = centre_depth;
 
 		for(int i = 0; i < NUMBER_OF_WEIGHTS; i += 1) {
 			vec2 p = in_tex_coord + offset;
 			float d = relinearise_depth(texture(depth_buffer, p + push_constants.one_pixel*0.5).r);
 
-			if(abs(d - prev_depth) < 0.07) {
+			if(abs(d - centre_depth) < 0.07) {
 				COLOUR_TYPE c = texture(src_image, p).COLOUR_COMPONENTS;
 				final_colour += c * weights[i];
 			}

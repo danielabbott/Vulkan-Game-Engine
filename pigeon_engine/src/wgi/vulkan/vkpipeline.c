@@ -227,7 +227,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, 
 
 	VkPipelineColorBlendAttachmentState blend[2] = {{0}};
 	blend[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
-	blend[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+	blend[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	if (!cfg->depth_only && cfg->blend_function == PIGEON_WGI_BLEND_NORMAL) {
 		blend[0].blendEnable = VK_TRUE;
@@ -237,6 +237,9 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, 
 		blend[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 		blend[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 		blend[0].alphaBlendOp = VK_BLEND_OP_ADD;
+	}
+	else {
+		blend[0].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
 	}
 
 	VkPipelineColorBlendStateCreateInfo blend2 = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };

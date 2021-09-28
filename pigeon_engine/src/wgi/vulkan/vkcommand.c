@@ -202,11 +202,9 @@ void pigeon_vulkan_start_render_pass(PigeonVulkanCommandPool* command_pool, unsi
 
 	unsigned int i = 0;
 	if(render_pass->has_colour_image) {
-		clear_values[0].color.float32[3] = 1.0f;
 		i++;
 	}
 	if(render_pass->has_2_colour_images) {
-		clear_values[1].color.float32[3] = 1.0f;
 		i++;
 	}
 	if(render_pass->has_writeable_depth_image) {

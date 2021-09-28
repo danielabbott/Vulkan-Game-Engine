@@ -779,15 +779,11 @@ static void set_scene_uniform_data(PigeonWGISceneUniformData *scene_uniform_data
 	scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.02f;
 
 	scene_uniform_data->number_of_lights = 1;
+	
 	PigeonWGILight *light = &scene_uniform_data->lights[0];
 	light->intensity[0] = 7;
 	light->intensity[1] = 7;
 	light->intensity[2] = 7;
-	light->neg_direction[0] = 0.1f;
-	light->neg_direction[1] = 1.0f;
-	light->neg_direction[2] = 0.5f;
-	glm_vec3_normalize(light->neg_direction);
-	light->is_shadow_caster = 0;
 }
 
 static void set_object_uniform_data(PigeonWGIDrawCallObject *data,
@@ -1128,12 +1124,9 @@ static void game_loop(void)
 
 		vec3 pos = {2, -10, 0};
 		mat4 t;
-		glm_translate_make(t, pos);	
-		
+		glm_translate_make(t, pos);
 
 		glm_mat4_mul(shadows[0].view_matrix, t, shadows[0].view_matrix);
-
-		
 	}
 
 
