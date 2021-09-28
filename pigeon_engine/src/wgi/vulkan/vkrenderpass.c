@@ -93,7 +93,7 @@ static void get_attachments(const PigeonVulkanRenderPassConfig config, VkAttachm
 }
 
 static void get_subpass(PigeonVulkanRenderPassConfig config, VkSubpassDescription* subpass, 
-	VkSubpassDependency subpass_dependencies[2], unsigned int* subpass_dependency_count,
+	VkSubpassDependency* subpass_dependencies, unsigned int* subpass_dependency_count,
 	VkAttachmentReference* colour_attachment_refs, VkAttachmentReference* depth_attachment_ref)
 {
 	assert(subpass && subpass_dependencies && subpass_dependency_count && colour_attachment_refs && depth_attachment_ref);
@@ -111,42 +111,15 @@ static void get_subpass(PigeonVulkanRenderPassConfig config, VkSubpassDescriptio
 
 	unsigned int i = 0;
 
-	if (config.depth_mode == PIGEON_VULKAN_RENDER_PASS_DEPTH_READ_ONLY) {
-		// Wait for depth write
-
-		subpass_dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-		subpass_dependencies[0].dstSubpass = 0;
-		subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-		subpass_dependencies[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		subpass_dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-
-		i++;
-	}
-
-	if (config.vertex_shader_depends_on_transfer || config.fragment_shader_depends_on_transfer) {
-		// Wait for meshes etc. to be uploaded
-		// TODO dstStageMask mask could be more specific if only meshes or only textures are uploaded e.g.
-		subpass_dependencies[i].srcSubpass = VK_SUBPASS_EXTERNAL;
-		subpass_dependencies[i].dstSubpass = 0;
-		subpass_dependencies[i].srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		subpass_dependencies[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		subpass_dependencies[i].dstStageMask = 
-			config.vertex_shader_depends_on_transfer ?
-				VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		subpass_dependencies[i].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-		i++;
-	}
-
 	if (config.colour_image != PIGEON_WGI_IMAGE_FORMAT_NONE && config.colour_image_is_swapchain) {
 		// Wait for swapchain
 
-		subpass_dependencies[i].srcSubpass = VK_SUBPASS_EXTERNAL;
-		subpass_dependencies[i].dstSubpass = 0;
+		subpass_dependencies[i].srcSubpass = 0;
+		subpass_dependencies[i].dstSubpass = VK_SUBPASS_EXTERNAL;
 		subpass_dependencies[i].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependencies[i].srcAccessMask = 0;
-		subpass_dependencies[i].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependencies[i].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		subpass_dependencies[i].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		subpass_dependencies[i].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		subpass_dependencies[i].dstAccessMask = 0;
 		i++;
 	}
 
@@ -173,7 +146,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass * rp, Pi
 		colour_attachment_refs, &depth_attachment_ref);
 
 	VkSubpassDescription subpass = { 0 };
-	VkSubpassDependency subpass_dependencies[3] = {{0}};
+	VkSubpassDependency subpass_dependencies[1] = {{0}};
 	unsigned int subpass_dependency_count;
 
 	get_subpass(config , &subpass, subpass_dependencies, &subpass_dependency_count, colour_attachment_refs, &depth_attachment_ref);

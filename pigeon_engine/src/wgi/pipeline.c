@@ -12,7 +12,6 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 
 	// depth prepass & shadow maps
 	memset(&config, 0, sizeof config);
-	config.vertex_shader_depends_on_transfer = true;
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP;
 	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
 
@@ -42,7 +41,6 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 
 	// bloom blur
 	memset(&config, 0, sizeof config);
-	config.fragment_shader_depends_on_transfer = true;
 	config.colour_image = hdr_format;
 	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_blur, config));
 

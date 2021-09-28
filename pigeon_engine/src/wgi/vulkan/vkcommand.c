@@ -300,6 +300,26 @@ void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool* command_pool, 
 	);
 }
 
+void pigeon_vulkan_wait_for_vertex_data_transfer(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(buffer_index < command_pool->buffer_count);
+
+	VkMemoryBarrier memory_barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+	memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	memory_barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT;
+	
+	vkCmdPipelineBarrier(
+		get_cmd_buf(command_pool, buffer_index),
+		VK_PIPELINE_STAGE_TRANSFER_BIT, // source stage
+		VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT, // destination stage
+		0,
+		1, &memory_barrier,
+		0, NULL,
+		0, NULL
+	);
+}
+
 
 // Bilinear filtering will look bad if downsampling an image more than 2x
 void pigeon_vulkan_wait_and_blit_image(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,

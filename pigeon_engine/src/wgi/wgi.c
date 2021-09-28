@@ -68,8 +68,6 @@ ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters,
 	if (pigeon_wgi_create_standard_pipeline_objects()) return 1;
 
 
-	ASSERT_1(!pigeon_wgi_create_sync_objects());
-
 	if (pigeon_wgi_create_per_frame_objects()) return 1;
 
 
@@ -108,7 +106,6 @@ void pigeon_wgi_deinit(void)
 	(void)pigeon_wgi_assign_shadow_framebuffers();
 
 	pigeon_wgi_destroy_per_frame_objects();
-	pigeon_wgi_destroy_sync_objects();
 	pigeon_wgi_destroy_default_textures();
 	pigeon_wgi_destroy_standard_pipeline_objects();
 	pigeon_vulkan_destroy_swapchain();

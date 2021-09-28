@@ -60,6 +60,7 @@ typedef struct PerFrameData {
 
 	PigeonVulkanSemaphore render_done_semaphore2;
 	PigeonVulkanSemaphore post_processing_done_semaphore2;
+	PigeonVulkanSemaphore swapchain_acquire_semaphore;
 
 	PigeonVulkanTimerQueryPool timer_query_pool;
 	bool first_frame_submitted; // set to true when a frame has been rendered using this PerFrameData struct
@@ -131,9 +132,6 @@ typedef struct SingletonData
 	PigeonVulkanDescriptorPool bloom2_descriptor_pool;
 	PigeonVulkanDescriptorPool post_process_descriptor_pool;
 
-	// TODO this might end up being a semaphore
-	PigeonVulkanFence swapchain_acquire_fence;
-
 
 	// Equals number of swapchain images
 	unsigned int frame_objects_count;
@@ -191,9 +189,6 @@ void pigeon_wgi_destroy_standard_pipeline_objects(void);
 
 ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects(void);
 void pigeon_wgi_destroy_per_frame_objects(void);
-
-ERROR_RETURN_TYPE pigeon_wgi_create_sync_objects(void);
-void pigeon_wgi_destroy_sync_objects(void);
 
 void pigeon_wgi_destroy_descriptor_pools(void);
 void pigeon_wgi_set_global_descriptors(void);

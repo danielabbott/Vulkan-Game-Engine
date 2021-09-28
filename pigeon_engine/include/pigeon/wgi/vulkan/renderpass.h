@@ -14,9 +14,6 @@ typedef enum {
 } PigeonVulkanRenderPassDepthMode;
 
 typedef struct PigeonVulkanRenderPassConfig {
-	bool vertex_shader_depends_on_transfer;
-	bool fragment_shader_depends_on_transfer;
-
 	PigeonVulkanRenderPassDepthMode depth_mode;
 	PigeonWGIImageFormat depth_format;
 
