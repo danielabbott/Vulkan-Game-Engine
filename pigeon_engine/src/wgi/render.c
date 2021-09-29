@@ -627,35 +627,43 @@ static void use_secondary_command_buffer(PigeonVulkanCommandPool * primary, unsi
 }
 
 static void do_light_blur(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info)
-{
-    float blur_pushc[4] = {1.0f / (float)sc_info.width, 0,
+{    
+    float blur_pushc[6] = {
+        1.5f / (float)sc_info.width, 1.5f / (float)sc_info.height,
+        0.5f / (float)sc_info.width, 0.5f / (float)sc_info.height,
         singleton_data.znear, singleton_data.zfar};
 
     unsigned int w = sc_info.width;
     unsigned int h = sc_info.height;
 
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
-    pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, w, h);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_light_blur, 
-        &singleton_data.light_blur1_framebuffer, w, h, false);
-    pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_light_blur);
-    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, &singleton_data.light_blur1_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_light_blur, sizeof blur_pushc, blur_pushc);
-    pigeon_vulkan_end_render_pass(p, 0);
-    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_blur_image.image);
 
-    blur_pushc[0] = 0;
-    blur_pushc[1] = 1.0f / (float)sc_info.height;
+    for(unsigned int i = 0; i < singleton_data.render_cfg.shadow_blur_passes; i++) {
+        pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, w, h);
+        pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_light_blur, 
+            &singleton_data.light_blur1_framebuffer, w, h, false);
+        pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_light_blur);
+        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, &singleton_data.light_blur1_descriptor_pool, 0);
+        pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_light_blur, sizeof blur_pushc, blur_pushc);
+        pigeon_vulkan_end_render_pass(p, 0);
+        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_blur_image.image);
+
+        blur_pushc[0] += 1.0f / (float)sc_info.width;
+        blur_pushc[1] += 1.0f / (float)sc_info.height;
 
 
-    pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, w, h);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_light_blur, 
-        &singleton_data.light_blur2_framebuffer, w, h, false);
-    pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_light_blur);
-    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, &singleton_data.light_blur2_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_light_blur, sizeof blur_pushc, blur_pushc);
-    pigeon_vulkan_end_render_pass(p, 0);
-    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_image.image);
+        pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, w, h);
+        pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_light_blur, 
+            &singleton_data.light_blur2_framebuffer, w, h, false);
+        pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_light_blur);
+        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, &singleton_data.light_blur2_descriptor_pool, 0);
+        pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_light_blur, sizeof blur_pushc, blur_pushc);
+        pigeon_vulkan_end_render_pass(p, 0);
+        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_image.image);
+
+        blur_pushc[0] += 1.0f / (float)sc_info.width;
+        blur_pushc[1] += 1.0f / (float)sc_info.height;
+    }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE);
@@ -670,7 +678,7 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     ASSERT_1(!pigeon_vulkan_start_submission(p, 2));
 
 
-    if(singleton_data.render_graph.bloom) {
+    if(singleton_data.render_cfg.bloom) {
    
         // Generate bloom image from HDR (downsample)
 
@@ -695,7 +703,7 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 2, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE);
     }
     
-    if(singleton_data.render_graph.bloom) {
+    if(singleton_data.render_cfg.bloom) {
 
         // Gaussian blur bloom image
 

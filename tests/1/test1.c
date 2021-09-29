@@ -129,6 +129,7 @@ static ERROR_RETURN_TYPE start(void)
 	cfg.ssao = true;
 	cfg.bloom = true;
 	cfg.shadow_casting_lights = 1;
+	cfg.shadow_blur_passes = 2;
 	if (pigeon_wgi_init(window_parameters, true, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();

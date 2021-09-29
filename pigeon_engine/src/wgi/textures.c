@@ -263,7 +263,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void)
 	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.light_blur2_descriptor_pool,
 		1, &singleton_data.two_texture_descriptor_layout)) return 1;
 		
-	if(singleton_data.render_graph.bloom) {
+	if(singleton_data.render_cfg.bloom) {
 		if(pigeon_vulkan_create_descriptor_pool(&singleton_data.bloom_downsample_descriptor_pool,
 			1, &singleton_data.one_texture_descriptor_layout)) return 1;
 		if(pigeon_vulkan_create_descriptor_pool(&singleton_data.bloom1_descriptor_pool,
@@ -291,7 +291,7 @@ void pigeon_wgi_set_global_descriptors(void)
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.light_blur2_descriptor_pool, 0, 1, 0, 
 		&singleton_data.depth_image.image_view, &singleton_data.nearest_filter_sampler);
 
-	if(singleton_data.render_graph.bloom) {
+	if(singleton_data.render_cfg.bloom) {
 		pigeon_vulkan_set_descriptor_texture(&singleton_data.bloom_downsample_descriptor_pool, 0, 0, 0, 
 			&singleton_data.render_image.image_view, &singleton_data.bilinear_sampler);
 		pigeon_vulkan_set_descriptor_texture(&singleton_data.bloom1_descriptor_pool, 0, 0, 0, 
@@ -304,7 +304,7 @@ void pigeon_wgi_set_global_descriptors(void)
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.post_process_descriptor_pool, 0, 0, 0, 
 		&singleton_data.render_image.image_view, &singleton_data.bilinear_sampler);
 	pigeon_vulkan_set_descriptor_texture(&singleton_data.post_process_descriptor_pool, 0, 1, 0, 
-		singleton_data.render_graph.bloom ? &singleton_data.bloom1_image.image_view : 
+		singleton_data.render_cfg.bloom ? &singleton_data.bloom1_image.image_view : 
 			&singleton_data.default_1px_white_texture_image_view, 
 		&singleton_data.bilinear_sampler);
 }

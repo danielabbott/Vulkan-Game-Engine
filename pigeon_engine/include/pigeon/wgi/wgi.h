@@ -15,7 +15,7 @@ struct PigeonVulkanCommandPool;
 
 /* Returns 0 on success. If fails, call pigeon_wgi_deinit() to cleanup */
 ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu,
-	PigeonWGIRenderConfig render_graph, float znear, float zfar);
+	PigeonWGIRenderConfig render_cfg, float znear, float zfar);
 
 void pigeon_wgi_set_depth_range(float znear, float zfar);
 

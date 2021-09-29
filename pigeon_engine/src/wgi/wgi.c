@@ -13,9 +13,9 @@
 #include <pigeon/util.h>
 #include <pigeon/wgi/rendergraph.h>
 
-static ERROR_RETURN_TYPE set_render_graph(PigeonWGIRenderConfig render_cfg)
+static ERROR_RETURN_TYPE set_render_cfg(PigeonWGIRenderConfig render_cfg)
 {
-	singleton_data.render_graph = render_cfg;
+	singleton_data.render_cfg = render_cfg;
 
 	singleton_data.light_image_components = render_cfg.ssao ? 1 : 0;
 	singleton_data.light_image_components += render_cfg.shadow_casting_lights;
@@ -37,6 +37,10 @@ static ERROR_RETURN_TYPE set_render_graph(PigeonWGIRenderConfig render_cfg)
 		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_LINEAR;
 	}
 
+	if(singleton_data.render_cfg.shadow_blur_passes > 3) {
+		singleton_data.render_cfg.shadow_blur_passes = 3;
+	}
+
 	return 0;
 }
 
@@ -45,7 +49,7 @@ ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters,
 	PigeonWGIRenderConfig render_cfg, float znear, float zfar)
 {
 	pigeon_wgi_deinit();
-	ASSERT_1(!set_render_graph(render_cfg));
+	ASSERT_1(!set_render_cfg(render_cfg));
 	
 
 	pigeon_wgi_set_depth_range(znear, zfar);

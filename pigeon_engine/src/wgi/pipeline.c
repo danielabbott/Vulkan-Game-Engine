@@ -133,7 +133,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 
 	if (gaussian_light_frag_path && 
 		create_pipeine(&singleton_data.pipeline_light_blur, SHADER_PATH("gaussian.vert"), gaussian_light_frag_path,
-		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 16, 0, NULL)) ASSERT_1(false);
+		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 24, 0, NULL)) ASSERT_1(false);
 
 	
 
@@ -144,7 +144,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_bloom_samples)) return 1;
 	
 		
-	uint32_t sc_use_bloom = singleton_data.render_graph.bloom ? 1 : 0;
+	uint32_t sc_use_bloom = singleton_data.render_cfg.bloom ? 1 : 0;
 
 	if (create_pipeine(&singleton_data.pipeline_post, SHADER_PATH("post.vert"), SHADER_PATH("post.frag"),
 		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 20, 1, &sc_use_bloom)) return 1;
@@ -246,7 +246,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	config2.depth_test = true;
 	config2.depth_cmp_equal = true;
 
-	uint32_t sc_render[2] = {singleton_data.render_graph.ssao ? 1 : 0, 
+	uint32_t sc_render[2] = {singleton_data.render_cfg.ssao ? 1 : 0, 
 		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1};
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs->shader,
 		8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, &config2, 2, sc_render))
@@ -256,7 +256,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	}
 
 	config2.depth_cmp_equal = true;
-	uint32_t sc[4] = {singleton_data.render_graph.ssao ? 8 : 0, 4,
+	uint32_t sc[4] = {singleton_data.render_cfg.ssao ? 4 : 0, 2,
 		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1, singleton_data.light_image_components};
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline_light, vs_light->shader, fs_light->shader,
 		8, &singleton_data.rp_light_pass, &singleton_data.render_descriptor_layout, &config2, 4, sc))

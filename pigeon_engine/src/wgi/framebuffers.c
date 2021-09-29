@@ -89,7 +89,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     
     /* bloom */
 
-    if(singleton_data.render_graph.bloom) {
+    if(singleton_data.render_cfg.bloom) {
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom1_image, hdr_format, 
             sc_info.width/8, sc_info.height/8, false, true)) return 1;
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom2_image, hdr_format, 

@@ -79,7 +79,7 @@ typedef struct SingletonData
 	PigeonVulkanSampler shadow_sampler;
 	PigeonVulkanSampler texture_sampler;
 
-	PigeonWGIRenderConfig render_graph;
+	PigeonWGIRenderConfig render_cfg;
 
 	PigeonVulkanRenderPass rp_depth;
 	PigeonVulkanRenderPass rp_light_pass;

@@ -102,7 +102,7 @@ void main() {
             float shadow = 0;
 
             const vec2 shadow_texture_offset = vec2(l.light_intensity__and__shadow_pixel_offset.w);
-            const vec2 spread = vec2(2.3, 1.9)*0.7;
+            const vec2 spread = vec2(2.3, 1.9);
             for(int j = 0; j < SC_SHADOW_SAMPLES; j++) {
                 vec2 o = rotation_matrix * coordinate_offsets[(i+j + int(random_value*16)) % 16] * spread * shadow_texture_offset;
 
