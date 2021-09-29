@@ -21,6 +21,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage*, PigeonWGIImageFormat,
 	bool preinitialised, // Image data will not be wiped on first use by GPU
 	bool to_be_sampled, // Used as texture
 	bool to_be_attatched, // Used as framebufer (depth or colour)
+	bool used_as_storage,
 	bool to_be_transfer_src, bool to_be_transfer_dst,
 	PigeonVulkanMemoryRequirements*);
 
@@ -46,4 +47,4 @@ void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView*);
 ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
 	PigeonVulkanMemoryAllocation * memory, PigeonVulkanImageView * image_view,
 	PigeonWGIImageFormat format, unsigned int width, unsigned int height,
-	unsigned int layers, unsigned int mip_maps, bool device_local);
+	unsigned int layers, unsigned int mip_maps, bool device_local, bool used_as_storage_image);

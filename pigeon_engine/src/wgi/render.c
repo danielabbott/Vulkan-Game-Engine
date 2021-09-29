@@ -469,7 +469,7 @@ void pigeon_wgi_draw_without_mesh(PigeonWGICommandBuffer* command_buffer, Pigeon
 
     pigeon_vulkan_bind_pipeline(&command_buffer->command_pool, 0, pipeline->pipeline);
     pigeon_vulkan_bind_descriptor_set(&command_buffer->command_pool, 0, pipeline->pipeline, 
-        &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].render_descriptor_pool, 0);
+        &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod].render_descriptor_pool, 0, false);
 
     pigeon_vulkan_draw(&command_buffer->command_pool, 0, 0, vertices, 1,
         get_pipeline(command_buffer, pipeline), 0, NULL);
@@ -487,7 +487,8 @@ static void draw_setup_common(PigeonWGICommandBuffer* command_buffer, PigeonWGIP
     pigeon_vulkan_bind_descriptor_set(&command_buffer->command_pool, 0, *vpipeline, 
         command_buffer->depth_only ?
         (pipeline->blend_enabled ? &objects->render_descriptor_pool : &objects->depth_descriptor_pool) : 
-        (command_buffer->light_pass ? &objects->light_pass_descriptor_pool : &objects->render_descriptor_pool), 0);
+        (command_buffer->light_pass ? &objects->light_pass_descriptor_pool : &objects->render_descriptor_pool),
+        0, false);
 
     unsigned int attribute_count = 0;
     for (; attribute_count < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; attribute_count++) {
@@ -628,34 +629,35 @@ static void use_secondary_command_buffer(PigeonVulkanCommandPool * primary, unsi
 
 static void do_light_blur(PerFrameData * objects, PigeonVulkanSwapchainInfo sc_info)
 {
-    float blur_pushc[4] = {1.0f / (float)sc_info.width, 0,
-        singleton_data.znear, singleton_data.zfar};
-
     unsigned int w = sc_info.width;
     unsigned int h = sc_info.height;
 
+    float blur_pushc[6] = {
+        (float) w, (float) h,
+        1.0f / (float) w, 0,
+        singleton_data.znear, singleton_data.zfar};
+
+
     PigeonVulkanCommandPool * p = &objects->primary_command_pool;
-    pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, w, h);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_light_blur, 
-        &singleton_data.light_blur1_framebuffer, w, h, false);
-    pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_light_blur);
-    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, &singleton_data.light_blur1_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_light_blur, sizeof blur_pushc, blur_pushc);
-    pigeon_vulkan_end_render_pass(p, 0);
-    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_blur_image.image);
 
-    blur_pushc[0] = 0;
-    blur_pushc[1] = 1.0f / (float)sc_info.height;
+    pigeon_vulkan_transition_image_to_general(p, 0, &singleton_data.light_blur_image.image);
+    pigeon_vulkan_bind_compute_pipeline(p, 0, &singleton_data.pipeline_light_blur);
+    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, 
+        &singleton_data.light_blur1_descriptor_pool, 0, true);
+    pigeon_vulkan_dispatch_compute(p, 0, &singleton_data.pipeline_light_blur, (w+63)/64, h, 1, sizeof blur_pushc, blur_pushc);
+    pigeon_vulkan_wait_for_compute_image_write(p, 0, &singleton_data.light_blur_image.image, false);
 
 
-    pigeon_vulkan_set_viewport_size(&objects->primary_command_pool, 0, w, h);
-    pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_light_blur, 
-        &singleton_data.light_blur2_framebuffer, w, h, false);
-    pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_light_blur);
-    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, &singleton_data.light_blur2_descriptor_pool, 0);
-    pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_light_blur, sizeof blur_pushc, blur_pushc);
-    pigeon_vulkan_end_render_pass(p, 0);
-    pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_image.image);
+    blur_pushc[2] = 0;
+    blur_pushc[3] = 1.0f / (float) h;
+
+
+    pigeon_vulkan_transition_image_to_general(p, 0, &singleton_data.light_image.image);
+    pigeon_vulkan_bind_compute_pipeline(p, 0, &singleton_data.pipeline_light_blur);
+    pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_light_blur, 
+        &singleton_data.light_blur2_descriptor_pool, 0, true);
+    pigeon_vulkan_dispatch_compute(p, 0, &singleton_data.pipeline_light_blur, (h+63)/64, w, 1, sizeof blur_pushc, blur_pushc);
+    pigeon_vulkan_wait_for_compute_image_write(p, 0, &singleton_data.light_image.image, true);
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_set_timer(&objects->primary_command_pool, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE);
@@ -679,15 +681,16 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
             5 // minimum light
         };
 
-        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.render_image.image);
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.render_image.image, false);
         pigeon_vulkan_set_viewport_size(p, 2, sc_info.width/8, sc_info.height/8);
         pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_blur, 
             &singleton_data.bloom1_framebuffer, sc_info.width/8, sc_info.height/8, false);
         pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_bloom_downsample);
-        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_downsample, &singleton_data.bloom_downsample_descriptor_pool, 0);
+        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_bloom_downsample, 
+            &singleton_data.bloom_downsample_descriptor_pool, 0, false);
         pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_bloom_downsample, sizeof downsample_pushc, downsample_pushc);
         pigeon_vulkan_end_render_pass(p, 2);
-        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom1_image.image);
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom1_image.image, false);
 
     }
 
@@ -705,10 +708,11 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
         pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_blur, 
             &singleton_data.bloom2_framebuffer, sc_info.width/8, sc_info.height/8, false);
         pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_blur);
-        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_blur, &singleton_data.bloom1_descriptor_pool, 0);
+        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_blur, 
+            &singleton_data.bloom1_descriptor_pool, 0, false);
         pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_blur, sizeof blur_pushc, blur_pushc);
         pigeon_vulkan_end_render_pass(p, 2);
-        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom2_image.image);
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom2_image.image, false);
 
 
         float blur_pushc2[2] = {8 / (float)sc_info.width, 0};
@@ -718,10 +722,11 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
         pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_bloom_blur, 
             &singleton_data.bloom1_framebuffer, sc_info.width/8, sc_info.height/8, false);
         pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_blur);
-        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_blur, &singleton_data.bloom2_descriptor_pool, 0);
+        pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_blur, 
+            &singleton_data.bloom2_descriptor_pool, 0, false);
         pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_blur, sizeof blur_pushc2, blur_pushc2);
         pigeon_vulkan_end_render_pass(p, 2);
-        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom1_image.image); 
+        pigeon_vulkan_wait_for_colour_write(p, 2, &singleton_data.bloom1_image.image, false); 
 
     }
 
@@ -748,7 +753,8 @@ static ERROR_RETURN_TYPE do_post(PerFrameData * objects, PigeonVulkanSwapchainIn
     pigeon_vulkan_start_render_pass(p, 2, &singleton_data.rp_post, 
         &singleton_data.post_framebuffers[singleton_data.swapchain_image_index], sc_info.width, sc_info.height, false);
     pigeon_vulkan_bind_pipeline(p, 2, &singleton_data.pipeline_post);
-    pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_post, &singleton_data.post_process_descriptor_pool, 0);
+    pigeon_vulkan_bind_descriptor_set(p, 2, &singleton_data.pipeline_post, 
+        &singleton_data.post_process_descriptor_pool, 0, false);
     pigeon_vulkan_draw(p, 2, 0, 3, 1, &singleton_data.pipeline_post, sizeof post_pushc, &post_pushc);
     pigeon_vulkan_end_render_pass(p, 2);
 
@@ -836,7 +842,7 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_bloom)
     use_secondary_command_buffer(&objects->primary_command_pool, 0,
         &objects->light_pass_command_buffer, &singleton_data.rp_light_pass,
         &singleton_data.light_framebuffer, sc_info.width, sc_info.height);
-    pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 0, &singleton_data.light_image.image);
+    pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 0, &singleton_data.light_image.image, true);
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
@@ -863,7 +869,7 @@ ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_bloom)
     use_secondary_command_buffer(&objects->primary_command_pool, 1,
         &objects->render_command_buffer, &singleton_data.rp_render,
         &singleton_data.render_framebuffer, sc_info.width, sc_info.height);
-    pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 1, &singleton_data.render_image.image);
+    pigeon_vulkan_wait_for_colour_write(&objects->primary_command_pool, 1, &singleton_data.render_image.image, false);
     
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {

@@ -15,6 +15,7 @@ int pigeon_vulkan_create_descriptor_layout(PigeonVulkanDescriptorLayout * layout
 	if (!layouts) return 1;
 
 	layout->number_of_textures = 0;
+	layout->number_of_storage_images = 0;
 	layout->number_of_uniforms = 0;
 	layout->number_of_ssbos = 0;
 
@@ -32,6 +33,10 @@ int pigeon_vulkan_create_descriptor_layout(PigeonVulkanDescriptorLayout * layout
 			layout->number_of_textures += bindings[i].elements;
 			layouts[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			break;
+		case PIGEON_VULKAN_DESCRIPTOR_TYPE_IMAGE:
+			layout->number_of_storage_images += bindings[i].elements;
+			layouts[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			break;
 		case PIGEON_VULKAN_DESCRIPTOR_TYPE_SSBO:
 			layout->number_of_ssbos += bindings[i].elements;
 			layouts[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -47,6 +52,10 @@ int pigeon_vulkan_create_descriptor_layout(PigeonVulkanDescriptorLayout * layout
 		if (bindings[i].fragment_shader_accessible) {
 			layouts[i].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
 		}
+		if (bindings[i].compute_shader_accessible) {
+			layouts[i].stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
+		}
+		
 		layouts[i].binding = i;
 	}
 
@@ -77,14 +86,16 @@ static int create_pool(PigeonVulkanDescriptorPool* pool,
 {
 	unsigned int uniform_descriptors_total = 0;
 	unsigned int texture_descriptors_total = 0;
+	unsigned int storage_image_descriptors_total = 0;
 	unsigned int ssbo_descriptors_total = 0;
 	for(unsigned int i = 0; i < set_count; i++) {
 		uniform_descriptors_total += layouts[i].number_of_uniforms;
 		texture_descriptors_total += layouts[i].number_of_textures;
+		storage_image_descriptors_total += layouts[i].number_of_storage_images;
 		ssbo_descriptors_total += layouts[i].number_of_ssbos;
 	}
 
-	VkDescriptorPoolSize pool_sizes[3] = {{0}};
+	VkDescriptorPoolSize pool_sizes[4] = {{0}};
 	unsigned int number_of_pool_sizes = 0;
 
 	if(uniform_descriptors_total) {
@@ -96,6 +107,11 @@ static int create_pool(PigeonVulkanDescriptorPool* pool,
 	if(texture_descriptors_total) {
 		pool_sizes[number_of_pool_sizes].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		pool_sizes[number_of_pool_sizes++].descriptorCount = texture_descriptors_total;
+	}
+
+	if(storage_image_descriptors_total) {
+		pool_sizes[number_of_pool_sizes].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		pool_sizes[number_of_pool_sizes++].descriptorCount = storage_image_descriptors_total;
 	}
 
 	if(ssbo_descriptors_total) {
@@ -156,7 +172,8 @@ int pigeon_vulkan_create_descriptor_pool(PigeonVulkanDescriptorPool* pool,
 
 static void do_update(PigeonVulkanDescriptorPool* pool, 
 	unsigned int set, unsigned int binding, unsigned int array_index,
-	VkDescriptorBufferInfo * buffer_info, VkDescriptorImageInfo * image_info, bool buffer_is_ssbo)
+	VkDescriptorBufferInfo * buffer_info, VkDescriptorImageInfo * image_info,
+	bool buffer_is_ssbo, bool image_is_storage)
 {
 	assert(!buffer_info || !image_info);
 
@@ -165,13 +182,12 @@ static void do_update(PigeonVulkanDescriptorPool* pool,
 	descriptor_write.dstBinding = binding;
 	descriptor_write.dstArrayElement = array_index;
 	if(image_info) {
-		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	}
-	else if(buffer_is_ssbo){
-		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptor_write.descriptorType = image_is_storage ?
+		VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	}
 	else {
-		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptor_write.descriptorType = buffer_is_ssbo ?
+		VK_DESCRIPTOR_TYPE_STORAGE_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	}
 	descriptor_write.descriptorCount = 1;
 	descriptor_write.pImageInfo = image_info;
@@ -199,7 +215,7 @@ void pigeon_vulkan_set_descriptor_uniform_buffer2(PigeonVulkanDescriptorPool* po
 	buffer_info.offset = offset;
 	buffer_info.range = range;
 
-	do_update(pool, set, binding, array_index, &buffer_info, NULL, false);
+	do_update(pool, set, binding, array_index, &buffer_info, NULL, false, false);
 }
 
 void pigeon_vulkan_set_descriptor_ssbo(PigeonVulkanDescriptorPool* pool, 
@@ -221,7 +237,7 @@ void pigeon_vulkan_set_descriptor_ssbo2(PigeonVulkanDescriptorPool* pool,
 	buffer_info.offset = offset;
 	buffer_info.range = range;
 
-	do_update(pool, set, binding, array_index, &buffer_info, NULL, true);
+	do_update(pool, set, binding, array_index, &buffer_info, NULL, true, false);
 }
 
 void pigeon_vulkan_set_descriptor_texture(PigeonVulkanDescriptorPool* pool, 
@@ -238,8 +254,22 @@ void pigeon_vulkan_set_descriptor_texture(PigeonVulkanDescriptorPool* pool,
 	image_info.imageView = image_view->vk_image_view;
 	image_info.sampler = sampler->vk_sampler;
 
-	do_update(pool, set, binding, array_index, NULL, &image_info, false);
+	do_update(pool, set, binding, array_index, NULL, &image_info, false, false);
 
+}
+
+void pigeon_vulkan_set_descriptor_storage_image(PigeonVulkanDescriptorPool* pool, 
+	unsigned int set, unsigned int binding, unsigned int array_index,
+	PigeonVulkanImageView* image_view)
+{
+	assert(pool && set < pool->number_of_sets);
+	assert(image_view && image_view->vk_image_view);
+
+	VkDescriptorImageInfo image_info = {0};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_info.imageView = image_view->vk_image_view;
+
+	do_update(pool, set, binding, array_index, NULL, &image_info, false, true);
 }
 
 void pigeon_vulkan_destroy_descriptor_pool(PigeonVulkanDescriptorPool* pool)

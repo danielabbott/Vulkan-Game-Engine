@@ -46,6 +46,8 @@ void pigeon_vulkan_transition_transfer_src_to_shader_read(PigeonVulkanCommandPoo
 	PigeonVulkanImage*);
 void pigeon_vulkan_transition_transfer_dst_to_shader_read(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanImage*);
+void pigeon_vulkan_transition_image_to_general(PigeonVulkanCommandPool*, unsigned int buffer_index, 
+	PigeonVulkanImage*);
 
 void pigeon_vulkan_clear_image(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanImage*, float r, float g, float b, float a);
@@ -72,14 +74,18 @@ void pigeon_vulkan_execute_secondary(PigeonVulkanCommandPool*, unsigned int buff
 	PigeonVulkanCommandPool* secondary_command_pool, unsigned int secondary_buffer_index);
 
 void pigeon_vulkan_wait_for_depth_write(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*);
-void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*);
+void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*, bool next_stage_is_compute);
+void pigeon_vulkan_wait_for_compute_image_write(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanImage*, bool next_stage_is_fragment);
 
 void pigeon_vulkan_wait_and_blit_image(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanImage* src, PigeonVulkanImage* dst, bool bilinear_filter);
 
 
 void pigeon_vulkan_bind_pipeline(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanPipeline*);
+void pigeon_vulkan_bind_compute_pipeline(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanPipeline*);
 void pigeon_vulkan_bind_descriptor_set(PigeonVulkanCommandPool*, unsigned int buffer_index,
+	PigeonVulkanPipeline*, PigeonVulkanDescriptorPool*, unsigned int set, bool compute);
+void pigeon_vulkan_bind_compute_descriptor_set(PigeonVulkanCommandPool*, unsigned int buffer_index,
 	PigeonVulkanPipeline*, PigeonVulkanDescriptorPool*, unsigned int set);
 void pigeon_vulkan_bind_vertex_buffers(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 	PigeonVulkanBuffer*, unsigned int attribute_count, uint64_t* offsets);
@@ -97,6 +103,10 @@ void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool*, unsigned int buff
 	PigeonVulkanPipeline*, unsigned int push_constants_size, void * push_constants_data,
 	PigeonVulkanBuffer*, uint64_t buffer_offset,
 	uint32_t first_multidraw_index, uint32_t drawcalls);
+
+void pigeon_vulkan_dispatch_compute(PigeonVulkanCommandPool*, unsigned int buffer_index, 
+	PigeonVulkanPipeline*, unsigned int x, unsigned int y, unsigned int z,
+	unsigned int push_constants_size, void * push_constants_data);
 
 void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 		PigeonVulkanBuffer * dst, uint64_t dst_offset,

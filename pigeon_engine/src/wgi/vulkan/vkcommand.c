@@ -271,8 +271,9 @@ void pigeon_vulkan_wait_for_depth_write(PigeonVulkanCommandPool* command_pool, u
 	);
 }
 
+
 void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
-	PigeonVulkanImage* image)
+	PigeonVulkanImage* image, bool next_stage_is_compute)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
@@ -284,7 +285,7 @@ void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool* command_pool, 
 	image_memory_barrier.oldLayout = image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_memory_barrier.srcQueueFamilyIndex = image_memory_barrier.dstQueueFamilyIndex = singleton_data.general_queue_family;
 	image_memory_barrier.image = image->vk_image;
-
+ 
 	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	image_memory_barrier.subresourceRange.levelCount = image->mip_levels;
 	image_memory_barrier.subresourceRange.layerCount = image->layers;
@@ -292,7 +293,67 @@ void pigeon_vulkan_wait_for_colour_write(PigeonVulkanCommandPool* command_pool, 
 	vkCmdPipelineBarrier(
 		get_cmd_buf(command_pool, buffer_index),
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // source stage
-		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // destination stage
+		next_stage_is_compute ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // destination stage
+		0,
+		0, NULL,
+		0, NULL,
+		1, &image_memory_barrier
+	);
+}
+
+void pigeon_vulkan_transition_image_to_general(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	PigeonVulkanImage* image)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(buffer_index < command_pool->buffer_count);
+	assert(image && image->vk_image && !pigeon_wgi_image_format_is_depth(image->format));
+
+	VkImageMemoryBarrier image_memory_barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+	image_memory_barrier.srcAccessMask = 0;
+	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_memory_barrier.srcQueueFamilyIndex = image_memory_barrier.dstQueueFamilyIndex = singleton_data.general_queue_family;
+	image_memory_barrier.image = image->vk_image;
+ 
+	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.subresourceRange.levelCount = image->mip_levels;
+	image_memory_barrier.subresourceRange.layerCount = image->layers;
+
+	vkCmdPipelineBarrier(
+		get_cmd_buf(command_pool, buffer_index),
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // source stage
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		0,
+		0, NULL,
+		0, NULL,
+		1, &image_memory_barrier
+	);
+}
+
+void pigeon_vulkan_wait_for_compute_image_write(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	PigeonVulkanImage* image, bool next_stage_is_fragment)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(buffer_index < command_pool->buffer_count);
+	assert(image && image->vk_image && !pigeon_wgi_image_format_is_depth(image->format));
+
+	VkImageMemoryBarrier image_memory_barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+	image_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_memory_barrier.srcQueueFamilyIndex = image_memory_barrier.dstQueueFamilyIndex = singleton_data.general_queue_family;
+	image_memory_barrier.image = image->vk_image;
+ 
+	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.subresourceRange.levelCount = image->mip_levels;
+	image_memory_barrier.subresourceRange.layerCount = image->layers;
+
+	vkCmdPipelineBarrier(
+		get_cmd_buf(command_pool, buffer_index),
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // source stage
+		next_stage_is_fragment ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 		0,
 		0, NULL,
 		0, NULL,
@@ -550,9 +611,21 @@ void pigeon_vulkan_bind_pipeline(PigeonVulkanCommandPool* command_pool, unsigned
 
 	vkCmdBindPipeline(get_cmd_buf(command_pool, buffer_index), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->vk_pipeline);
 }
+	
+// TODO refactor
+void pigeon_vulkan_bind_compute_pipeline(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
+	PigeonVulkanPipeline* pipeline)
+{
+	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	assert(buffer_index < command_pool->buffer_count);
+	assert(pipeline && pipeline->vk_pipeline);
+
+
+	vkCmdBindPipeline(get_cmd_buf(command_pool, buffer_index), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->vk_pipeline);
+}
 
 void pigeon_vulkan_bind_descriptor_set(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
-	PigeonVulkanPipeline * pipeline, PigeonVulkanDescriptorPool* pool, unsigned int set)
+	PigeonVulkanPipeline * pipeline, PigeonVulkanDescriptorPool* pool, unsigned int set, bool compute)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
@@ -560,11 +633,13 @@ void pigeon_vulkan_bind_descriptor_set(PigeonVulkanCommandPool* command_pool, un
 	assert(pipeline && pipeline->vk_pipeline_layout);
 
 
-	vkCmdBindDescriptorSets(get_cmd_buf(command_pool, buffer_index), VK_PIPELINE_BIND_POINT_GRAPHICS, 
+	vkCmdBindDescriptorSets(get_cmd_buf(command_pool, buffer_index), 
+		compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS, 
 		pipeline->vk_pipeline_layout, 0, 1, 
 		pool->number_of_sets > 1 ? &pool->vk_descriptor_sets[set] : &pool->vk_descriptor_set,
 		0, NULL);
 }
+
 
 
 void pigeon_vulkan_bind_vertex_buffers(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
@@ -597,12 +672,23 @@ void pigeon_vulkan_bind_index_buffer(PigeonVulkanCommandPool* command_pool, unsi
 
 
 static void set_push_constants(VkCommandBuffer cmd_buf, PigeonVulkanPipeline * pipeline,
-	unsigned int push_constants_size, void * push_constants_data)
+	unsigned int push_constants_size, void * push_constants_data, bool compute)
 {
 	if(push_constants_data && push_constants_size) {
-		vkCmdPushConstants(cmd_buf, pipeline->vk_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,
+		vkCmdPushConstants(cmd_buf, pipeline->vk_pipeline_layout,
+			compute ? VK_SHADER_STAGE_COMPUTE_BIT : (VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT),
 			0, push_constants_size, push_constants_data);
 	}
+}
+
+
+void pigeon_vulkan_dispatch_compute(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
+	PigeonVulkanPipeline * pipeline, unsigned int x, unsigned int y, unsigned int z,
+	unsigned int push_constants_size, void * push_constants_data)
+{
+	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
+	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data, true);
+	vkCmdDispatch(cmd_buf, x, y, z);
 }
 
 void pigeon_vulkan_draw(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
@@ -616,7 +702,7 @@ void pigeon_vulkan_draw(PigeonVulkanCommandPool* command_pool, unsigned int buff
 	if(!instances) instances = 1;
 
 	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
-	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data);
+	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data, false);
 	vkCmdDraw(cmd_buf, vertices, instances, first, 0);
 }
 
@@ -632,7 +718,7 @@ void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool* command_pool, unsigned 
 	if(!instances) instances = 1;
 
 	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
-	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data);
+	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data, false);
 	vkCmdDrawIndexed(cmd_buf, indices, instances, first, (int32_t)start_vertex, 0);
 }
 
@@ -647,7 +733,7 @@ void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool* command_pool, unsi
 	assert(pipeline && pipeline->vk_pipeline_layout);
 	
 	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
-	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data);
+	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data, false);
 
 	vkCmdDrawIndexedIndirect(cmd_buf, buffer->vk_buffer,
 		buffer_offset + first_multidraw_index * sizeof(VkDrawIndexedIndirectCommand),

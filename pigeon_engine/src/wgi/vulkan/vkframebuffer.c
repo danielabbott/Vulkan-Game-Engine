@@ -57,8 +57,11 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer* fra
 ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebuffer, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanRenderPass* render_pass)
 {
-    assert(framebuffer && render_pass);
-    assert(depth || colour);
+    ASSERT_1(framebuffer && render_pass);
+    ASSERT_1(depth || colour);
+
+    if(depth) ASSERT_1(depth->vk_image_view);
+    if(colour) ASSERT_1(colour->vk_image_view);
 
     VkFramebufferCreateInfo framebuffer_create = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	framebuffer_create.renderPass = render_pass->vk_renderpass;

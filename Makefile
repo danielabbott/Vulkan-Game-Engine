@@ -53,13 +53,15 @@ endif
 SOURCES_GLSL=$(wildcard standard_assets/shaders/*.glsl) $(wildcard test_assets/shaders/*.glsl)
 SOURCES_VERT=$(wildcard standard_assets/shaders/*.vert) $(wildcard test_assets/shaders/*.vert)
 SOURCES_FRAG=$(wildcard standard_assets/shaders/*.frag) $(wildcard test_assets/shaders/*.frag)
+SOURCES_COMP=$(wildcard standard_assets/shaders/*.comp) $(wildcard test_assets/shaders/*.comp)
 OBJECTS_GLSL=$(SOURCES_VERT:%=$(BUILD_DIR)/%.spv) $(SOURCES_FRAG:%=$(BUILD_DIR)/%.spv) \
+$(SOURCES_COMP:%=$(BUILD_DIR)/%.spv) \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth_alpha.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.light.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv
+# $(BUILD_DIR)/standard_assets/shaders/gaussian_light.comp.1.spv \
+# $(BUILD_DIR)/standard_assets/shaders/gaussian_light.comp.3.spv \
+# $(BUILD_DIR)/standard_assets/shaders/gaussian_light.comp.4.spv
 
 
 
@@ -151,15 +153,15 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.light.spv: standard_assets/shad
 	@mkdir -p $(@D)
 	$(GLSLC) -DOBJECT_LIGHT $(GLSLCFLAGS) $< -o $@
 
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv: standard_assets/shaders/gaussian_light.frag
+$(BUILD_DIR)/standard_assets/shaders/gaussian_light.comp.1.spv: standard_assets/shaders/gaussian_light.comp
 	@mkdir -p $(@D)
 	$(GLSLC) -DCOLOUR_TYPE_R $(GLSLCFLAGS) $< -o $@
 
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv: standard_assets/shaders/gaussian_light.frag
+$(BUILD_DIR)/standard_assets/shaders/gaussian_light.comp.3.spv: standard_assets/shaders/gaussian_light.comp
 	@mkdir -p $(@D)
 	$(GLSLC) -DCOLOUR_TYPE_RGB $(GLSLCFLAGS) $< -o $@
 
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv: standard_assets/shaders/gaussian_light.frag
+$(BUILD_DIR)/standard_assets/shaders/gaussian_light.comp.4.spv: standard_assets/shaders/gaussian_light.comp
 	@mkdir -p $(@D)
 	$(GLSLC) -DCOLOUR_TYPE_RGBA $(GLSLCFLAGS) $< -o $@
 

@@ -71,6 +71,7 @@ typedef struct SingletonData
 	PigeonVulkanDescriptorLayout depth_descriptor_layout;
 	PigeonVulkanDescriptorLayout one_texture_descriptor_layout;
 	PigeonVulkanDescriptorLayout two_texture_descriptor_layout;
+	PigeonVulkanDescriptorLayout light_gaussian_descriptor_layout;
 	PigeonVulkanDescriptorLayout render_descriptor_layout;
 	PigeonVulkanDescriptorLayout post_descriptor_layout;
 
@@ -119,8 +120,6 @@ typedef struct SingletonData
     PigeonVulkanFramebuffer depth_framebuffer;
     PigeonVulkanFramebuffer shadow_framebuffers[4];
     PigeonVulkanFramebuffer light_framebuffer;
-    PigeonVulkanFramebuffer light_blur1_framebuffer;
-    PigeonVulkanFramebuffer light_blur2_framebuffer;
     PigeonVulkanFramebuffer render_framebuffer;
     PigeonVulkanFramebuffer bloom1_framebuffer;
     PigeonVulkanFramebuffer bloom2_framebuffer;
@@ -199,5 +198,5 @@ void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDr
 
 int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
     PigeonWGIImageFormat format, unsigned int width, unsigned int height,
-    bool to_be_transfer_src, bool to_be_transfer_dst);
+    bool to_be_transfer_src, bool to_be_transfer_dst, bool used_as_attatchment, bool used_as_storage_image);
 

@@ -25,14 +25,14 @@ ERROR_RETURN_TYPE pigeon_wgi_create_array_texture(PigeonWGIArrayTexture* array_t
 
     if(pigeon_vulkan_create_texture_with_dedicated_memory(&array_texture->data->image,
         &array_texture->data->image_memory, &array_texture->data->image_view,
-        format, width, height, layers, mip_maps, true))
+        format, width, height, layers, mip_maps, true, false))
     {
         // Cannot create device local. Fall back to host memory
         fputs("Failed to create device local image. Multitexture is falling back to host memory\n", stderr);
 
         if(pigeon_vulkan_create_texture_with_dedicated_memory(&array_texture->data->image,
             &array_texture->data->image_memory, &array_texture->data->image_view,
-            format, width, height, layers, mip_maps, false))
+            format, width, height, layers, mip_maps, false, false))
         {
             free(array_texture->data);
             return 1;

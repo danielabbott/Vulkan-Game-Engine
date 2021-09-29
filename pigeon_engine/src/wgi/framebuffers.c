@@ -12,13 +12,15 @@
 
 int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
     PigeonWGIImageFormat format, unsigned int width, unsigned int height,
-    bool to_be_transfer_src, bool to_be_transfer_dst)
+    bool to_be_transfer_src, bool to_be_transfer_dst,
+    bool used_as_attatchment, bool used_as_storage_image)
 {
     assert(objects && format && width && height);
 
     PigeonVulkanMemoryRequirements memory_requirements;
 
-    ASSERT_1(!pigeon_vulkan_create_image(&objects->image, format, width, height, 1, 1, false, false, true, true, 
+    ASSERT_1(!pigeon_vulkan_create_image(&objects->image, format, width, height, 1, 1,
+        false, false, true, used_as_attatchment, used_as_storage_image, 
         to_be_transfer_src, to_be_transfer_dst, &memory_requirements));
     
     static const PigeonVulkanMemoryTypePreferences memory_preferences = { 
@@ -28,9 +30,10 @@ int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
         .host_cached = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT
     };
 
-	if (pigeon_vulkan_allocate_memory_dedicated(&objects->memory, memory_requirements, memory_preferences,
-        &objects->image, NULL)) return 1;
-	if (pigeon_vulkan_image_bind_memory_dedicated(&objects->image, &objects->memory)) return 1;
+	ASSERT_1(!pigeon_vulkan_allocate_memory_dedicated(&objects->memory, memory_requirements, memory_preferences,
+        &objects->image, NULL));
+	ASSERT_1(!pigeon_vulkan_image_bind_memory_dedicated(&objects->image, &objects->memory));
+
 
     ASSERT_1(!pigeon_vulkan_create_image_view(&objects->image_view, &objects->image, false));
 
@@ -48,7 +51,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     /* depth */
     
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.depth_image, PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, 
-        sc_info.width, sc_info.height, false, false)) return 1;
+        sc_info.width, sc_info.height, false, false, true, false)) return 1;
 
     ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.depth_framebuffer,
         &singleton_data.depth_image.image_view, NULL, &singleton_data.rp_depth));
@@ -57,7 +60,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     /* light */
 
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.light_image, singleton_data.light_framebuffer_image_format, 
-        sc_info.width, sc_info.height, true, false)) return 1;
+        sc_info.width, sc_info.height, false, false, true, true)) return 1;
 
     ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.light_framebuffer, 
         &singleton_data.depth_image.image_view, &singleton_data.light_image.image_view,
@@ -67,12 +70,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     /* light blur */
     
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.light_blur_image, singleton_data.light_framebuffer_image_format, 
-        sc_info.width, sc_info.height, false, true)) return 1;
-
-    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.light_blur1_framebuffer,
-        NULL, &singleton_data.light_blur_image.image_view, &singleton_data.rp_light_blur));
-    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.light_blur2_framebuffer,
-        NULL, &singleton_data.light_image.image_view, &singleton_data.rp_light_blur));
+        sc_info.width, sc_info.height, false, false, false, true)) return 1;
 
         
 
@@ -80,7 +78,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
     /* render */
 
     if(pigeon_wgi_create_framebuffer_images(&singleton_data.render_image, hdr_format, 
-        sc_info.width, sc_info.height, true, false)) return 1;
+        sc_info.width, sc_info.height, false, false, true, false)) return 1;
 
     ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.render_framebuffer, 
         &singleton_data.depth_image.image_view, &singleton_data.render_image.image_view, 
@@ -91,9 +89,9 @@ ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void)
 
     if(singleton_data.render_graph.bloom) {
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom1_image, hdr_format, 
-            sc_info.width/8, sc_info.height/8, false, true)) return 1;
+            sc_info.width/8, sc_info.height/8, false, false, true, false)) return 1;
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom2_image, hdr_format, 
-            sc_info.width/8, sc_info.height/8, false, false)) return 1;
+            sc_info.width/8, sc_info.height/8, false, false, true, false)) return 1;
 
         ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.bloom1_framebuffer, 
             NULL, &singleton_data.bloom1_image.image_view, &singleton_data.rp_bloom_blur));
@@ -119,10 +117,6 @@ void pigeon_wgi_destroy_framebuffers(void)
         pigeon_vulkan_destroy_framebuffer(&singleton_data.depth_framebuffer);
     if(singleton_data.light_framebuffer.vk_framebuffer) 
         pigeon_vulkan_destroy_framebuffer(&singleton_data.light_framebuffer);
-    if(singleton_data.light_blur1_framebuffer.vk_framebuffer) 
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.light_blur1_framebuffer);
-    if(singleton_data.light_blur2_framebuffer.vk_framebuffer) 
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.light_blur2_framebuffer);
     if(singleton_data.render_framebuffer.vk_framebuffer) 
         pigeon_vulkan_destroy_framebuffer(&singleton_data.render_framebuffer);
     if(singleton_data.bloom1_framebuffer.vk_framebuffer) 

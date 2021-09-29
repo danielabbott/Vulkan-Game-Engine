@@ -49,7 +49,7 @@ static VkFormat get_vertex_attribute_format(PigeonWGIVertexAttributeType type)
 
 ERROR_RETURN_TYPE pigeon_vulkan_load_shader(PigeonVulkanShader* shader, const char* file_path)
 {
-	assert(shader && file_path);
+	ASSERT_1(shader && file_path);
 
 	unsigned long file_size;
 	uint32_t* binary_data = (uint32_t*)load_file(file_path, 0, &file_size);
@@ -74,7 +74,7 @@ void pigeon_vulkan_destroy_shader(PigeonVulkanShader* shader)
 }
 
 static ERROR_RETURN_TYPE create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout* descriptor_layout,
-	unsigned int push_constants_size)
+	unsigned int push_constants_size, bool compute)
 {
 	ASSERT_1(layout && !*layout);
 	if(descriptor_layout) ASSERT_1(descriptor_layout->handle);
@@ -91,7 +91,8 @@ static ERROR_RETURN_TYPE create_layout(VkPipelineLayout* layout, PigeonVulkanDes
 	VkPushConstantRange push_constants = {0};
 
 	if (push_constants_size) {
-		push_constants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		push_constants.stageFlags = compute ?
+			VK_SHADER_STAGE_COMPUTE_BIT : (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 		push_constants.size = push_constants_size;
 		pipeline_layout_create.pushConstantRangeCount = 1;
 		pipeline_layout_create.pPushConstantRanges = &push_constants;
@@ -113,7 +114,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, 
 		ASSERT_1(false);
 	}
 
-	ASSERT_1 (!create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size)) ;
+	ASSERT_1 (!create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size, false));
 
 	VkPipelineShaderStageCreateInfo shaders[2] = { {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO},
 		{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO} };
@@ -268,6 +269,33 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, 
 			NULL, &pipeline->vk_pipeline) != VK_SUCCESS) {
 		vkDestroyPipelineLayout(vkdev, pipeline->vk_pipeline_layout, NULL);
 		ASSERT__1(false, "vkCreateGraphicsPipelines error");
+	}
+	return 0;
+}
+
+
+ERROR_RETURN_TYPE pigeon_vulkan_create_compute_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanShader* shader,
+	unsigned int push_constants_size, PigeonVulkanDescriptorLayout* descriptor_layout)
+{
+	ASSERT_1(pipeline && shader && push_constants_size <= 128);
+
+	ASSERT_1 (!create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size, true));
+
+	VkComputePipelineCreateInfo pipeline_create = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+	
+	pipeline_create.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	pipeline_create.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	pipeline_create.stage.module = shader->vk_shader_module;
+	pipeline_create.stage.pName = "main";
+
+	pipeline_create.layout = pipeline->vk_pipeline_layout;
+
+
+	if (vkCreateComputePipelines(vkdev, VK_NULL_HANDLE, 1, &pipeline_create,
+		NULL, &pipeline->vk_pipeline) != VK_SUCCESS)
+	{
+		vkDestroyPipelineLayout(vkdev, pipeline->vk_pipeline_layout, NULL);
+		ASSERT__1(false, "vkCreateComputePipelines error");
 	}
 	return 0;
 }

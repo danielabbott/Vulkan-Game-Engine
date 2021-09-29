@@ -73,7 +73,24 @@ void pigeon_wgi_destroy_render_passes(void)
 
 }
 
-static int create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path, const char * fs_path, 
+static ERROR_RETURN_TYPE create_compute_pipeine(PigeonVulkanPipeline* pipeline, const char * path,
+	PigeonVulkanDescriptorLayout * descriptor_layout, unsigned int push_constant_size)
+{
+	ASSERT_1(pipeline && path && push_constant_size <= 128);
+
+	PigeonVulkanShader shader = { 0 };
+	ASSERT_1(!pigeon_vulkan_load_shader(&shader, path));
+
+	int err = pigeon_vulkan_create_compute_pipeline(pipeline, &shader, push_constant_size, descriptor_layout);
+
+	pigeon_vulkan_destroy_shader(&shader);
+
+	ASSERT_1(!err);
+
+	return 0;
+}
+
+static ERROR_RETURN_TYPE create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path, const char * fs_path, 
 	PigeonVulkanRenderPass* render_pass, PigeonVulkanDescriptorLayout * descriptor_layout,
 	unsigned int push_constant_size, unsigned int specialisation_constants, uint32_t * sc_data)
 {
@@ -97,9 +114,7 @@ static int create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path,
 		descriptor_layout, &config, specialisation_constants, sc_data);
 	pigeon_vulkan_destroy_shader(&vs);
 	pigeon_vulkan_destroy_shader(&fs);
-	if (err) {
-		return 1;
-	}
+	ASSERT_1(!err);
 
 	return 0;
 
@@ -119,21 +134,21 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 
 	const char * gaussian_light_frag_path = NULL;
 	if(singleton_data.light_image_components == 1) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.1");
+		gaussian_light_frag_path = SHADER_PATH("gaussian_light.comp.1");
 	}
 	else if(singleton_data.light_image_components == 2) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag");
+		gaussian_light_frag_path = SHADER_PATH("gaussian_light.comp");
 	}
 	else if(singleton_data.light_image_components == 3) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.3");
+		gaussian_light_frag_path = SHADER_PATH("gaussian_light.comp.3");
 	}
 	else if(singleton_data.light_image_components == 4) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.4");
+		gaussian_light_frag_path = SHADER_PATH("gaussian_light.comp.4");
 	}
 
 	if (gaussian_light_frag_path && 
-		create_pipeine(&singleton_data.pipeline_light_blur, SHADER_PATH("gaussian.vert"), gaussian_light_frag_path,
-		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 16, 0, NULL)) ASSERT_1(false);
+		create_compute_pipeine(&singleton_data.pipeline_light_blur, gaussian_light_frag_path,
+			&singleton_data.light_gaussian_descriptor_layout, 24)) ASSERT_1(false);
 
 	
 

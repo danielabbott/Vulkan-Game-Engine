@@ -1,0 +1,191 @@
+#version 450
+
+#ifdef COLOUR_TYPE_RGBA
+
+#define COLOUR_TYPE vec4
+#define COLOUR_COMPONENTS rgba
+#define COLOUR_FORMAT rgba8
+
+#elif defined(COLOUR_TYPE_RGB)
+
+#define COLOUR_TYPE vec3
+#define COLOUR_COMPONENTS rgb
+#define COLOUR_FORMAT rgb10_a2
+
+#elif defined(COLOUR_TYPE_R)
+
+#define COLOUR_TYPE float
+#define COLOUR_COMPONENTS r
+#define COLOUR_FORMAT rg8
+
+#else
+
+#define COLOUR_TYPE vec2
+#define COLOUR_COMPONENTS rg
+#define COLOUR_FORMAT r8
+
+#endif
+
+#define GROUP_SIZE_X 64
+#define GROUP_SIZE_Y 1
+
+layout(local_size_x = GROUP_SIZE_X, local_size_y = GROUP_SIZE_Y) in;
+
+
+
+layout(binding = 0) uniform sampler2D src_image;
+layout(binding = 1) uniform sampler2D depth_buffer;
+
+layout(COLOUR_FORMAT, binding = 2) writeonly restrict uniform image2D out_image;
+
+layout(push_constant) uniform PushConstantsObject
+{
+	// one_pixel: 1.0 / viewport_size, one component is 0 (to control blur direction)
+	vec4 viewport_size_and_one_pixel;
+	vec2 nearz_and_farz;
+} push_constants;
+
+#define viewport_size push_constants.viewport_size_and_one_pixel.xy
+#define one_pixel push_constants.viewport_size_and_one_pixel.zw
+#define nearz push_constants.nearz_and_farz.y
+#define farz push_constants.nearz_and_farz.x
+
+
+#define NUMBER_OF_WEIGHTS 8
+
+const float weights[NUMBER_OF_WEIGHTS] = float[](
+	10.0 / 115.0,
+	9.0 / 115.0,
+	8.0 / 115.0,
+	7.0 / 115.0,
+	6.0 / 115.0,
+	5.0 / 115.0,
+	4.0 / 115.0,
+	3.0 / 115.0
+);
+const float centre_weight = 11.0 / 115.0;
+
+
+shared float depth_cache[GROUP_SIZE_Y][GROUP_SIZE_X + 2*2*NUMBER_OF_WEIGHTS];
+
+shared COLOUR_TYPE colour_cache[GROUP_SIZE_Y][GROUP_SIZE_X + 2*NUMBER_OF_WEIGHTS];
+
+// TODO can colour cache values be stored as 8-bit integers?
+
+
+float relinearise_depth(float d) {
+	return farz*nearz / (-d*(farz - nearz) - farz);
+}
+
+void main() {
+	ivec2 tex_coord_i;
+
+	if(one_pixel.x == 0) {
+		tex_coord_i = ivec2(gl_GlobalInvocationID.yx);
+	}
+	else {
+		tex_coord_i = ivec2(gl_GlobalInvocationID.xy);
+	}
+
+	vec2 tex_coord = (vec2(tex_coord_i)+vec2(0.5)) / viewport_size;
+
+	// Load depth values
+
+	float centre_depth = relinearise_depth(texture(depth_buffer, tex_coord).r);
+
+	depth_cache[gl_LocalInvocationID.y][2*NUMBER_OF_WEIGHTS + gl_LocalInvocationID.x] = centre_depth;
+
+	if(gl_LocalInvocationID.x < NUMBER_OF_WEIGHTS*2) {
+		depth_cache[gl_LocalInvocationID.y][gl_LocalInvocationID.x] =
+			relinearise_depth(texture(depth_buffer, tex_coord - 2*NUMBER_OF_WEIGHTS*one_pixel).r);
+	}
+
+	else if(gl_LocalInvocationID.x >= 64-NUMBER_OF_WEIGHTS*2) {
+		depth_cache[gl_LocalInvocationID.y][NUMBER_OF_WEIGHTS*2*2+gl_LocalInvocationID.x] =
+			relinearise_depth(texture(depth_buffer, tex_coord + 2*NUMBER_OF_WEIGHTS*one_pixel).r);
+	}
+
+
+	// Load colour values
+
+	COLOUR_TYPE centre_colour = texture(src_image, tex_coord).COLOUR_COMPONENTS;
+
+	colour_cache[gl_LocalInvocationID.y][NUMBER_OF_WEIGHTS + gl_LocalInvocationID.x] = centre_colour;
+
+	if(gl_LocalInvocationID.x < NUMBER_OF_WEIGHTS) {
+		colour_cache[gl_LocalInvocationID.y][NUMBER_OF_WEIGHTS-gl_LocalInvocationID.x - 1] =
+			texture(src_image, tex_coord - (1.5+gl_LocalInvocationID.x*3)*one_pixel).COLOUR_COMPONENTS;
+	}
+
+	else if(gl_LocalInvocationID.x >= 64-NUMBER_OF_WEIGHTS) {
+		uint i = 64 - gl_LocalInvocationID.x - 1;
+		colour_cache[gl_LocalInvocationID.y][NUMBER_OF_WEIGHTS*2+64 - i-1] =
+			texture(src_image, tex_coord + (1.5+i*3)*one_pixel).COLOUR_COMPONENTS;
+	}
+
+	// for(int i = 0;i<80;i++) {
+	// 	colour_cache[0][i] = vec2(0,0);
+	// 	colour_cache[1][i] = vec2(0,0);
+	// }
+
+	memoryBarrierShared();
+	// barrier();
+
+
+
+	// Centre value
+
+	COLOUR_TYPE final_colour = centre_colour * centre_weight;
+	
+	// Others
+
+	for(float j = -1; j <= 1; j += 2) {
+		vec2 offset = j*1.5*one_pixel;
+		int depth_index_offset = 0;
+		int colour_index_offset = 0;
+		int j_ = int(j);
+
+		for(int i = 0; i < NUMBER_OF_WEIGHTS; i += 1) {
+			colour_index_offset += j_;
+			vec2 p = tex_coord + offset;
+
+			float d1 = depth_cache[gl_LocalInvocationID.y]
+				[NUMBER_OF_WEIGHTS*2+gl_LocalInvocationID.x+depth_index_offset+j_*1];
+			float d2 = depth_cache[gl_LocalInvocationID.y]
+				[NUMBER_OF_WEIGHTS*2+gl_LocalInvocationID.x+depth_index_offset+j_*2];
+
+			if(abs(d1 - centre_depth) < 0.07 && abs(d2 - centre_depth) < 0.07) {
+
+				COLOUR_TYPE c = colour_cache[gl_LocalInvocationID.y]
+					[NUMBER_OF_WEIGHTS+gl_LocalInvocationID.x+colour_index_offset].COLOUR_COMPONENTS;
+
+				final_colour += c * weights[i];
+			}
+			else {
+				final_colour += centre_colour * weights[i];
+			}
+
+			offset += j*one_pixel*2;
+			depth_index_offset += j_*2;
+		}
+	}
+
+
+#ifdef COLOUR_TYPE_RGBA
+
+	imageStore(out_image, tex_coord_i, final_colour);
+
+#elif defined(COLOUR_TYPE_RGB)
+
+	imageStore(out_image, tex_coord_i, vec4(final_colour, 0));
+
+#elif defined(COLOUR_TYPE_R)
+
+	imageStore(out_image, tex_coord_i, vec4(final_colour, 0, 0, 0));
+
+#else
+
+	imageStore(out_image, tex_coord_i, vec4(final_colour, 0, 0));
+
+#endif
+}

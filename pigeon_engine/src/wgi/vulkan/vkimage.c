@@ -61,6 +61,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 	unsigned width, unsigned int height, unsigned int layers, unsigned int mip_levels,
 	bool linear_tiling, bool preinitialised,
 	bool to_be_sampled, bool to_be_attached,
+	bool used_as_storage,
 	bool to_be_transfer_src, bool to_be_transfer_dst,
 	PigeonVulkanMemoryRequirements* memory_requirements)
 {
@@ -84,6 +85,10 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 		if (pigeon_wgi_image_format_is_depth(format)) {
 			image_create_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		}
+	}
+
+	if (used_as_storage) {
+		image_create_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 	}
 
 	if (to_be_attached) {
@@ -224,7 +229,7 @@ void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView* image_view)
 ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
 	PigeonVulkanMemoryAllocation * memory, PigeonVulkanImageView * image_view,
 	PigeonWGIImageFormat format, unsigned int width, unsigned int height,
-	unsigned int layers, unsigned int mip_maps, bool device_local)
+	unsigned int layers, unsigned int mip_maps, bool device_local, bool used_as_storage_image)
 {
     PigeonVulkanMemoryRequirements memory_req;
 
@@ -234,6 +239,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulka
 		width, height, layers, mip_maps == 0 ? 1 : mip_maps,
 		false, false,
 		true, false,
+		used_as_storage_image,
 		false, device_local,
 		&memory_req
 	))

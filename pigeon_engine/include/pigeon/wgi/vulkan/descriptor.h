@@ -24,13 +24,15 @@ struct VkDescriptorSet_T;
 typedef enum {
 	PIGEON_VULKAN_DESCRIPTOR_TYPE_UNIFORM,
 	PIGEON_VULKAN_DESCRIPTOR_TYPE_SSBO,
-	PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE
+	PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE,
+	PIGEON_VULKAN_DESCRIPTOR_TYPE_IMAGE
 } PigeonVulkanDescriptorType;
 
 typedef struct PigeonVulkanDescriptorBinding {
 	PigeonVulkanDescriptorType type;
 	bool vertex_shader_accessible;
 	bool fragment_shader_accessible;
+	bool compute_shader_accessible;
 	unsigned int elements; // Array elements. e.g. uniform sampler2D textures[3];
 } PigeonVulkanDescriptorBinding;
 
@@ -38,6 +40,7 @@ typedef struct PigeonVulkanDescriptorLayout {
 	struct VkDescriptorSetLayout_T* handle;
 	unsigned int number_of_uniforms;
 	unsigned int number_of_textures;
+	unsigned int number_of_storage_images;
 	unsigned int number_of_ssbos;
 } PigeonVulkanDescriptorLayout;
 
@@ -80,5 +83,8 @@ void pigeon_vulkan_set_descriptor_ssbo2(PigeonVulkanDescriptorPool*,
 // Array index: uniform Sampler2D textures[3]; <- index into array
 void pigeon_vulkan_set_descriptor_texture(PigeonVulkanDescriptorPool*, 
 	unsigned int set, unsigned int binding, unsigned int array_index, PigeonVulkanImageView*, PigeonVulkanSampler*);
+
+void pigeon_vulkan_set_descriptor_storage_image(PigeonVulkanDescriptorPool*, 
+	unsigned int set, unsigned int binding, unsigned int array_index, PigeonVulkanImageView*);
 
 void pigeon_vulkan_destroy_descriptor_pool(PigeonVulkanDescriptorPool*);

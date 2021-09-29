@@ -59,7 +59,7 @@ static ERROR_RETURN_TYPE create_swapchain(void)
 
 	create_info.preTransform = singleton_data.surface_capabilities.currentTransform;
 	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	create_info.clipped = VK_TRUE;
 
 	ASSERT__1(vkCreateSwapchainKHR(vkdev, &create_info, NULL, &singleton_data.swapchain_handle) == VK_SUCCESS, "Error creating swapchain");

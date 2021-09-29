@@ -34,4 +34,9 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline*, PigeonVul
 	// 1 value in sc_data for each specialisation constant. booleans are 0 (false) or 1 (true)
 	unsigned int specialisation_constants, uint32_t * sc_data);
 
+ERROR_RETURN_TYPE pigeon_vulkan_create_compute_pipeline(PigeonVulkanPipeline*, PigeonVulkanShader*,
+	unsigned int push_constants_size, PigeonVulkanDescriptorLayout*);
+
 void pigeon_vulkan_destroy_pipeline(PigeonVulkanPipeline*);
+
+
