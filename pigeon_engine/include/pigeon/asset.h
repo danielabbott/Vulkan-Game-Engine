@@ -3,6 +3,7 @@
 #include <pigeon/wgi/mesh.h>
 #include <pigeon/wgi/textures.h>
 #include <pigeon/wgi/material.h>
+#include <pigeon/wgi/animation.h>
 #include <pigeon/audio/audio.h>
 #include <pigeon/util.h>
 
@@ -15,7 +16,7 @@ typedef enum {
 } PigeonAssetType;
 
 typedef enum {
-    PIGEON_ASSET_SUBRESOURCE_TYPE_NONE, // generic raw data
+    PIGEON_ASSET_SUBRESOURCE_TYPE_UNCOMPRESSED, // generic raw data
     PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD, // zstd compressed generic data
     PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE,
 } PigeonAssetSubresourceType;
@@ -49,7 +50,7 @@ typedef struct PigeonAsset {
 
     union {
         // Type-specific data
-        // Pointers in these structs are always malloc'd and copied to
+        // Pointers in these structs are all malloc allocations
 
         // Models
         struct {
@@ -57,6 +58,12 @@ typedef struct PigeonAsset {
 
             unsigned int materials_count;
             PigeonWGIMaterialImport* materials;
+
+            unsigned int bones_count;
+            PigeonWGIBone* bones;
+
+            unsigned int animations_count;
+            PigeonWGIAnimationMeta* animations;
         };
 
         // Textures

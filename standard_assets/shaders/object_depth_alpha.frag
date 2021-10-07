@@ -2,16 +2,16 @@
 
 
 layout(location = 0) in vec2 in_uv;
-layout(location = 1) in flat uint in_draw_call_index;
+layout(location = 1) in flat uint in_draw_index;
 
 
-layout(binding = 4) uniform sampler2DArray textures[90];
+layout(binding = 5) uniform sampler2DArray textures[90];
 
 #include "ubo.glsl"
 
 
 void main() {
-    DrawCallObject data = draw_call_objects.obj[in_draw_call_index];  
+    DrawObject data = draw_objects.obj[in_draw_index];  
 
     float alpha = 1;
 

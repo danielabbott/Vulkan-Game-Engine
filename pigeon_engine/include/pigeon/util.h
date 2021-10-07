@@ -23,3 +23,15 @@
 
 // Returns malloc'd pointer. Call free on it when done
 size_t* load_file(const char* file, unsigned int extra, unsigned long * file_size);
+
+
+static inline void free2(void**p)
+{
+    assert(p);
+    if(*p) {
+        free(*p);
+        *p = NULL;
+    }
+}
+
+unsigned int round_up(unsigned int x, unsigned int round);

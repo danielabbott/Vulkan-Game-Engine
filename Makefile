@@ -7,10 +7,10 @@ DEBUG ?= 0
 # Run with make CC=clang to force usage of clang
 CC ?= clang
 
-CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra -pedantic \
+CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
--Wunused-macros -Wcast-align \
+-Wunused-macros -Wcast-align -Werror=incompatible-pointer-types \
 -Wformat-security -Wundef -Wconversion -Werror=unused-result\
 -Iconfig_parser -fstack-protector -I pigeon_engine/include -isystem deps
 
@@ -57,6 +57,10 @@ OBJECTS_GLSL=$(SOURCES_VERT:%=$(BUILD_DIR)/%.spv) $(SOURCES_FRAG:%=$(BUILD_DIR)/
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth_alpha.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.light.spv \
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.spv \
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth.spv \
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv \
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv
@@ -150,6 +154,23 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.depth_alpha.spv: standard_asset
 $(BUILD_DIR)/standard_assets/shaders/object.vert.light.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
 	$(GLSLC) -DOBJECT_LIGHT $(GLSLCFLAGS) $< -o $@
+	
+
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.spv: standard_assets/shaders/object.vert
+	@mkdir -p $(@D)
+	$(GLSLC) -DSKINNED $(GLSLCFLAGS) $< -o $@
+	
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth.spv: standard_assets/shaders/object.vert
+	@mkdir -p $(@D)
+	$(GLSLC) -DOBJECT_DEPTH -DSKINNED $(GLSLCFLAGS) $< -o $@
+
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv: standard_assets/shaders/object.vert
+	@mkdir -p $(@D)
+	$(GLSLC) -DOBJECT_DEPTH_ALPHA -DSKINNED $(GLSLCFLAGS) $< -o $@
+
+$(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv: standard_assets/shaders/object.vert
+	@mkdir -p $(@D)
+	$(GLSLC) -DOBJECT_LIGHT -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)

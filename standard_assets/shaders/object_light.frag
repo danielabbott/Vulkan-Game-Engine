@@ -8,17 +8,17 @@ layout (constant_id = 3) const int SC_COLOUR_COMPONENTS = 2; // 1, 2, or 3
 
 layout(location = 0) in vec3 in_position_model_space;
 layout(location = 1) in vec2 in_uv;
-layout(location = 2) in flat uint in_draw_call_index;
+layout(location = 2) in flat uint in_draw_index;
 layout(location = 3) in vec3 in_normal;
 
 layout(location = 0) out vec4 out_shadow_values;
 
 
-layout(binding = 2) uniform sampler2D depth_image;
+layout(binding = 3) uniform sampler2D depth_image;
 
-layout(binding = 3) uniform sampler2DShadow shadow_maps[4];
+layout(binding = 4) uniform sampler2DShadow shadow_maps[4];
 
-layout(binding = 4) uniform sampler2DArray textures[90];
+layout(binding = 5) uniform sampler2DArray textures[90];
 
 
 #include "ubo.glsl"
@@ -32,7 +32,7 @@ void main() {
 
     /* Transparency */
 
-    DrawCallObject data = draw_call_objects.obj[in_draw_call_index]; 
+    DrawObject data = draw_objects.obj[in_draw_index]; 
     float alpha = 1;
 
     if(SC_FETCH_ALPHA && data.texture_sampler_index_plus1 >= 1) {

@@ -9,6 +9,7 @@
 #include <pigeon/wgi/vulkan/vulkan.h>
 #include <pigeon/wgi/window.h>
 #include <pigeon/wgi/uniform.h>
+#include <pigeon/wgi/animation.h>
 #include "singleton.h"
 
 
@@ -63,26 +64,26 @@ ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects()
         ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->light_pass_descriptor_pool, 1, &singleton_data.render_descriptor_layout));
         ASSERT_1(!pigeon_vulkan_create_descriptor_pool(&objects->render_descriptor_pool, 1, &singleton_data.render_descriptor_layout));
 
-        pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 2, 0, 
+        pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, 0, 
             &singleton_data.depth_image.image_view, &singleton_data.nearest_filter_sampler);
 
         for(unsigned int j = 0; j < 4; j++) {
-            pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, j, 
+            pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 4, j, 
                 &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
-            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, j, 
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, j, 
                 &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
         }
 
 
-        pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 2, 0, 
+        pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, 0, 
             &singleton_data.light_image.image_view, &singleton_data.bilinear_sampler);
 
 
         // TODO do in bulk
         for(unsigned int j = 0; j < 90; j++) {
-            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, j, 
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 5, j, 
                 &singleton_data.default_1px_white_texture_array_image_view, &singleton_data.texture_sampler);
-            pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 4, j, 
+            pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 5, j, 
                 &singleton_data.default_1px_white_texture_array_image_view, &singleton_data.texture_sampler);
         }
 
@@ -218,9 +219,10 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
 
     const unsigned int align = pigeon_vulkan_get_uniform_buffer_min_alignment();
 
-    unsigned int minimum_size = ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
-    minimum_size += ((sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls + align-1) / align) * align;
-    minimum_size += sizeof(PigeonVulkanDrawIndexedIndirectCommand) * singleton_data.max_multidraw_draw_calls;
+    unsigned int minimum_size = round_up(sizeof(PigeonWGISceneUniformData), align);
+    minimum_size += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
+    minimum_size += round_up(sizeof(PigeonVulkanDrawIndexedIndirectCommand) * singleton_data.max_draws, align);
+    minimum_size += singleton_data.max_bones * 4*3*4;
 
     
     if(objects->uniform_buffer.size < minimum_size) {
@@ -242,35 +244,53 @@ static ERROR_RETURN_TYPE prepare_uniform_buffers()
         pigeon_vulkan_set_descriptor_uniform_buffer2(&objects->light_pass_descriptor_pool, 0, 0, 0,
             &objects->uniform_buffer, uniform_offset, sizeof(PigeonWGISceneUniformData));
 
-        uniform_offset += ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
+        uniform_offset += round_up(sizeof(PigeonWGISceneUniformData), align);
             
         pigeon_vulkan_set_descriptor_ssbo2(&objects->render_descriptor_pool, 0, 1, 0,
             &objects->uniform_buffer, uniform_offset,
-            sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls);
+            sizeof(PigeonWGIDrawObject) * singleton_data.max_draws);
         pigeon_vulkan_set_descriptor_ssbo2(&objects->depth_descriptor_pool, 0, 1, 0,
             &objects->uniform_buffer, uniform_offset,
-            sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls);
+            sizeof(PigeonWGIDrawObject) * singleton_data.max_draws);
         pigeon_vulkan_set_descriptor_ssbo2(&objects->light_pass_descriptor_pool, 0, 1, 0,
             &objects->uniform_buffer, uniform_offset,
-            sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls);
+            sizeof(PigeonWGIDrawObject) * singleton_data.max_draws);
+            
+        uniform_offset += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
+        uniform_offset += round_up(sizeof(PigeonVulkanDrawIndexedIndirectCommand) * singleton_data.max_draws, align);
+            
+        pigeon_vulkan_set_descriptor_ssbo2(&objects->render_descriptor_pool, 0, 2, 0,
+            &objects->uniform_buffer, uniform_offset,
+            4*3*4 * singleton_data.max_bones);
+        pigeon_vulkan_set_descriptor_ssbo2(&objects->depth_descriptor_pool, 0, 2, 0,
+            &objects->uniform_buffer, uniform_offset,
+            4*3*4 * singleton_data.max_bones);
+        pigeon_vulkan_set_descriptor_ssbo2(&objects->light_pass_descriptor_pool, 0, 2, 0,
+            &objects->uniform_buffer, uniform_offset,
+            4*3*4 * singleton_data.max_bones);
     }
 
 
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls,
-    uint32_t max_multidraw_draw_calls, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT],
-    PigeonWGIShadowParameters shadows[4])
+ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draws,
+    uint32_t max_multidraw_draws, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT],
+    PigeonWGIShadowParameters shadows[4], unsigned int max_bones)
 {
-    ASSERT_1(max_draw_calls <= 65536);
-    ASSERT_1(max_multidraw_draw_calls <= max_draw_calls);
+    ASSERT_1(max_draws <= 65536);
+    ASSERT_1(max_bones <= max_draws*256);
+    ASSERT_1(max_multidraw_draws <= max_draws);
 
-    if(max_draw_calls > singleton_data.max_draw_calls) singleton_data.max_draw_calls = max_draw_calls;
-    if(!singleton_data.max_draw_calls) singleton_data.max_draw_calls = 128;
-    if(max_multidraw_draw_calls > singleton_data.max_multidraw_draw_calls)
-        singleton_data.max_multidraw_draw_calls = max_multidraw_draw_calls;
-    if(!singleton_data.max_multidraw_draw_calls) singleton_data.max_multidraw_draw_calls = 128;
+    if(max_draws > singleton_data.max_draws) singleton_data.max_draws = max_draws;
+    if(!singleton_data.max_draws) singleton_data.max_draws = 128;
+    
+    if(max_multidraw_draws > singleton_data.max_multidraw_draws)
+        singleton_data.max_multidraw_draws = max_multidraw_draws;
+    if(!singleton_data.max_multidraw_draws) singleton_data.max_multidraw_draws = 128;
+    
+    if(max_bones > singleton_data.max_bones) singleton_data.max_bones = max_bones;
+    if(!singleton_data.max_bones) singleton_data.max_bones = 128;
 
     singleton_data.multidraw_draw_index = 0;
 
@@ -327,16 +347,16 @@ ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls
     for(unsigned int i = 0; i < 4; i++) {
         PigeonWGIShadowParameters* p = &singleton_data.shadow_parameters[i];
         if(!p->resolution) {
-            pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, i, 
+            pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 4, i, 
                 &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
-            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, i, 
                 &singleton_data.default_shadow_map_image_view, &singleton_data.shadow_sampler);
             continue;
         }
         unsigned int j = (unsigned)p->framebuffer_index;
-        pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 3, i, 
+        pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 4, i, 
             &singleton_data.shadow_images[j].image_view, &singleton_data.shadow_sampler);
-        pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, i, 
+        pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, i, 
             &singleton_data.shadow_images[j].image_view, &singleton_data.shadow_sampler);
     }
 
@@ -344,28 +364,35 @@ ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, unsigned int max_draw_calls
 }
 
 ERROR_RETURN_TYPE pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data,
-    PigeonWGIDrawCallObject * draw_calls, unsigned int num_draw_calls)
+    PigeonWGIDrawObject * draw_objects, unsigned int draws_count,
+    PigeonWGIBoneMatrix* bones, unsigned int bones_count)
 {
+    if(bones_count) ASSERT_1(bones);
+    if(draws_count) ASSERT_1(draw_objects)
+
     uniform_data->znear = singleton_data.znear;
     uniform_data->zfar = singleton_data.zfar;
-    pigeon_wgi_set_shadow_uniforms(uniform_data, draw_calls, num_draw_calls);
+    pigeon_wgi_set_shadow_uniforms(uniform_data, draw_objects, draws_count);
 
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
 
-    assert(num_draw_calls <= singleton_data.max_draw_calls);
+    assert(draws_count <= singleton_data.max_draws);
 
     uint8_t * dst = objects->uniform_buffer_memory.mapping;
 
     const unsigned int align = pigeon_vulkan_get_uniform_buffer_min_alignment();
 
     memcpy(dst, uniform_data, sizeof(PigeonWGISceneUniformData));
-    dst += ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
+    dst += round_up(sizeof(PigeonWGISceneUniformData), align);
 
-    memcpy(dst, draw_calls, num_draw_calls * sizeof(PigeonWGIDrawCallObject));
-    dst += num_draw_calls * sizeof(PigeonWGIDrawCallObject);
+    memcpy(dst, draw_objects, draws_count * sizeof(PigeonWGIDrawObject));
+    dst += round_up(sizeof(PigeonWGIDrawObject) * draws_count, align);
+    dst += round_up(sizeof(PigeonVulkanDrawIndexedIndirectCommand) * draws_count, align);
 
-    ASSERT_1(!pigeon_vulkan_flush_memory(&objects->uniform_buffer_memory, 0, 
-        (uint64_t)(dst - (uint8_t*)objects->uniform_buffer_memory.mapping)));
+    memcpy(dst, bones, bones_count * sizeof(PigeonWGIBoneMatrix));
+
+
+    ASSERT_1(!pigeon_vulkan_flush_memory(&objects->uniform_buffer_memory, 0, 0));
 
     return 0;
 }
@@ -505,7 +532,7 @@ static void draw_setup_common(PigeonWGICommandBuffer* command_buffer, PigeonWGIP
 
 void pigeon_wgi_draw(PigeonWGICommandBuffer* command_buffer, PigeonWGIPipeline* pipeline, 
     PigeonWGIMultiMesh* mesh, uint32_t start_vertex,
-    uint32_t draw_call_index, uint32_t instances, uint32_t first, uint32_t count)
+    uint32_t draw_index, uint32_t instances, uint32_t first, uint32_t count)
 {
     assert(command_buffer && pipeline && pipeline->pipeline && mesh && mesh->staged_buffer);
     if(!instances) instances = 1;
@@ -514,7 +541,7 @@ void pigeon_wgi_draw(PigeonWGICommandBuffer* command_buffer, PigeonWGIPipeline* 
     PigeonVulkanPipeline * vpipeline;
     draw_setup_common(command_buffer, pipeline, &vpipeline, mesh);
 
-    uint32_t pushc[2] = {draw_call_index, command_buffer->mvp_index};
+    uint32_t pushc[2] = {draw_index, command_buffer->mvp_index};
     
     if(mesh->index_count) {
         if(count == UINT32_MAX) {
@@ -547,14 +574,14 @@ void pigeon_wgi_multidraw_draw(unsigned int start_vertex,
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
     const unsigned int align = pigeon_vulkan_get_uniform_buffer_min_alignment();
 
-    unsigned int o = ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
-    o += ((sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls + align-1) / align) * align;
+    unsigned int o = round_up(sizeof(PigeonWGISceneUniformData), align);
+    o += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
 
     PigeonVulkanDrawIndexedIndirectCommand* indirect_cmds =
         (PigeonVulkanDrawIndexedIndirectCommand*)((uintptr_t)objects->uniform_buffer_memory.mapping + o);
 
     PigeonVulkanDrawIndexedIndirectCommand * cmd = &indirect_cmds[singleton_data.multidraw_draw_index++];
-    assert(singleton_data.multidraw_draw_index <= singleton_data.max_multidraw_draw_calls);
+    assert(singleton_data.multidraw_draw_index <= singleton_data.max_multidraw_draws);
 
     
     cmd->indexCount = count;
@@ -566,20 +593,20 @@ void pigeon_wgi_multidraw_draw(unsigned int start_vertex,
     // 0 out extra structs when doing instanced rendering
     for(unsigned int i = 1; i < instances; i++) {
         cmd = &indirect_cmds[singleton_data.multidraw_draw_index++];
-        assert(singleton_data.multidraw_draw_index <= singleton_data.max_multidraw_draw_calls);
+        assert(singleton_data.multidraw_draw_index <= singleton_data.max_multidraw_draws);
         memset(cmd, 0, sizeof *cmd);
     }
 }
 
 void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer* command_buffer,
     PigeonWGIPipeline* pipeline, PigeonWGIMultiMesh* mesh,
-    uint32_t first_multidraw_index, uint32_t drawcalls, uint32_t first_drawcall_index)
+    uint32_t first_multidraw_index, uint32_t draws, uint32_t first_draw_index)
 {
-    if(!drawcalls) return;
+    if(!draws) return;
 
     assert(command_buffer && pipeline && pipeline->pipeline && mesh && mesh->staged_buffer);
-    assert(first_drawcall_index + drawcalls <= singleton_data.max_draw_calls);
-    assert(first_multidraw_index + drawcalls <= singleton_data.max_multidraw_draw_calls);
+    assert(first_draw_index + draws <= singleton_data.max_draws);
+    assert(first_multidraw_index + draws <= singleton_data.max_multidraw_draws);
     assert(mesh->index_count && mesh->vertex_count);
 
     PigeonVulkanPipeline * vpipeline;
@@ -588,15 +615,15 @@ void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer* command_buffer,
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
     
     const unsigned int align = pigeon_vulkan_get_uniform_buffer_min_alignment();
-    unsigned int o = ((sizeof(PigeonWGISceneUniformData) + align-1) / align) * align;
-    o += ((sizeof(PigeonWGIDrawCallObject) * singleton_data.max_draw_calls + align-1) / align) * align;
+    unsigned int o = round_up(sizeof(PigeonWGISceneUniformData), align);
+    o += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
 
-    uint32_t pushc[2] = {first_drawcall_index, command_buffer->mvp_index};
+    uint32_t pushc[2] = {first_draw_index, command_buffer->mvp_index};
 
     pigeon_vulkan_multidraw_indexed(&command_buffer->command_pool, 0, 
         vpipeline, sizeof pushc, &pushc,
         &objects->uniform_buffer, o,
-        first_multidraw_index, drawcalls);
+        first_multidraw_index, draws);
 }
 
 ERROR_RETURN_TYPE pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer * command_buffer)

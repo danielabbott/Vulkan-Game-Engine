@@ -41,8 +41,8 @@ static VkFormat get_vertex_attribute_format(PigeonWGIVertexAttributeType type)
 
 		case PIGEON_WGI_VERTEX_ATTRIBUTE_UV: 
 			return VK_FORMAT_R16G16_UNORM;
-		case PIGEON_WGI_VERTEX_ATTRIBUTE_BONE2:
-			return VK_FORMAT_R8G8B8A8_UINT;
+		case PIGEON_WGI_VERTEX_ATTRIBUTE_BONE:
+			return VK_FORMAT_R16G16_UINT;
 	}
 	return 0;
 }

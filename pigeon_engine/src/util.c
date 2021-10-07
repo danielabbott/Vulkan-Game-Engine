@@ -39,3 +39,8 @@ size_t* load_file(const char* file, unsigned int extra, unsigned long * file_siz
 	return data;
 
 }
+
+unsigned int round_up(unsigned int x, unsigned int round)
+{
+    return ((x + round-1) / round) * round;
+}

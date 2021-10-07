@@ -157,7 +157,6 @@ ERROR_RETURN_TYPE pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation* memory,
 
 ERROR_RETURN_TYPE pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation* memory, uint64_t offset, uint64_t size)
 {
-	if (!size) return 0;
 	assert(memory);
 	
 	if (!memory->host_coherent) {

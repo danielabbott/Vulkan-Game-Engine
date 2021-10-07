@@ -26,6 +26,16 @@ enum {
     KEY_COUNT,
     KEY_TEXTURE,
     KEY_NORMAL_MAP,
+    KEY_BONES_COUNT,
+    KEY_BONE,
+    KEY_HEAD,
+    KEY_TAIL,
+    KEY_PARENT,
+    KEY_FRAME_RATE,
+    KEY_ANIMATIONS_COUNT,
+    KEY_ANIMATION,
+    KEY_LOOPS,
+    KEY_FRAMES,
 
     KEY_WIDTH,
     KEY_HEIGHT,
@@ -67,6 +77,16 @@ const char * keys[] = {
     "COUNT",
     "TEXTURE",
     "NORMAL-MAP",
+    "BONES-COUNT",
+    "BONE",
+    "HEAD",
+    "TAIL",
+    "PARENT",
+    "FRAME-RATE",
+    "ANIMATIONS-COUNT",
+    "ANIMATION",
+    "LOOPS",
+    "FRAMES",
 
     "WIDTH",
     "HEIGHT",
@@ -125,7 +145,8 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
 
     ASSERT_1(KEY__MAX*sizeof(*keys) == sizeof keys);
 
-    #define ERR() {free(asset->name); asset->name = NULL; free(input_);  ASSERT_1(false);}
+    #define ERR() {pigeon_free_asset(asset); free(input_);  ASSERT_1(false);}
+    #define ASSERT(x) if(!(x)) ERR()
 
     bool got_indices_type = false;
     bool got_vertex_attributes = false;
@@ -133,6 +154,10 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
     bool got_bounds_range = false;
 
     int material_index = -1;
+    int bone_index = -1;
+    int animation_index = -1;
+
+    float fps = 0;
 
     const char * value;
     int key;
@@ -170,7 +195,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                     asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD;
                 }
                 else if(word_matches(value, "NONE")) {
-                    asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_NONE;
+                    asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_UNCOMPRESSED;
                 }
                 else if(word_matches(value, "OGG")) {
                     asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE;
@@ -195,7 +220,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 uint32_t sz = (uint32_t)sz_;
 
 
-                if(asset->subresources[i].type == PIGEON_ASSET_SUBRESOURCE_TYPE_NONE) {
+                if(asset->subresources[i].type == PIGEON_ASSET_SUBRESOURCE_TYPE_UNCOMPRESSED) {
                     asset->subresources[i].decompressed_data_length = sz;
                 }
                 else if(asset->subresources[i].type == PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE) {
@@ -218,7 +243,6 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 while(*value && *value != ' ' && *value != '\t') value++;
                 while(*value == ' ' || *value == '\t') value++;
                 if(!*value) break;
-                #undef ERR2
             }
         }
         else if (key == KEY_VERTEX_COUNT) {
@@ -267,10 +291,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 if(word_matches(value, "POSITION")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION;
                 else if(word_matches(value, "POSITION-2D")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION2D;
                 else if(word_matches(value, "POSITION-NORMALISED")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED;
-                
-                // Incorrect spellings are also accepted
                 else if(word_matches(value, "POSITION-NORMALIZED")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED;
-               
                 else if(word_matches(value, "COLOUR")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_COLOUR;
                 else if(word_matches(value, "COLOUR-RGBA8")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_COLOUR_RGBA8;
                 else if(word_matches(value, "COLOR")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_COLOUR;
@@ -279,7 +300,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 else if(word_matches(value, "TANGENT")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT;
                 else if(word_matches(value, "UV")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_UV;
                 else if(word_matches(value, "UV-FLOAT")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT;
-                else if(word_matches(value, "BONE2")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_BONE2;
+                else if(word_matches(value, "BONE")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_BONE;
                 else {
                     fprintf(stderr, "Unrecognised vertex attribute\n");
                     ERR();
@@ -418,6 +439,144 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
             if(!s) ERR();
             asset->materials[material_index].normal_map_texture = s;
         }
+        #undef MATERIAL_CHECKS
+        else if (key == KEY_BONES_COUNT) {
+            CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); 
+
+            long int c = strtol(value, NULL, 10);
+            if(c < 0 || c > 256)
+            {
+                fprintf(stderr, "Invalid number of bones: %li\n", c);
+                ERR();
+            }
+            asset->bones_count = (unsigned)c;
+            asset->bones = calloc((unsigned)c, sizeof *asset->bones);
+            bone_index = -1;
+        }
+        else if (key == KEY_BONE) {
+            ++bone_index;
+            #define BONE_CHECKS() \
+                CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); \
+                if(!asset->bones_count) { \
+                    fputs("Missing BONES-COUNT\n", stderr); \
+                    ERR(); \
+                } \
+                if((unsigned)bone_index >= asset->bones_count) { \
+                    fputs("Too many bones\n", stderr); \
+                    ERR(); \
+                }
+            BONE_CHECKS();
+
+            // char * name = copy_string_to_whitespace_to_malloc(value);
+            // if(!name) ERR();
+            // asset->bones[bone_index].name = name;
+            asset->bones[bone_index].parent_index = -1;
+        }
+        else if (key == KEY_HEAD) {
+            BONE_CHECKS();
+
+            asset->bones[bone_index].head[0] = strtof(value, (char**)&value);
+            while(*value == ' ' || *value == '\t') value++;
+            if(!*value) ERR();
+            asset->bones[bone_index].head[1] = strtof(value, (char**)&value);
+            while(*value == ' ' || *value == '\t') value++;
+            if(!*value) ERR();
+            asset->bones[bone_index].head[2] = strtof(value, NULL);
+        }
+        else if (key == KEY_TAIL) {
+            BONE_CHECKS();
+
+            asset->bones[bone_index].tail[0] = strtof(value, (char**)&value);
+            while(*value == ' ' || *value == '\t') value++;
+            if(!*value) ERR();
+            asset->bones[bone_index].tail[1] = strtof(value, (char**)&value);
+            while(*value == ' ' || *value == '\t') value++;
+            if(!*value) ERR();
+            asset->bones[bone_index].tail[2] = strtof(value, NULL);
+        }
+        else if (key == KEY_PARENT) {
+            BONE_CHECKS();
+
+            long int p = strtol(value, NULL, 10);
+            if(p >= asset->bones_count) {
+                fprintf(stderr, "Invalid bone parent index: %li\n", p);
+                ERR();
+            }
+            if(p < 0 || p == bone_index) p = -1;
+
+            asset->bones[bone_index].parent_index = (int)p;
+        }
+        #undef BONE_CHECKS
+        else if (key == KEY_FRAME_RATE) {
+            CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL);
+
+            fps = strtof(value, NULL);
+            if(fps < 0.001f || fps > 1000.0f)
+            {
+                fprintf(stderr, "Invalid frame-rate: %f\n", fps);
+                ERR();
+            }
+        }
+        else if (key == KEY_ANIMATIONS_COUNT) {
+            CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); 
+
+            long int c = strtol(value, NULL, 10);
+            if(c < 0 || c > 9999)
+            {
+                fprintf(stderr, "Invalid number of animations: %li\n", c);
+                ERR();
+            }
+            asset->animations_count = (unsigned)c;
+            asset->animations = calloc((unsigned)c, sizeof *asset->animations);
+            animation_index = -1;
+        }
+        else if (key == KEY_ANIMATION) {
+            ++animation_index;
+            #define ANIMATION_CHECKS() \
+                CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); \
+                if(!asset->animations_count) { \
+                    fputs("Missing ANIMATIONS-COUNT\n", stderr); \
+                    ERR(); \
+                } \
+                if((unsigned)animation_index >= asset->animations_count) { \
+                    fputs("Too many animations\n", stderr); \
+                    ERR(); \
+                }
+            ANIMATION_CHECKS();
+
+            char * name = copy_string_to_whitespace_to_malloc(value);
+            if(!name) ERR();
+            asset->animations[animation_index].name = name;
+            asset->animations[animation_index].fps = fps;
+        }
+        else if (key == KEY_LOOPS) {
+            ANIMATION_CHECKS();
+
+            if(word_matches(value, "YES")) {
+                asset->animations[animation_index].loops = true;
+            }
+            else if(word_matches(value, "NO")) {
+                asset->animations[animation_index].loops = false;
+            }
+            else {
+                ERR();
+            }
+        }
+        else if (key == KEY_FRAMES) {
+            ANIMATION_CHECKS();
+
+            long int f = strtol(value, NULL, 10);
+            if(f <= 0 || f > 1000000)
+            {
+                fprintf(stderr, "Invalid number of frames: %li\n", f);
+                ERR();
+            }
+            asset->animations[animation_index].frame_count = (unsigned)f;
+        }
+        #undef ANIMATION_CHECKS
+        
+
+
         else if (key == KEY_WIDTH) {
             CHECK_TYPE(PIGEON_ASSET_TYPE_IMAGE);
             long int w = strtol(value, NULL, 10);
@@ -525,7 +684,6 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
         }
         #undef CHECK_TYPE
     }
-    #undef ERR
     free(input_);
 
     if(asset->type == PIGEON_ASSET_TYPE_UNKNOWN) {
@@ -534,17 +692,16 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
     }
 
     if(asset->type == PIGEON_ASSET_TYPE_MODEL) {
-        if(!asset->mesh_meta.vertex_count) {
-            fputs("Missing vertex count\n", stderr);
-            return 1;
-        }
+        ASSERT(!asset->animations_count || (unsigned)(animation_index+1) == asset->animations_count);
+        ASSERT(!asset->bones_count || (unsigned)(bone_index+1) == asset->bones_count);
+        ASSERT(!asset->materials_count || (unsigned)(material_index+1) == asset->materials_count);
 
         if(asset->mesh_meta.index_count && !got_indices_type) {
             fputs("Missing INDICES-TYPE\n", stderr);
             return 1;
         }
 
-        if(!got_vertex_attributes) {
+        if(asset->mesh_meta.vertex_count && !got_vertex_attributes) {
             fputs("Missing VERTEX-ATTRIBUTES\n", stderr);
             return 1;
         }
@@ -567,6 +724,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
                 return 1;
             }
         }
+
     }
     else if (asset->type == PIGEON_ASSET_TYPE_IMAGE) {
         if(!asset->texture_meta.width) {
@@ -600,7 +758,7 @@ ERROR_RETURN_TYPE pigeon_load_asset_data(PigeonAsset * asset, const char * data_
 
     for(unsigned int i = 0; i < sizeof asset->subresources / sizeof *asset->subresources; i++) {
         switch(asset->subresources[i].type) {
-            case PIGEON_ASSET_SUBRESOURCE_TYPE_NONE:
+            case PIGEON_ASSET_SUBRESOURCE_TYPE_UNCOMPRESSED:
                 asset->subresources[i].decompressed_data = &data[asset->subresources[i].original_file_data_offset];
                 break;
             case PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD:
@@ -644,7 +802,7 @@ ERROR_RETURN_TYPE pigeon_decompress_asset(PigeonAsset * asset, void * buffer, un
     }
 
     if(!buffer) {
-        ASSERT_1(subr->decompressed_data);
+        if(subr->decompressed_data) return 0;
 
         subr->decompressed_data = malloc(subr->decompressed_data_length);
         subr->decompressed_data_was_mallocd = true;
@@ -701,15 +859,37 @@ void pigeon_free_asset(PigeonAsset * asset)
     if(asset->type == PIGEON_ASSET_TYPE_MODEL) {
         if(asset->materials_count && asset->materials) {
             for(unsigned int i = 0; i < asset->materials_count; i++) {
-                free(asset->materials[i].name);
-                if(asset->materials[i].texture) free(asset->materials[i].texture);
-                if(asset->materials[i].normal_map_texture) free(asset->materials[i].normal_map_texture);
+                free2((void**)&asset->materials[i].name);
+                free2((void**)&asset->materials[i].texture);
+                free2((void**)&asset->materials[i].normal_map_texture);
             }
 
             free(asset->materials);
         }
         asset->materials = NULL;
         asset->materials_count = 0;
+
+
+        if(asset->bones_count && asset->bones) {
+            for(unsigned int i = 0; i < asset->bones_count; i++) {
+                free2((void**)&asset->bones[i].name);
+            }
+
+            free(asset->bones);
+        }
+        asset->bones = NULL;
+        asset->bones_count = 0;
+
+
+        if(asset->animations_count && asset->animations) {
+            for(unsigned int i = 0; i < asset->animations_count; i++) {
+                free2((void**)&asset->animations[i].name);
+            }
+
+            free(asset->animations);
+        }
+        asset->animations = NULL;
+        asset->animations_count = 0;
     }
 
 }

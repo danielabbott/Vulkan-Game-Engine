@@ -148,8 +148,8 @@ void pigeon_wgi_bind_array_texture(unsigned int binding_point, PigeonWGIArrayTex
     assert(array_texture && array_texture->data);
 
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
-    pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 4, binding_point, 
+    pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 5, binding_point, 
         &array_texture->data->image_view, &singleton_data.texture_sampler);
-    pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 4, binding_point, 
+    pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 5, binding_point, 
         &array_texture->data->image_view, &singleton_data.texture_sampler);
 }

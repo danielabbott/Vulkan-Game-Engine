@@ -142,8 +142,9 @@ typedef struct SingletonData
 	// Index is whatever the swapchain gives us
 	PigeonVulkanFramebuffer * post_framebuffers;
 
-	unsigned int max_draw_calls;
-	unsigned int max_multidraw_draw_calls;
+	unsigned int max_draws;
+	unsigned int max_multidraw_draws;
+	unsigned int max_bones;
 
 	unsigned int multidraw_draw_index; // reset to 0 each frame
 
@@ -195,7 +196,7 @@ void pigeon_wgi_set_global_descriptors(void);
 ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void);
 
 ERROR_RETURN_TYPE pigeon_wgi_assign_shadow_framebuffers(void);
-void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDrawCallObject * draw_calls, unsigned int num_draw_calls);
+void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDrawObject *, unsigned int draw_count);
 
 int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
     PigeonWGIImageFormat format, unsigned int width, unsigned int height,

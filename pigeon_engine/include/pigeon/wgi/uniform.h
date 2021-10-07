@@ -8,7 +8,7 @@
 #define PIGEON_WGI_ALPHA_CHANNEL_UNDER_COLOUR 1.0f
 #define PIGEON_WGI_ALPHA_CHANNEL_TRANSPARENCY 2.0f
 
-typedef struct PigeonWGIDrawCallObject {
+typedef struct PigeonWGIDrawObject {
     vec4 position_min;
     vec3 position_range;
     float ssao_intensity;
@@ -33,7 +33,9 @@ typedef struct PigeonWGIDrawCallObject {
     
     uint32_t normal_map_sampler_index_plus1;
     float normal_map_index;
-} PigeonWGIDrawCallObject;
+    
+    uint32_t first_bone_index;
+} PigeonWGIDrawObject;
 
 
 

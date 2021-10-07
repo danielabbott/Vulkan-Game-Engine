@@ -6,24 +6,24 @@ layout (constant_id = 1) const bool SC_TRANSPARENT = false;
 
 layout(location = 0) in vec3 in_normal;
 layout(location = 1) in vec2 in_uv;
-layout(location = 2) in flat uint in_draw_call_index;
+layout(location = 2) in flat uint in_draw_index;
 layout(location = 3) in vec3 in_position_model_space;
 layout(location = 4) in mat3 in_tangent_to_world;
 
 layout(location = 0) out vec4 out_colour;
 
 
-layout(binding = 2) uniform sampler2D shadow_texture;
+layout(binding = 3) uniform sampler2D shadow_texture;
 
-layout(binding = 3) uniform sampler2DShadow shadow_maps[4];
+layout(binding = 4) uniform sampler2DShadow shadow_maps[4];
 
-layout(binding = 4) uniform sampler2DArray textures[90];
+layout(binding = 5) uniform sampler2DArray textures[90];
 
 #include "ubo.glsl"
 
 
 void main() {
-    DrawCallObject data = draw_call_objects.obj[in_draw_call_index];  
+    DrawObject data = draw_objects.obj[in_draw_index];  
     vec2 tex_coord = gl_FragCoord.xy / ubo.viewport_size;
 
     vec3 colour = ubo.ambient;

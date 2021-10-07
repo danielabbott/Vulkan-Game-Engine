@@ -30,7 +30,7 @@ layout(binding = 0, std140) uniform UniformBufferObject {
 
 
 
-struct DrawCallObject {
+struct DrawObject {
     vec4 position_min;
     vec4 position_range__and__ssao_intensity;
 	mat4 modelViewProj[5];
@@ -49,13 +49,15 @@ struct DrawCallObject {
 
     uint normal_map_sampler_index_plus1;
     float normal_map_index;
+    
+    uint first_bone_index;
 };
 
 #define position_range position_range__and__ssao_intensity.xyz
 #define ssao_intensity position_range__and__ssao_intensity.w
 
-layout(binding = 1, std430) readonly restrict buffer DrawCallsObject {
-    DrawCallObject obj[64];
-} draw_call_objects;
+layout(binding = 1, std430) readonly restrict buffer DrawObjectSSBO {
+    DrawObject obj[64];
+} draw_objects;
 
 #endif

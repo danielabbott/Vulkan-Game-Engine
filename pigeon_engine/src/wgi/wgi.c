@@ -19,7 +19,7 @@ static ERROR_RETURN_TYPE set_render_cfg(PigeonWGIRenderConfig render_cfg)
 
 	singleton_data.light_image_components = render_cfg.ssao ? 1 : 0;
 	singleton_data.light_image_components += render_cfg.shadow_casting_lights;
-	ASSERT_1(singleton_data.light_image_components >= 0 && singleton_data.light_image_components <= 4);
+	ASSERT_1(singleton_data.light_image_components <= 4);
 
 	if(singleton_data.light_image_components == 0) {
 		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_NONE;
@@ -107,7 +107,7 @@ void pigeon_wgi_deinit(void)
 	pigeon_vulkan_wait_idle();
 
 	memset(singleton_data.shadow_parameters, 0, sizeof singleton_data.shadow_parameters);
-	(void)pigeon_wgi_assign_shadow_framebuffers();
+	if(pigeon_wgi_assign_shadow_framebuffers()){}
 
 	pigeon_wgi_destroy_per_frame_objects();
 	pigeon_wgi_destroy_default_textures();

@@ -13,7 +13,7 @@
 
 ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 {
-	PigeonVulkanDescriptorBinding bindings[5];
+	PigeonVulkanDescriptorBinding bindings[6];
 
 
 	/* depth */
@@ -30,7 +30,12 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[1].vertex_shader_accessible = true;
 	bindings[1].elements = 1;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.depth_descriptor_layout, 2, bindings));
+	// Bone matrices
+	bindings[2].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_SSBO;
+	bindings[2].vertex_shader_accessible = true;
+	bindings[2].elements = 1;
+
+	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.depth_descriptor_layout, 3, bindings));
 
 
 	/* 1 texture */
@@ -81,22 +86,27 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[1].fragment_shader_accessible = true;
 	bindings[1].elements = 1;
 
-	// Depth texture or blurred light
-	bindings[2].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
-	bindings[2].fragment_shader_accessible = true;
+	// Bone matrices
+	bindings[2].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_SSBO;
+	bindings[2].vertex_shader_accessible = true;
 	bindings[2].elements = 1;
 
-	// Shadow map textures
+	// Depth texture or blurred light
 	bindings[3].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
 	bindings[3].fragment_shader_accessible = true;
-	bindings[3].elements = 4;
+	bindings[3].elements = 1;
 
-	// Textures
+	// Shadow map textures
 	bindings[4].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
 	bindings[4].fragment_shader_accessible = true;
-	bindings[4].elements = 90;
+	bindings[4].elements = 4;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.render_descriptor_layout, 5, bindings));
+	// Textures
+	bindings[5].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
+	bindings[5].fragment_shader_accessible = true;
+	bindings[5].elements = 90;
+
+	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.render_descriptor_layout, 6, bindings));
 
 
 	return 0;

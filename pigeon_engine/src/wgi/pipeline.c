@@ -234,10 +234,10 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	}
 
 	#define ERR() \
-		free(pipeline->pipeline_depth); \
-		free(pipeline->pipeline_shadow_map); \
-		free(pipeline->pipeline_light); \
-		free(pipeline->pipeline); \
+		free2((void**)&pipeline->pipeline_depth); \
+		free2((void**)&pipeline->pipeline_shadow_map); \
+		free2((void**)&pipeline->pipeline_light); \
+		free2((void**)&pipeline->pipeline); \
 		ASSERT_1(false);
 
 
@@ -342,7 +342,7 @@ uint32_t pigeon_wgi_get_vertex_attribute_type_size(PigeonWGIVertexAttributeType 
 		case PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL:
 		case PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT:
 		case PIGEON_WGI_VERTEX_ATTRIBUTE_UV:
-		case PIGEON_WGI_VERTEX_ATTRIBUTE_BONE2:
+		case PIGEON_WGI_VERTEX_ATTRIBUTE_BONE:
 			return 4;
 	}
 	return 0;

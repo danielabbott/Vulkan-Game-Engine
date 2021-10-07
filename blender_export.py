@@ -5,9 +5,8 @@ import subprocess
 import json
 import struct
 import mathutils
-from mathutils import Vector
-import math
-from math import floor
+from mathutils import Vector,Matrix
+from math import floor,sqrt
 import bmesh
 import sys
 
@@ -56,6 +55,9 @@ def write_files(asset_text, data, filepath, use_zstd, zstd_path_override):
         using_zstd = False
         uncompressed_length = len(data_to_write)
 
+        if uncompressed_length == 0:
+            continue
+
         if use_zstd and uncompressed_length > 512:
             zstd_cmd = 'zstd' if zstd_path_override=='' else zstd_path_override
 
@@ -101,6 +103,8 @@ class Vertex():
         self.uv = None
         self.tangent = None
         self.bitangent_sign = None
+        self.bone_indices = [-1,-1]
+        self.bone_weight = 0.0
 
         # If a vertex has multiple UV coords / tangents, it is split
         # The indices into the vertices list are stored here
@@ -108,16 +112,17 @@ class Vertex():
 
     def split(self, uv, tangent, bitangent_sign):
         v = Vertex(self.position, self.normal)
+        v.bone_indices, v.bone_weight = self.bone_indices, self.bone_weight
         v.uv, v.tangent, v.bitangent_sign = uv, tangent, bitangent_sign
         return v
 
 
 def switch_coord_system(coords):
-    # Objects face +Z in OpenGL coordinate system
+    # Objects face +Z in Vulkan coordinate system
     return [coords[0], coords[2], -coords[1]]
 
 
-def get_objects_and_vertices(flat_shading, export_tangents):
+def get_objects_and_vertices(flat_shading, export_tangents, bones, bone_name_to_index):
     objects = []
 
     max_position = Vector ([-9999.0,-9999.0,-9999.0])
@@ -173,6 +178,35 @@ def get_objects_and_vertices(flat_shading, export_tangents):
                 normal.normalize()
                 normal = switch_coord_system(normal)
             vertex = Vertex(switch_coord_system(blender_object.matrix_world @ blender_vertex.co), normal)
+
+            if len(bones) > 0:
+                # bone weights
+                bone_weights = [0.0,0.0]
+                bone_indices = [-1,-1]
+                for vgroup in blender_vertex.groups:
+                    try:
+                        w = vgroup.weight
+                        bone_index = bone_name_to_index[blender_object.vertex_groups[vgroup.group].name]
+
+                        if w >= bone_weights[0]:
+                            bone_weights[1] = bone_weights[0]
+                            bone_indices[1] = bone_indices[0]
+                            bone_weights[0] = w
+                            bone_indices[0] = bone_index
+
+                        elif w > bone_weights[1]:
+                            bone_weights[1] = w
+                            bone_indices[1] = bone_index
+
+
+                    except:
+                        continue
+
+                weight_sum = bone_weights[0] + bone_weights[1]
+                weight_mul = 1.0 / weight_sum
+                vertex.bone_weight = bone_weights[0]*weight_mul
+                vertex.bone_indices = bone_indices
+
             vertices.append(vertex)
 
             if vertex.position[0] > max_position[0]:
@@ -190,8 +224,43 @@ def get_objects_and_vertices(flat_shading, export_tangents):
 
     return objects,vertices,min_position,max_position
 
+class Bone:
+    pass
+
+def get_bones():
+    bones = []
+    bone_name_to_index = {}
+    blender_bone_to_index = {}
+
+    for obj in bpy.data.objects:
+        if not hasattr(obj.data, 'bones'):
+            continue
+        for blender_bone in obj.data.bones:
+            bone = Bone()
+            bone.name = blender_bone.name
+            bone.head = switch_coord_system(obj.matrix_world @ blender_bone.head_local)
+            bone.tail = switch_coord_system(obj.matrix_world @ blender_bone.tail_local)
+            bone.blender_bone = blender_bone
+            bone.blender_object = obj
+
+            bone_name_to_index[bone.name] = len(bones)
+            blender_bone_to_index[bone.blender_bone] = len(bones)
+            bones.append(bone)
+
+    for b in bones:
+        b.m = None
+        b.parent_index = None
+        if b.blender_bone.parent != None and b.blender_bone != b.blender_bone.parent:
+            b.parent_index = blender_bone_to_index[b.blender_bone.parent]
+        if b.parent_index == None:
+            b.parent_index = -1
+
+    return bones, bone_name_to_index
+
 def get_mesh_data(flat_shading, export_tangents):
-    objects,vertices,min_position,max_position = get_objects_and_vertices(flat_shading, export_tangents)
+    bones, bone_name_to_index = get_bones()
+    objects,vertices,min_position,max_position = get_objects_and_vertices(flat_shading, export_tangents, bones, bone_name_to_index)
+
     
     class Material:
         def __init__(self, name, colour, flat_colour):
@@ -390,68 +459,174 @@ def get_mesh_data(flat_shading, export_tangents):
                 new_vertices.append(vertices[i])
         vertices = new_vertices
 
-    return objects,vertices,min_position,max_position,materials
+    return objects,vertices,min_position,max_position,materials,bones
 
-def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_override, flat_shading, export_uv, export_tangents):
+class Animation:
+    pass
+
+class BoneData:
+    pass
+
+def get_animation_data(loop_animations, bones):
+    animations = []
+
+    # Matrices (bone matrices assume blender coord system but vertices will be in vulkan coord system)
+    to_vulkan_coords = Matrix()
+    to_vulkan_coords[1][1] = 0.0
+    to_vulkan_coords[1][2] = 1.0
+    to_vulkan_coords[2][1] = -1.0
+    to_vulkan_coords[2][2] = 0.0
+
+    to_blender_coords = to_vulkan_coords.inverted()
+
+
+    for action in bpy.data.actions:
+        anim = Animation()
+        anim.name = action.name
+
+        anim.loops = False
+        if anim.name in loop_animations:
+            anim.loops = True
+            loop_animations.remove(anim.name)
+
+        # Make action current on all armatures
+        for obj in bpy.data.objects:
+            if hasattr(obj.data, 'bones') and hasattr(obj.data, 'animation_data'):
+                obj.animation_data.action = action
+
+        first_frame = int(action.frame_range[0])
+        total_frames = int(action.frame_range[1]) - first_frame
+        if anim.loops or total_frames == 2:
+            # If looped, last frame should be same as first (so interpolation is correct)
+            # If there are only 2 frames then this is a single pose (not animated)
+            # ^ first_frames is (1,2) for both 1 and 2 frames of animations for some reason
+            total_frames -= 1
+
+        anim.frames = []
+
+        for frame in range(total_frames):
+            frame_data = []
+            bpy.context.scene.frame_set(first_frame + frame)
+
+            for bone_index,b in enumerate(bones):
+                                
+                obj = b.blender_object
+                pose_bone = obj.pose.bones[b.name]
+                # TODO maybe iterate through pose bones in the first place and use pbone.bone as blender_bone?
+
+                edit_mode_transform = b.blender_bone.matrix_local
+                pose_mode_transform = pose_bone.matrix
+                
+                m = to_vulkan_coords @ b.blender_object.matrix_world @\
+                 pose_mode_transform @ edit_mode_transform.inverted() @\
+                  b.blender_object.matrix_world.inverted() @ to_blender_coords
+
+                
+                bone_data = BoneData()
+                bone_data.translation, bone_data.rotation, scale = m.decompose()
+                bone_data.scale = (scale.x + scale.y + scale.z) / 3.0
+               
+
+                frame_data.append(bone_data)
+                
+
+            anim.frames.append(frame_data)
+        animations.append(anim)
+
+    if len(loop_animations) > 0:
+        print('The following animations were referenced in the import file but were not found:', loop_animations)
+
+    
+    return bpy.context.scene.render.fps, animations
+
+def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_override, flat_shading, \
+export_uv, export_tangents, loop_animations):
     if filepath[-6:] != '.asset':
         raise ValueError('Output file should be a .asset file')
 
-    objects,vertices,min_position,max_position,materials = get_mesh_data(flat_shading, export_tangents)
+
+    objects,vertices,min_position,max_position,materials,bones = get_mesh_data(flat_shading, export_tangents)
     position_value_range = max_position - min_position
+
 
     asset_text_file = '#' + asset_name + '\n'
     asset_text_file += 'TYPE MODEL\n'
     asset_text_file += 'VERTEX-COUNT ' + str(len(vertices)) + '\n'
-    asset_text_file += 'BOUNDS-MINIMUM ' + str(min_position[0]) + ' ' + str(min_position[1]) + \
-        ' ' + str(min_position[2]) + '\n'
-    asset_text_file += 'BOUNDS-RANGE ' + str(position_value_range[0]) + ' ' + str(position_value_range[1]) + \
-        ' ' + str(position_value_range[2]) + '\n'
-
-
-    asset_text_file += 'VERTEX-ATTRIBUTES POSITION-NORMALISED'
-
-    if export_uv:
-        asset_text_file += ' UV-FLOAT'
-
-    asset_text_file += ' NORMAL'
-
-    if export_tangents:
-        asset_text_file += ' TANGENT'
     
-    
-
-    asset_text_file += '\n'
-
     indices_count = 0
 
-    if not flat_shading:
+    if len(vertices) > 0:
+        asset_text_file += 'BOUNDS-MINIMUM ' + str(min_position[0]) + ' ' + str(min_position[1]) + \
+            ' ' + str(min_position[2]) + '\n'
+        asset_text_file += 'BOUNDS-RANGE ' + str(position_value_range[0]) + ' ' + str(position_value_range[1]) + \
+            ' ' + str(position_value_range[2]) + '\n'
+
+
+        asset_text_file += 'VERTEX-ATTRIBUTES POSITION-NORMALISED'
+
+        if len(bones) > 0:
+            asset_text_file += ' BONE'
+
+        if export_uv:
+            asset_text_file += ' UV-FLOAT'
+
+        asset_text_file += ' NORMAL'
+
+        if export_tangents:
+            asset_text_file += ' TANGENT'
+
+        asset_text_file += '\n'
+
+
+
+        if not flat_shading:
+            for m in materials:
+                indices_count += len(m.indices)
+
+        if indices_count == 0:
+            asset_text_file += 'INDICES-COUNT 0\n'
+        else:
+            asset_text_file += 'INDICES-TYPE ' + ("U32" if len(vertices) > 65536 else "U16") + '\n'
+            asset_text_file += 'INDICES-COUNT ' + str(indices_count) + '\n'
+
+        asset_text_file += 'MATERIALS-COUNT ' + str(len(materials)) + '\n'
+
+        indices_or_vertices_offset = 0
         for m in materials:
-            indices_count += len(m.indices)
+            asset_text_file += 'MATERIAL ' + str(m.name) + '\n'
+            asset_text_file += "COLOUR {:.3f} {:.3f} {:.3f}\n".format(m.colour[0], m.colour[1], m.colour[2])
+            asset_text_file += "FLAT-COLOUR {:.3f} {:.3f} {:.3f}\n".format(m.flat_colour[0], m.flat_colour[1], m.flat_colour[2])
+            asset_text_file += 'FIRST ' + str(indices_or_vertices_offset) + '\n'
+            material_index_count = len(m.indices)
+            indices_or_vertices_offset += material_index_count
+            asset_text_file += 'COUNT ' + str(material_index_count) + '\n'
+            if m.texture != '':
+                asset_text_file += 'TEXTURE ' + m.texture + '\n'
+            if m.normal_texture != '':
+                asset_text_file += 'NORMAL-MAP ' + m.normal_texture + '\n'
 
-    if indices_count == 0:
-        asset_text_file += 'INDICES-COUNT 0\n'
-    else:
-        asset_text_file += 'INDICES-TYPE ' + ("U32" if len(vertices) > 65536 else "U16") + '\n'
-        asset_text_file += 'INDICES-COUNT ' + str(indices_count) + '\n'
+    if len(bones) > 0:
+        # TODO: Remove bones that do not influence any vertices
 
-    asset_text_file += 'MATERIALS-COUNT ' + str(len(materials)) + '\n'
+        asset_text_file += 'BONES-COUNT ' + str(len(bones)) + '\n'
+        for bone in bones:
+            asset_text_file += 'BONE ' + bone.name + '\n'
+            asset_text_file += 'HEAD ' + str(bone.head[0]) + ' ' + str(bone.head[1]) + ' ' + str(bone.head[2]) + '\n'
+            asset_text_file += 'TAIL ' + str(bone.tail[0]) + ' ' + str(bone.tail[1]) + ' ' + str(bone.tail[2]) + '\n'
+            if bone.parent_index >= 0:
+                asset_text_file += 'PARENT ' + str(bone.parent_index) + '\n'
 
-    indices_or_vertices_offset = 0
-    for m in materials:
-        asset_text_file += 'MATERIAL ' + str(m.name) + '\n'
-        asset_text_file += "COLOUR {:.3f} {:.3f} {:.3f}\n".format(m.colour[0], m.colour[1], m.colour[2])
-        asset_text_file += "FLAT-COLOUR {:.3f} {:.3f} {:.3f}\n".format(m.flat_colour[0], m.flat_colour[1], m.flat_colour[2])
-        asset_text_file += 'FIRST ' + str(indices_or_vertices_offset) + '\n'
-        material_index_count = len(m.indices)
-        indices_or_vertices_offset += material_index_count
-        asset_text_file += 'COUNT ' + str(material_index_count) + '\n'
-        if m.texture != '':
-            asset_text_file += 'TEXTURE ' + m.texture + '\n'
-        if m.normal_texture != '':
-            asset_text_file += 'NORMAL-MAP ' + m.normal_texture + '\n'
+        fps,animations = get_animation_data(loop_animations, bones)
+        asset_text_file += 'FRAME-RATE ' + str(fps) + '\n'
+        asset_text_file += 'ANIMATIONS-COUNT ' + str(len(animations)) + '\n'
 
+        for anim in animations:
+            asset_text_file += 'ANIMATION ' + anim.name + '\n'
+            asset_text_file += 'LOOPS ' + ('YES' if anim.loops else 'NO') + '\n'
+            asset_text_file += 'FRAMES ' + str(len(anim.frames)) + '\n'
+
+    
     writers = [ByteArrayWriter()]
-
 
     for v in vertices:
         def pos_get_float(i):
@@ -466,6 +641,20 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
         datum = (datum_a << 30) | datum_rgb
 
         writers[0].writeDWord(datum)
+
+    if len(bones) > 0:
+        w = ByteArrayWriter()
+        writers.append(w)
+        for v in vertices:
+            if v.bone_indices[0] < 0 or v.bone_indices[0] > 255:
+                v.bone_indices[0] = 0
+            if v.bone_indices[1] < 0 or v.bone_indices[1] > 255:
+                v.bone_indices[1] = 0
+                v.bone_weight = 1.0
+
+            w.writeWord((v.bone_indices[0] << 8) | v.bone_indices[1])
+            
+            w.writeWord(int(v.bone_weight * 65535.0))
 
     if export_uv:
         w = ByteArrayWriter()
@@ -528,6 +717,24 @@ def create_model_file(context, asset_name, filepath, use_zstd, zstd_path_overrid
                 for i in m.indices:
                     w.writeDWord(i)
 
+    if len(bones) > 0:
+
+        for anim in animations:
+            w = ByteArrayWriter()
+            writers.append(w)
+            for f in anim.frames:
+                for i,b in enumerate(f):
+                    w.writeFloat(b.rotation[0])
+                    w.writeFloat(b.rotation[1])
+                    w.writeFloat(b.rotation[2])
+                    w.writeFloat(b.rotation[3])
+                    w.writeFloat(b.translation[0])
+                    w.writeFloat(b.translation[1])
+                    w.writeFloat(b.translation[2])
+                    w.writeFloat(b.scale)
+            
+        
+
     data = [x.get() for x in writers]
 
     write_files(asset_text_file, data, filepath, use_zstd, zstd_path_override)
@@ -542,15 +749,20 @@ if __name__ == "__main__":
 
     use_flat_shading = False
 
+    loop_animations = []
+
     with open(sys.argv[1] + '.import', 'r') as f:
         lines = f.readlines()
         for l in lines:
             x = l.split()
             if len(x) >= 1: 
-                if x[0] == 'FLAT-SHADING':
+                if x[0].upper() == 'FLAT-SHADING':
                     use_flat_shading = True
+                elif x[0].upper() == 'LOOP':
+                    loop_animations.append(x[1])
                 else:
                     print('Unrecognised import option: ' + x)
 
     print ('Outputting to ' + output_file)
-    create_model_file(None, sys.argv[1], output_file, use_zstd=True, zstd_path_override='', flat_shading=use_flat_shading, export_uv=True, export_tangents=True)
+    create_model_file(None, sys.argv[1], output_file, use_zstd=True, zstd_path_override='', \
+    flat_shading=use_flat_shading, export_uv=True, export_tangents=True, loop_animations=loop_animations)

@@ -639,7 +639,7 @@ void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool* command_pool, unsigned 
 void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
 	PigeonVulkanPipeline* pipeline, unsigned int push_constants_size, void * push_constants_data,
 	PigeonVulkanBuffer* buffer, uint64_t buffer_offset,
-	uint32_t first_multidraw_index, uint32_t drawcalls)
+	uint32_t first_multidraw_index, uint32_t draws)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
@@ -651,7 +651,7 @@ void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool* command_pool, unsi
 
 	vkCmdDrawIndexedIndirect(cmd_buf, buffer->vk_buffer,
 		buffer_offset + first_multidraw_index * sizeof(VkDrawIndexedIndirectCommand),
-		drawcalls, sizeof(VkDrawIndexedIndirectCommand)
+		draws, sizeof(VkDrawIndexedIndirectCommand)
 	);
 }
 

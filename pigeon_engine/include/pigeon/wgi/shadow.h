@@ -1,7 +1,11 @@
 #pragma once
 
 #include "image_formats.h"
+
+#ifndef CGLM_FORCE_DEPTH_ZERO_TO_ONE
 #define CGLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
+
 #include <cglm/mat4.h>
 
 typedef struct PigeonWGIShadowParameters {

@@ -44,7 +44,7 @@ typedef enum {
 
 	PIGEON_WGI_VERTEX_ATTRIBUTE_UV, // VK_FORMAT_R16G16_UNORM
 	PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT, // VK_FORMAT_R32G32_SFLOAT
-	PIGEON_WGI_VERTEX_ATTRIBUTE_BONE2 // VK_FORMAT_R8G8B8A8_UINT - 2 bone indices and 2 bone weights
+	PIGEON_WGI_VERTEX_ATTRIBUTE_BONE // VK_FORMAT_R16G16_UINT - 2 8-bit bone indices and 1 bone weight
 } PigeonWGIVertexAttributeType;
 
 uint32_t pigeon_wgi_get_vertex_attribute_type_size(PigeonWGIVertexAttributeType);

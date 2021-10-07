@@ -96,7 +96,7 @@ void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool*, unsigned int buffer_in
 void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 	PigeonVulkanPipeline*, unsigned int push_constants_size, void * push_constants_data,
 	PigeonVulkanBuffer*, uint64_t buffer_offset,
-	uint32_t first_multidraw_index, uint32_t drawcalls);
+	uint32_t first_multidraw_index, uint32_t draws);
 
 void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 		PigeonVulkanBuffer * dst, uint64_t dst_offset,

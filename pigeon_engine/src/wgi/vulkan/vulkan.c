@@ -20,7 +20,7 @@ static const char* validation_layer_name = "VK_LAYER_KHRONOS_validation";
 static bool validation_layers_available();
 #endif
 
-static int create_vk_instance();
+static ERROR_RETURN_TYPE create_vk_instance(void);
 
 ERROR_RETURN_TYPE pigeon_create_vulkan_context(bool prefer_dedicated_gpu)
 {
