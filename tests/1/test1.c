@@ -1224,9 +1224,10 @@ int main(void)
 
 	pigeon_wgi_wait_idle();
 
-	pigeon_destroy_light(&light);
+	pigeon_destroy_light(light);
+	pigeon_destroy_animation_state(as_character);
+	pigeon_destroy_audio_player(audio_pigeon);
 
-	// TODO these should take pointers and set the variable to NULL
 	pigeon_destroy_material_renderer(mr_floor);
 	pigeon_destroy_material_renderer(mr_spinning_cube);
 	

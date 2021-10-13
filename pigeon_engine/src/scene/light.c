@@ -36,18 +36,17 @@ PigeonLight* pigeon_create_light(void)
     return l;
 }
 
-void pigeon_destroy_light(PigeonLight ** l)
+void pigeon_destroy_light(PigeonLight * l)
 {
     assert(l);
 
     for(unsigned int i = 0; i < pigeon_lights.size; i++) {
         PigeonLight * l2 = ((PigeonLight**)pigeon_lights.elements)[i];
-        if(*l == l2) {
+        if(l == l2) {
             pigeon_array_list_remove(&pigeon_lights, i, 1);
             break;
         }
     }
 
-    free(*l);
-    *l = NULL;
+    free(l);
 }

@@ -16,4 +16,4 @@ typedef struct PigeonLight
 } PigeonLight;
 
 PigeonLight* pigeon_create_light(void);
-void pigeon_destroy_light(PigeonLight **);
+void pigeon_destroy_light(PigeonLight *);

@@ -38,10 +38,31 @@ static PIGEON_ERR_RET create_swapchain(void)
 		image_count = singleton_data.surface_capabilities.minImageCount;
 	}
 
+	VkFormat chosen_format = VK_FORMAT_B8G8R8A8_SRGB;
+
+	uint32_t formats_count;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(singleton_data.physical_device, singleton_data.surface, &formats_count, NULL);
+
+	VkSurfaceFormatKHR * formats = malloc(formats_count * sizeof *formats);
+	ASSERT_R1(formats);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(singleton_data.physical_device, singleton_data.surface, &formats_count, formats);
+
+	for(unsigned int i = 0; i < formats_count; i++) {
+		if(formats[i].format == VK_FORMAT_B8G8R8A8_SRGB || formats[i].format == VK_FORMAT_R8G8B8A8_SRGB) {
+			chosen_format = formats[i].format;
+			break;
+		}
+		else {
+			chosen_format = formats[i].format;
+		}
+	}
+	free(formats);
+
+
 	VkSwapchainCreateInfoKHR create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	create_info.surface = singleton_data.surface;
 	create_info.minImageCount = image_count;
-	create_info.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
+	create_info.imageFormat = chosen_format;
 	create_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
 	glfwPollEvents();

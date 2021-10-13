@@ -16,7 +16,7 @@ typedef struct PigeonAudioPlayer
 } PigeonAudioPlayer;
 
 PigeonAudioPlayer* pigeon_create_audio_player(void);
-void pigeon_destroy_audio_player(PigeonAudioPlayer **);
+void pigeon_destroy_audio_player(PigeonAudioPlayer *);
 
 void pigeon_audio_player_play(PigeonAudioPlayer*, PigeonAudioBufferID);
 

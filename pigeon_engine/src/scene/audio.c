@@ -36,15 +36,14 @@ PigeonAudioPlayer* pigeon_create_audio_player()
     return ap;
 }
 
-void pigeon_destroy_audio_player(PigeonAudioPlayer ** ap)
+void pigeon_destroy_audio_player(PigeonAudioPlayer * ap)
 {
-    if(!ap || !*ap) {
+    if(!ap) {
         assert(false);
         return;
     }
-	if((*ap)->_source_id) pigeon_audio_destroy_sources(1, &(*ap)->_source_id);
-    pigeon_object_pool_free(&pool, *ap);
-    *ap = NULL;
+	if(ap->_source_id) pigeon_audio_destroy_sources(1, &ap->_source_id);
+    pigeon_object_pool_free(&pool, ap);
 }
 
 void pigeon_audio_player_play(PigeonAudioPlayer* ap, PigeonAudioBufferID buffer)
