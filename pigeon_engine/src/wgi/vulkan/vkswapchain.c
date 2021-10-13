@@ -4,17 +4,17 @@
 #include "singleton.h"
 #include <stdlib.h>
 #include <pigeon/wgi/vulkan/swapchain.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
 extern GLFWwindow* pigeon_wgi_glfw_window;
 
 
 
 
-static int create_swapchain(void);
-static int get_images(void);
+static PIGEON_ERR_RET create_swapchain(void);
+static PIGEON_ERR_RET get_images(void);
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_swapchain(void)
+PIGEON_ERR_RET pigeon_vulkan_create_swapchain(void)
 {
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(singleton_data.physical_device, singleton_data.surface, 
 		&singleton_data.surface_capabilities);
@@ -26,7 +26,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_swapchain(void)
 	return 0;
 }
 
-static ERROR_RETURN_TYPE create_swapchain(void)
+static PIGEON_ERR_RET create_swapchain(void)
 {
 	// Aim for 2 images
 
@@ -62,12 +62,12 @@ static ERROR_RETURN_TYPE create_swapchain(void)
 	create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	create_info.clipped = VK_TRUE;
 
-	ASSERT__1(vkCreateSwapchainKHR(vkdev, &create_info, NULL, &singleton_data.swapchain_handle) == VK_SUCCESS, "Error creating swapchain");
+	ASSERT_LOG_R1(vkCreateSwapchainKHR(vkdev, &create_info, NULL, &singleton_data.swapchain_handle) == VK_SUCCESS, "Error creating swapchain");
 
 	return 0;
 }
 
-static ERROR_RETURN_TYPE get_images(void)
+static PIGEON_ERR_RET get_images(void)
 {
 	// Images
 
@@ -102,7 +102,7 @@ static ERROR_RETURN_TYPE get_images(void)
 		singleton_data.swapchain_image_views[i].height = singleton_data.swapchain_height;
 		singleton_data.swapchain_image_views[i].layers = 1;
 
-		ASSERT__1(vkCreateImageView(vkdev, &create_info, NULL, &singleton_data.swapchain_image_views[i].vk_image_view) == VK_SUCCESS, "vkCreateImageView error");
+		ASSERT_LOG_R1(vkCreateImageView(vkdev, &create_info, NULL, &singleton_data.swapchain_image_views[i].vk_image_view) == VK_SUCCESS, "vkCreateImageView error");
 	}
 	return 0;
 }
@@ -176,14 +176,14 @@ int pigeon_vulkan_next_swapchain_image(unsigned int * new_image_index,
 		return 2;
 	}
 
-	ASSERT__1((result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) && singleton_data.current_swapchain_image < 999, "vkAcquireNextImageKHR error");
+	ASSERT_LOG_R1((result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) && singleton_data.current_swapchain_image < 999, "vkAcquireNextImageKHR error");
 	*new_image_index = singleton_data.current_swapchain_image;
 
 	return 0;
 }
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_swapchain_present(PigeonVulkanSemaphore * wait_semaphore)
+PIGEON_ERR_RET pigeon_vulkan_swapchain_present(PigeonVulkanSemaphore * wait_semaphore)
 {
 	VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 
@@ -200,6 +200,6 @@ ERROR_RETURN_TYPE pigeon_vulkan_swapchain_present(PigeonVulkanSemaphore * wait_s
 		return 2;
 	}
 
-	ASSERT__1(result == VK_SUCCESS, "vkQueuePresentKHR error");
+	ASSERT_LOG_R1(result == VK_SUCCESS, "vkQueuePresentKHR error");
 	return 0;
 }

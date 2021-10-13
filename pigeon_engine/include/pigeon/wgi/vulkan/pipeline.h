@@ -14,8 +14,8 @@ typedef struct PigeonVulkanShader {
 } PigeonVulkanShader;
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_load_shader(PigeonVulkanShader*, const char* file_path);
-ERROR_RETURN_TYPE pigeon_vulkan_create_shader(PigeonVulkanShader*, const uint32_t* spv, unsigned int spv_size);
+PIGEON_ERR_RET pigeon_vulkan_load_shader(PigeonVulkanShader*, const char* file_path);
+PIGEON_ERR_RET pigeon_vulkan_create_shader(PigeonVulkanShader*, const uint32_t* spv, unsigned int spv_size);
 void pigeon_vulkan_destroy_shader(PigeonVulkanShader*);
 
 
@@ -27,7 +27,7 @@ typedef struct PigeonVulkanPipeline {
 
 
 // N.b. Shader objects can be deleted after creating a pipeline
-ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline*, PigeonVulkanShader* vs, PigeonVulkanShader* fs, 
+PIGEON_ERR_RET pigeon_vulkan_create_pipeline(PigeonVulkanPipeline*, PigeonVulkanShader* vs, PigeonVulkanShader* fs, 
 	unsigned int push_constants_size, PigeonVulkanRenderPass*, PigeonVulkanDescriptorLayout*, 
 	const PigeonWGIPipelineConfig*,
 

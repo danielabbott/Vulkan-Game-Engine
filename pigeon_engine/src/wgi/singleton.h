@@ -167,35 +167,35 @@ SingletonData pigeon_wgi_singleton_data;
 
 
 
-ERROR_RETURN_TYPE pigeon_create_window(PigeonWindowParameters);
+PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters);
 
-ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void);
+PIGEON_ERR_RET pigeon_wgi_create_descriptor_layouts(void);
 void pigeon_wgi_destroy_descriptor_layouts(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_create_samplers(void);
+PIGEON_ERR_RET pigeon_wgi_create_samplers(void);
 void pigeon_wgi_destroy_samplers(void);
 
 
-ERROR_RETURN_TYPE pigeon_wgi_create_default_textures(void);
+PIGEON_ERR_RET pigeon_wgi_create_default_textures(void);
 void pigeon_wgi_destroy_default_textures(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_create_framebuffers(void);
+PIGEON_ERR_RET pigeon_wgi_create_framebuffers(void);
 void pigeon_wgi_destroy_framebuffers(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void);
+PIGEON_ERR_RET pigeon_wgi_create_render_passes(void);
 void pigeon_wgi_destroy_render_passes(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void);
+PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void);
 void pigeon_wgi_destroy_standard_pipeline_objects(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_create_per_frame_objects(void);
+PIGEON_ERR_RET pigeon_wgi_create_per_frame_objects(void);
 void pigeon_wgi_destroy_per_frame_objects(void);
 
 void pigeon_wgi_destroy_descriptor_pools(void);
 void pigeon_wgi_set_global_descriptors(void);
-ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void);
+PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_assign_shadow_framebuffers(void);
+PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void);
 void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDrawObject *, unsigned int draw_count);
 
 int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,

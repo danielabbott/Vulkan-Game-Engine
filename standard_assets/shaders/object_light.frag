@@ -39,7 +39,7 @@ void main() {
         vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
         alpha = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index)).a;
 
-        if(alpha < 1.0) {
+        if(alpha < 1.0 && data.under_colour.a == 2) {
             discard;
         }
     }

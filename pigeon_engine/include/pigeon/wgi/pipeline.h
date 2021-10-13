@@ -72,7 +72,7 @@ typedef struct PigeonWGIShader {
 	struct PigeonVulkanShader * shader;
 } PigeonWGIShader;
 
-ERROR_RETURN_TYPE pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint32_t spv_size, PigeonWGIShaderType type);
+PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint32_t spv_size, PigeonWGIShaderType type);
 void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 
 typedef struct PigeonWGIPipeline {
@@ -80,18 +80,19 @@ typedef struct PigeonWGIPipeline {
 	struct PigeonVulkanPipeline * pipeline_shadow_map;
 	struct PigeonVulkanPipeline * pipeline_light;
 	struct PigeonVulkanPipeline * pipeline;
-	bool blend_enabled;
+	bool skinned;
+	bool transparent;
 } PigeonWGIPipeline;
 
 // Shaders can be destroyed after creating the pipeline.
 
-int pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* fs);
+PIGEON_ERR_RET pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* fs);
 
 int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, 
 	PigeonWGIShader* vs_depth, 
 	PigeonWGIShader* vs_light, PigeonWGIShader* vs, 
 	PigeonWGIShader* fs_depth, // NULL for opaque objects
 	PigeonWGIShader* fs_light, PigeonWGIShader* fs,
-	const PigeonWGIPipelineConfig*);
+	const PigeonWGIPipelineConfig*, bool skinned, bool transparent);
 
 void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline*);

@@ -10,8 +10,8 @@ typedef struct PigeonVulkanSemaphore {
 } PigeonVulkanSemaphore;
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_semaphore(PigeonVulkanSemaphore*);
+PIGEON_ERR_RET pigeon_vulkan_create_semaphore(PigeonVulkanSemaphore*);
 
-ERROR_RETURN_TYPE pigeon_vulkan_reset_semaphore(PigeonVulkanSemaphore*);
+PIGEON_ERR_RET pigeon_vulkan_reset_semaphore(PigeonVulkanSemaphore*);
 
 void pigeon_vulkan_destroy_semaphore(PigeonVulkanSemaphore*);

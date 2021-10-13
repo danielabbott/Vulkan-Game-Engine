@@ -4,9 +4,11 @@
 #include <pigeon/wgi/vulkan/renderpass.h>
 #include <pigeon/wgi/vulkan/swapchain.h>
 #include <pigeon/wgi/vulkan/vulkan.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
+#include <pigeon/misc.h>
+#include <string.h>
 
-ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
+PIGEON_ERR_RET pigeon_wgi_create_render_passes(void)
 {
 	PigeonVulkanRenderPassConfig config;
 
@@ -15,7 +17,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP;
 	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
 
-	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_depth, config));
 
 
 
@@ -26,14 +28,14 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	config.colour_image = singleton_data.light_framebuffer_image_format;
 	config.clear_colour_image = true;
 
-	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_pass, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_pass, config));
 
 
 
 	// light blur
 	memset(&config, 0, sizeof config);
 	config.colour_image = singleton_data.light_framebuffer_image_format;
-	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_blur, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_blur, config));
 
 
     PigeonWGIImageFormat hdr_format = pigeon_vulkan_compact_hdr_framebuffer_available() ?
@@ -42,21 +44,21 @@ ERROR_RETURN_TYPE pigeon_wgi_create_render_passes(void)
 	// bloom blur
 	memset(&config, 0, sizeof config);
 	config.colour_image = hdr_format;
-	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_blur, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_bloom_blur, config));
 
 	// render
 	memset(&config, 0, sizeof config);
 	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_READ_ONLY;
 	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
 	config.colour_image = hdr_format;
-	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_render, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_render, config));
 
 	// post
 	memset(&config, 0, sizeof config);
     PigeonVulkanSwapchainInfo sc_info = pigeon_vulkan_get_swapchain_info();
 	config.colour_image = sc_info.format;
 	config.colour_image_is_swapchain = true;
-	ASSERT_1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_post, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_post, config));
 
 	return 0;
 
@@ -105,7 +107,7 @@ static int create_pipeine(PigeonVulkanPipeline * pipeline, const char * vs_path,
 
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
+PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void)
 {
 #ifdef NDEBUG
 	#define SHADER_PATH(x) ("build/release/standard_assets/shaders/" x ".spv")
@@ -115,7 +117,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 
 
 	if (create_pipeine(&singleton_data.pipeline_blur, SHADER_PATH("gaussian.vert"), SHADER_PATH("gaussian_rgb.frag"),
-		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 16, 0, NULL)) ASSERT_1(false);
+		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 16, 0, NULL)) ASSERT_R1(false);
 
 	const char * gaussian_light_frag_path = NULL;
 	if(singleton_data.light_image_components == 1) {
@@ -133,7 +135,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_standard_pipeline_objects(void)
 
 	if (gaussian_light_frag_path && 
 		create_pipeine(&singleton_data.pipeline_light_blur, SHADER_PATH("gaussian.vert"), gaussian_light_frag_path,
-		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 24, 0, NULL)) ASSERT_1(false);
+		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 24, 0, NULL)) ASSERT_R1(false);
 
 	
 
@@ -161,10 +163,10 @@ void pigeon_wgi_destroy_standard_pipeline_objects()
 	if (singleton_data.pipeline_post.vk_pipeline) pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_post);
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_shader(PigeonWGIShader* shader, const void* spv, uint32_t spv_size, PigeonWGIShaderType type)
+PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader* shader, const void* spv, uint32_t spv_size, PigeonWGIShaderType type)
 {
 	(void) type;
-	ASSERT_1(shader && spv && spv_size);
+	ASSERT_R1(shader && spv && spv_size);
 
 	shader->shader = malloc(sizeof shader->shader);
 
@@ -189,21 +191,21 @@ void pigeon_wgi_destroy_shader(PigeonWGIShader* shader)
 }
 
 
-int pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs, PigeonWGIShader* fs)
+PIGEON_ERR_RET pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline* pipeline, PigeonWGIShader* vs, PigeonWGIShader* fs)
 {
-	ASSERT_1(pipeline && vs && fs);
+	ASSERT_R1(pipeline && vs && fs);
 
 	PigeonWGIPipelineConfig config = {0};
 	config.depth_test = true;
 	config.depth_cmp_equal = true;
 
 	pipeline->pipeline = calloc(1, sizeof *pipeline->pipeline);
-	ASSERT_1(pipeline->pipeline);
+	ASSERT_R1(pipeline->pipeline);
 
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs->shader,
 		0, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, &config, 0, NULL)) {
 		free(pipeline->pipeline);
-		ASSERT_1(false);
+		ASSERT_R1(false);
 	}
 
 	return 0;
@@ -214,11 +216,12 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	PigeonWGIShader* vs_light, PigeonWGIShader* vs, 
 	PigeonWGIShader* fs_depth, // NULL for opaque objects
 	PigeonWGIShader* fs_light, PigeonWGIShader* fs,
-	const PigeonWGIPipelineConfig* config)
+	const PigeonWGIPipelineConfig* config, bool skinned, bool transparent)
 {
-	ASSERT_1(pipeline && vs_depth && vs_light && vs && fs && fs_light && config);
+	ASSERT_R1(pipeline && vs_depth && vs_light && vs && fs && fs_light && config);
 
-	pipeline->blend_enabled = config->blend_function != PIGEON_WGI_BLEND_NONE;
+	pipeline->skinned = skinned;
+	pipeline->transparent = transparent;
 
 	pipeline->pipeline_depth = calloc(1, sizeof *pipeline->pipeline_depth);
 	pipeline->pipeline_shadow_map = calloc(1, sizeof *pipeline->pipeline_shadow_map);
@@ -230,7 +233,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 		if(pipeline->pipeline_shadow_map) free(pipeline->pipeline_shadow_map);
 		if(pipeline->pipeline_light) free(pipeline->pipeline_light);
 		if(pipeline->pipeline) free(pipeline->pipeline);
-		ASSERT_1(false);
+		ASSERT_R1(false);
 	}
 
 	#define ERR() \
@@ -238,7 +241,7 @@ int pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 		free2((void**)&pipeline->pipeline_shadow_map); \
 		free2((void**)&pipeline->pipeline_light); \
 		free2((void**)&pipeline->pipeline); \
-		ASSERT_1(false);
+		ASSERT_R1(false);
 
 
 	PigeonWGIPipelineConfig config2 = *config;

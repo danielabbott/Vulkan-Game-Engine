@@ -1,8 +1,9 @@
 #include <pigeon/wgi/mesh.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <pigeon/wgi/vulkan/buffer.h>
 #include <stddef.h>
 #include "singleton.h"
+#include <string.h>
 
 uint64_t pigeon_wgi_mesh_meta_size_requirements(PigeonWGIMeshMeta *meta)
 {
@@ -24,12 +25,12 @@ uint64_t pigeon_wgi_mesh_meta_size_requirements(PigeonWGIMeshMeta *meta)
     return (uint64_t)sz*(uint64_t)meta->vertex_count + (uint64_t)(index_size*meta->index_count);
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_multimesh(PigeonWGIMultiMesh *mesh, 
+PIGEON_ERR_RET pigeon_wgi_create_multimesh(PigeonWGIMultiMesh *mesh, 
     PigeonWGIVertexAttributeType attribute_types[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES],
     unsigned int vertex_count, unsigned int index_count, bool big_indices,
     uint64_t* size, void **mapping)
 {
-    ASSERT_1(mesh && attribute_types[0]);
+    ASSERT_R1(mesh && attribute_types[0]);
     *size = 0;
 
     mesh->vertex_count = vertex_count;
@@ -41,13 +42,16 @@ ERROR_RETURN_TYPE pigeon_wgi_create_multimesh(PigeonWGIMultiMesh *mesh,
         if(!attribute_types[i]) break;
         mesh->attribute_start_offsets[i] = *size;
         *size += pigeon_wgi_get_vertex_attribute_type_size(attribute_types[i]) * vertex_count;
+
+        if(attribute_types[i] == PIGEON_WGI_VERTEX_ATTRIBUTE_BONE)
+            mesh->has_bones = true;
     }
     mesh->index_data_offset = *size;
     *size += index_count * (big_indices ? 4 : 2);
 
 
     mesh->staged_buffer = calloc(1, sizeof *mesh->staged_buffer);
-    ASSERT_1(mesh->staged_buffer);
+    ASSERT_R1(mesh->staged_buffer);
 
 #define OOPS()                      \
     {                               \
@@ -72,11 +76,11 @@ ERROR_RETURN_TYPE pigeon_wgi_create_multimesh(PigeonWGIMultiMesh *mesh,
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_multimesh_unmap(PigeonWGIMultiMesh *mesh)
+PIGEON_ERR_RET pigeon_wgi_multimesh_unmap(PigeonWGIMultiMesh *mesh)
 {
     assert(mesh && mesh->staged_buffer);
 
-    ASSERT_1(!pigeon_vulkan_staged_buffer_write_done(mesh->staged_buffer));
+    ASSERT_R1(!pigeon_vulkan_staged_buffer_write_done(mesh->staged_buffer));
     return 0;
 }
 

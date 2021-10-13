@@ -104,7 +104,7 @@ void main() {
 
 
     const float fog = 1-smoothstep(0.00005, 0.001, gl_FragCoord.z);
-    colour = mix(colour, vec3(4.5,5,5.5), fog); // blend to skybox colour (ish)
+    colour = mix(colour, vec3(1,1,1), fog); // blend to skybox colour (ish)
 
     colour = max(vec3(0), colour);
 

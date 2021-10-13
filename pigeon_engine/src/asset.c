@@ -1,5 +1,6 @@
 #include <pigeon/asset.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
+#include <pigeon/misc.h>
 #include <parser.h>
 #include <zstd.h>
 #include <stb_vorbis.c>
@@ -104,11 +105,11 @@ const char * keys[] = {
     "CHANNELS",
 };
 
-static ERROR_RETURN_TYPE copy_asset_name(PigeonAsset * asset, const char * meta_file_path)
+static PIGEON_ERR_RET copy_asset_name(PigeonAsset * asset, const char * meta_file_path)
 {
     size_t l = strlen(meta_file_path);
-    ASSERT_1(l > 7 && l < 1000);
-    ASSERT_1(memcmp(&meta_file_path[l-6], ".asset", 6) == 0);
+    ASSERT_R1(l > 7 && l < 1000);
+    ASSERT_R1(memcmp(&meta_file_path[l-6], ".asset", 6) == 0);
 
     int i = (int)l-6-1;
     while(i && meta_file_path[i] != '/') {
@@ -117,7 +118,7 @@ static ERROR_RETURN_TYPE copy_asset_name(PigeonAsset * asset, const char * meta_
     i++;
 
     asset->name = malloc(l-(unsigned)i-6+1);
-    ASSERT_1(asset->name);
+    ASSERT_R1(asset->name);
 
     memcpy(asset->name, &meta_file_path[i], l-(unsigned)i-6);
     
@@ -126,26 +127,26 @@ static ERROR_RETURN_TYPE copy_asset_name(PigeonAsset * asset, const char * meta_
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_file_path)
+PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_file_path)
 {
-    ASSERT_1(asset);
+    ASSERT_R1(asset);
 
-    ASSERT_1(!copy_asset_name(asset, meta_file_path));
+    ASSERT_R1(!copy_asset_name(asset, meta_file_path));
 
     unsigned long file_size;
-    char* input = (char*)load_file(meta_file_path, 1, &file_size);
-    ASSERT_1(input);
+    char* input = (char*)pigeon_load_file(meta_file_path, 1, &file_size);
+    ASSERT_R1(input);
     if(!input) {
         free(asset->name);
         asset->name = NULL;
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
     char * input_ = input;
 
-    ASSERT_1(KEY__MAX*sizeof(*keys) == sizeof keys);
+    ASSERT_R1(KEY__MAX*sizeof(*keys) == sizeof keys);
 
-    #define ERR() {pigeon_free_asset(asset); free(input_);  ASSERT_1(false);}
+    #define ERR() {pigeon_free_asset(asset); free(input_);  ASSERT_R1(false);}
     #define ASSERT(x) if(!(x)) ERR()
 
     bool got_indices_type = false;
@@ -746,15 +747,15 @@ ERROR_RETURN_TYPE pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_load_asset_data(PigeonAsset * asset, const char * data_file_path)
+PIGEON_ERR_RET pigeon_load_asset_data(PigeonAsset * asset, const char * data_file_path)
 {
-    ASSERT_1(asset && asset->type);
+    ASSERT_R1(asset && asset->type);
 
     unsigned long size;
-    asset->original_data = (char*)load_file(data_file_path, 0, &size);
+    asset->original_data = (char*)pigeon_load_file(data_file_path, 0, &size);
     uint8_t * data = asset->original_data;
 
-    ASSERT_1(asset->original_data);
+    ASSERT_R1(asset->original_data);
 
     for(unsigned int i = 0; i < sizeof asset->subresources / sizeof *asset->subresources; i++) {
         switch(asset->subresources[i].type) {
@@ -772,9 +773,9 @@ ERROR_RETURN_TYPE pigeon_load_asset_data(PigeonAsset * asset, const char * data_
 }
 
 
-ERROR_RETURN_TYPE pigeon_decompress_asset(PigeonAsset * asset, void * buffer, unsigned int i)
+PIGEON_ERR_RET pigeon_decompress_asset(PigeonAsset * asset, void * buffer, unsigned int i)
 {
-    ASSERT_1(asset);
+    ASSERT_R1(asset);
 
     PigeonAssetSubresource * subr = &asset->subresources[i];
 
@@ -784,13 +785,13 @@ ERROR_RETURN_TYPE pigeon_decompress_asset(PigeonAsset * asset, void * buffer, un
     }
 
     if(subr->type == PIGEON_ASSET_SUBRESOURCE_TYPE_OGG_FILE) {
-        ASSERT_1(!buffer);
+        ASSERT_R1(!buffer);
 
         int channels, sample_rate;
         short * audio_data;
         int sample_count = stb_vorbis_decode_memory(subr->compressed_data, (int)subr->compressed_data_length, 
             &channels, &sample_rate, &audio_data);
-        ASSERT_1(sample_count && channels >= 1 && channels <= 2);
+        ASSERT_R1(sample_count && channels >= 1 && channels <= 2);
 
         asset->audio_meta.channels = (unsigned int) channels;
         asset->audio_meta.sample_rate = (unsigned int) sample_rate;
@@ -810,7 +811,7 @@ ERROR_RETURN_TYPE pigeon_decompress_asset(PigeonAsset * asset, void * buffer, un
         buffer = subr->decompressed_data;
     }
 
-    ASSERT_1(subr->compressed_data);
+    ASSERT_R1(subr->compressed_data);
     
 
     if (subr->type == PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD) {
@@ -820,11 +821,11 @@ ERROR_RETURN_TYPE pigeon_decompress_asset(PigeonAsset * asset, void * buffer, un
 
         if(ZSTD_isError(output_bytes_count)) {
             fprintf(stderr, "ZSTD error: %s\n", ZSTD_getErrorName(output_bytes_count));
-            ASSERT_1(false);
+            ASSERT_R1(false);
         }
     }
     else {
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
     return 0;

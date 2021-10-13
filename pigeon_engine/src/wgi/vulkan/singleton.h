@@ -59,7 +59,7 @@ SingletonData pigeon_vulkan_singleton_data;
 
 /* Functions used during device initialisation */
 
-ERROR_RETURN_TYPE pigeon_find_vulkan_device(bool prefer_dedicated_gpu);
-ERROR_RETURN_TYPE pigeon_create_vulkan_logical_device_and_queues(void);
+PIGEON_ERR_RET pigeon_find_vulkan_device(bool prefer_dedicated_gpu);
+PIGEON_ERR_RET pigeon_create_vulkan_logical_device_and_queues(void);
 
 VkFormat pigeon_get_vulkan_image_format(PigeonWGIImageFormat);

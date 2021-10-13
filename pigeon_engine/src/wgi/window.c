@@ -15,7 +15,7 @@
 #include <GLFW/glfw3native.h>
 
 #include <stdbool.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <pigeon/wgi/window.h>
 #include <pigeon/wgi/input.h>
 #include <pigeon/wgi/wgi.h>
@@ -30,10 +30,10 @@ void pigeon_wgi_wait_events(void)
 	glfwWaitEventsTimeout(5);
 }
 
-ERROR_RETURN_TYPE pigeon_create_window(PigeonWindowParameters window_parameters)
+PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters)
 {
-	ASSERT__1(glfwInit() == GLFW_TRUE, "glfwInit() error");
-	ASSERT__1(glfwVulkanSupported() == GLFW_TRUE, "Vulkan not supported error");
+	ASSERT_LOG_R1(glfwInit() == GLFW_TRUE, "glfwInit() error");
+	ASSERT_LOG_R1(glfwVulkanSupported() == GLFW_TRUE, "Vulkan not supported error");
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -71,7 +71,7 @@ ERROR_RETURN_TYPE pigeon_create_window(PigeonWindowParameters window_parameters)
 		pigeon_wgi_glfw_window = glfwCreateWindow(mode->width, mode->height, window_parameters.title, monitor, NULL);
 	}
 
-	ASSERT__1(pigeon_wgi_glfw_window, "glfwCreateWindow error");
+	ASSERT_LOG_R1(pigeon_wgi_glfw_window, "glfwCreateWindow error");
 
 	if(
 		#if defined(__linux__)

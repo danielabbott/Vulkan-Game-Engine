@@ -1,14 +1,14 @@
 #include <pigeon/wgi/vulkan/framebuffer.h>
 #include "singleton.h"
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer* framebuffer, 
+PIGEON_ERR_RET pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer* framebuffer, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanImageView * colour2,
     PigeonVulkanRenderPass* render_pass)
 {
-    ASSERT_1(framebuffer && render_pass);
-    ASSERT_1(depth || colour);
-    if(colour2) ASSERT_1(colour);
+    ASSERT_R1(framebuffer && render_pass);
+    ASSERT_R1(depth || colour);
+    if(colour2) ASSERT_R1(colour);
 
     VkFramebufferCreateInfo framebuffer_create = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	framebuffer_create.renderPass = render_pass->vk_renderpass;
@@ -49,12 +49,12 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer* fra
     framebuffer_create.pAttachments = attachments;
 	framebuffer_create.attachmentCount = number_of_attachments;
 
-    ASSERT__1(vkCreateFramebuffer(vkdev, &framebuffer_create, NULL, &framebuffer->vk_framebuffer) == VK_SUCCESS, 
+    ASSERT_LOG_R1(vkCreateFramebuffer(vkdev, &framebuffer_create, NULL, &framebuffer->vk_framebuffer) == VK_SUCCESS, 
 					"vkCreateFramebuffer error");
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebuffer, 
+PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebuffer, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanRenderPass* render_pass)
 {
     assert(framebuffer && render_pass);
@@ -90,7 +90,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* fram
     framebuffer_create.pAttachments = attachments;
 	framebuffer_create.attachmentCount = number_of_attachments;
 
-    ASSERT__1(vkCreateFramebuffer(vkdev, &framebuffer_create, NULL, &framebuffer->vk_framebuffer) == VK_SUCCESS, 
+    ASSERT_LOG_R1(vkCreateFramebuffer(vkdev, &framebuffer_create, NULL, &framebuffer->vk_framebuffer) == VK_SUCCESS, 
 					"vkCreateFramebuffer error");
     return 0;
 }

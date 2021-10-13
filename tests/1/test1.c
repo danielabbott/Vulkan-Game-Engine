@@ -1,103 +1,104 @@
-#include <pigeon/wgi/wgi.h>
-#include <pigeon/wgi/pipeline.h>
-#include <pigeon/util.h>
-#include <pigeon/wgi/input.h>
-#include <pigeon/wgi/mesh.h>
-#include <pigeon/wgi/animation.h>
+#include <pigeon/scene/transform.h>
+#include <pigeon/scene/scene.h>
+#include <pigeon/scene/mesh_renderer.h>
+#include <pigeon/scene/light.h>
+#include <pigeon/scene/audio.h>
+#include <pigeon/pigeon.h>
+#include <pigeon/assert.h>
 #include <pigeon/asset.h>
-#include <cglm/mat4.h>
-#include <cglm/clipspace/persp_rh_zo.h>
-#include <cglm/euler.h>
-#include <cglm/affine.h>
+#include <pigeon/misc.h>
+#include <pigeon/wgi/input.h>
+#include <pigeon/wgi/pipeline.h>
+#include <string.h>
+#ifndef CGLM_FORCE_DEPTH_ZERO_TO_ONE
+    #define CGLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #include <cglm/quat.h>
-#include <pigeon/audio/audio.h>
+#include <cglm/affine.h>
+#include <cglm/euler.h>
 
-#define NUM_AUDIO 1
-#define ASSET_PATH5(x) ("build/test_assets/audio/" x ".asset")
-#define ASSET_PATH6(x) ("build/test_assets/audio/" x ".data")
+PigeonWGIVertexAttributeType static_mesh_attribs[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES] = {
+	PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT,
+	0,
+	0,
+	0,
+	0};
 
+PigeonWGIVertexAttributeType skinned_mesh_attribs[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES] = {
+	PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_BONE,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL,
+	PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT,
+	0,
+	0,
+	0};
 
-const char *audio_file_paths[NUM_AUDIO][2] = {
-	{ASSET_PATH5("pigeon.ogg"), ASSET_PATH6("pigeon.ogg")},
+#define AUDIO_ASSET_COUNT 1
+#define ASSET_PATH(x) ("build/test_assets/audio/" x ".asset")
+#define ASSET_PATH2(x) ("build/test_assets/audio/" x ".data")
+
+const char *audio_file_paths[AUDIO_ASSET_COUNT][2] = {
+	{ASSET_PATH("pigeon.ogg"), ASSET_PATH2("pigeon.ogg")},
 };
 
-PigeonAsset audio_assets[NUM_AUDIO];
-PigeonAudioBuffer audio_buffers[NUM_AUDIO];
-PigeonAudioSource pigeon_source;
+#undef ASSET_PATH
+#undef ASSET_PATH2
 
+PigeonAsset audio_assets[AUDIO_ASSET_COUNT];
+PigeonAudioBufferID audio_buffers[AUDIO_ASSET_COUNT];
 
-#define NUM_MODELS 2
+#define MODEL_ASSET_COUNT 3
 #define ASSET_PATH(x) ("build/test_assets/models/" x ".asset")
 #define ASSET_PATH2(x) ("build/standard_assets/models/" x ".asset")
 #define ASSET_PATH3(x) ("build/test_assets/models/" x ".data")
 #define ASSET_PATH4(x) ("build/standard_assets/models/" x ".data")
 
-const char *model_file_paths[NUM_MODELS][2] = {
+const char *model_file_paths[MODEL_ASSET_COUNT][2] = {
 	{ASSET_PATH2("cube.blend"), ASSET_PATH4("cube.blend")},
 	{ASSET_PATH("pete.blend"), ASSET_PATH3("pete.blend")},
+	{ASSET_PATH2("sphere.blend"), ASSET_PATH4("sphere.blend")},
 };
-
-#define NON_ANIMATED_MODEL_ASSET_INDEX 0
-#define ANIMATED_MODEL_ASSET_INDEX 1
 
 #undef ASSET_PATH
 
-PigeonAsset model_assets[NUM_MODELS];
-
-typedef struct Mat
-{
-	// UINT32_MAX if not used, otherwise index into texture_assets and texture_locations
-	uint32_t texture_index;
-	uint32_t normal_index;
-
-	uint32_t index; // index into uniform array
-} Mat;
-
-Mat *model_materials[NUM_MODELS]; // 1 for each material in each model
-unsigned int total_material_count;
+PigeonAsset model_assets[MODEL_ASSET_COUNT];
 
 unsigned int texture_assets_count;
 PigeonAsset *texture_assets;
 
-typedef struct ArrayTexture {
-	struct ArrayTexture * next;
+typedef struct TextureIndices
+{
+	// UINT32_MAX if not used, otherwise index into texture_assets and texture_locations
+	uint32_t texture_index;
+	uint32_t normal_index;
+} TextureIndices;
+
+TextureIndices *model_texture_indices[MODEL_ASSET_COUNT]; // 1 for each material in each model
+
+typedef struct ArrayTexture
+{
+	struct ArrayTexture *next;
 	PigeonWGIArrayTexture t;
 } ArrayTexture;
 
-ArrayTexture * array_texture_0 = NULL; // LINKED LIST
+ArrayTexture *array_texture_0 = NULL; // LINKED LIST
 
-typedef struct TextureLocation {
-	PigeonWGIArrayTexture * texture;
+typedef struct TextureLocation
+{
+	PigeonWGIArrayTexture *texture;
 	unsigned int texture_index;
 	unsigned int layer;
-	unsigned int subregion_index;
+	unsigned int subresource_index;
 } TextureLocation;
 
 TextureLocation *texture_locations; // One for each texture asset
 
-typedef struct GO
-{
-	unsigned int model_index;
-	vec3 position;
-	vec3 scale;
-	vec3 rotation;
-	vec3 colour;
-	unsigned int animation;
-} GO;
-
-#define NUM_GAME_OBJECTS 3
-#define SPINNY_CUBE_INDEX 1
-
-GO game_objects[NUM_GAME_OBJECTS] = {
-	{0, {0, -0.05f, 0}, {10000, 0.1f, 10000}, {0, 0, 0}, {1, 1, 1}, 0},
-	{0, {-3, 0.5f, 1}, {1, 1, 1}, {0, -0.2f, 0}, {1.1f, 0.5f, 1.15f}, 0},
-	{1, {0, 0, -4}, {1, 1, 1}, {0, 0.1f, 0}, {1, 1, 1}, 1},
-};
-
 PigeonWGIMultiMesh mesh;
 PigeonWGIMultiMesh mesh_skinned; // includes bone data
-
-// PigeonWGIMultiAnimation animation_data;
 
 PigeonWGIPipeline skybox_pipeline;
 PigeonWGIPipeline render_pipeline;
@@ -105,12 +106,31 @@ PigeonWGIPipeline render_pipeline_transparent;
 PigeonWGIPipeline render_pipeline_skinned;
 PigeonWGIPipeline render_pipeline_skinned_transparent;
 
-enum {
-	DRAW_TYPE_STATIC_OPAQUE,
-	DRAW_TYPE_STATIC_TRANSPARENT, // has rgba texture
-	DRAW_TYPE_SKINNED, // has bone data
-	DRAW_TYPE_SKINNED_TRANSPARENT
-};
+PigeonRenderState *rs_static_opaque;
+PigeonRenderState *rs_static_transparent;
+PigeonRenderState *rs_skinned_opaque;
+PigeonRenderState *rs_skinned_transparent;
+
+PigeonTransform *t_floor;
+PigeonTransform *t_character;
+PigeonTransform *t_spinning_cube;
+PigeonTransform *t_light;
+PigeonTransform *t_camera;
+PigeonTransform *t_sphere;
+PigeonTransform *t_pigeon;
+
+PigeonModelMaterial *model_cube;
+PigeonModelMaterial **model_character;
+PigeonModelMaterial *model_sphere;
+
+PigeonMaterialRenderer *mr_floor;
+PigeonMaterialRenderer *mr_spinning_cube;
+PigeonMaterialRenderer *mr_sphere;
+PigeonMaterialRenderer **mr_character;
+
+PigeonAnimationState *as_character;
+PigeonLight * light;
+PigeonAudioPlayer * audio_pigeon;
 
 bool mouse_grabbed;
 int last_mouse_x = -1;
@@ -122,26 +142,38 @@ double start_time = 0;
 
 static void key_callback(PigeonWGIKeyEvent e)
 {
-	if(e.key == PIGEON_WGI_KEY_1 && !e.pressed) {
+	if (e.key == PIGEON_WGI_KEY_1 && !e.pressed)
+	{
 		debug_disable_ssao = !debug_disable_ssao;
 	}
-	if(e.key == PIGEON_WGI_KEY_2 && !e.pressed) {
+	if (e.key == PIGEON_WGI_KEY_2 && !e.pressed)
+	{
 		debug_disable_bloom = !debug_disable_bloom;
 	}
 
-	if(e.key == PIGEON_WGI_KEY_0 && !e.pressed) {
-		pigeon_audio_play(pigeon_source, audio_buffers[0]);
+	if(e.key == PIGEON_WGI_KEY_0 && !e.pressed && AUDIO_ASSET_COUNT) {
+		pigeon_audio_player_play(audio_pigeon, audio_buffers[0]);
 	}
 }
 
-/* Creates window and vulkan context */
-static ERROR_RETURN_TYPE start(void)
+static void mouse_callback(PigeonWGIMouseEvent e)
 {
+	if (e.button == PIGEON_WGI_MOUSE_BUTTON_RIGHT && !e.pressed)
+	{
+		mouse_grabbed = !mouse_grabbed;
+		pigeon_wgi_set_cursor_type(mouse_grabbed ? PIGEON_WGI_CURSOR_TYPE_FPS_CAMERA : PIGEON_WGI_CURSOR_TYPE_NORMAL);
+		if (mouse_grabbed)
+			last_mouse_x = last_mouse_y = -1;
+	}
+}
+
+static PIGEON_ERR_RET start(void)
+{
+	pigeon_init();
+
 	PigeonWindowParameters window_parameters = {
 		.width = 1280,
 		.height = 720,
-		// .width = 800,
-		// .height = 600,
 		.window_mode = PIGEON_WINDOW_MODE_WINDOWED,
 		.title = "Test 1"};
 
@@ -157,15 +189,50 @@ static ERROR_RETURN_TYPE start(void)
 	}
 
 	pigeon_wgi_set_key_callback(key_callback);
-	
-	ASSERT_1(!pigeon_audio_init());
+	pigeon_wgi_set_mouse_button_callback(mouse_callback);
+
+	if (pigeon_audio_init())
+	{
+		pigeon_wgi_deinit();
+		return 1;
+	}
 
 	start_time = pigeon_wgi_get_time_seconds_double();
 
 	return 0;
 }
 
-static ERROR_RETURN_TYPE load_texture_asset(const char *asset_name, PigeonAsset *asset, bool normals)
+static PIGEON_ERR_RET load_model_assets(void)
+{
+	texture_assets_count = 0;
+	for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
+	{
+		ASSERT_R1(!pigeon_load_asset_meta(&model_assets[i], model_file_paths[i][0]));
+		for (unsigned int j = 0; j < model_assets[i].materials_count; j++)
+		{
+			if (model_assets[i].materials[j].texture)
+			{
+				texture_assets_count++;
+			}
+			if (model_assets[i].materials[j].normal_map_texture)
+			{
+				texture_assets_count++;
+			}
+		}
+		ASSERT_R1(model_assets[i].type == PIGEON_ASSET_TYPE_MODEL);
+
+		ASSERT_R1(
+			memcmp(static_mesh_attribs, model_assets[i].mesh_meta.attribute_types,
+				sizeof static_mesh_attribs) == 0 ||
+			memcmp(skinned_mesh_attribs, model_assets[i].mesh_meta.attribute_types,
+				sizeof static_mesh_attribs) == 0);
+
+		ASSERT_R1(!pigeon_load_asset_data(&model_assets[i], model_file_paths[i][1]));
+	}
+	return 0;
+}
+
+static PIGEON_ERR_RET load_texture_asset(const char *asset_name, PigeonAsset *asset, bool normals)
 {
 	const char *prefix = "build/test_assets/textures/";
 	const size_t prefix_len = strlen(prefix);
@@ -174,183 +241,80 @@ static ERROR_RETURN_TYPE load_texture_asset(const char *asset_name, PigeonAsset 
 	const size_t suffix_len = strlen(suffix);
 
 	char *meta_file_path = malloc(prefix_len + asset_name_len + suffix_len + 1);
-	ASSERT_1(meta_file_path);
+	ASSERT_R1(meta_file_path);
 
 	memcpy(meta_file_path, prefix, prefix_len);
 	memcpy(&meta_file_path[prefix_len], asset_name, asset_name_len);
 	memcpy(&meta_file_path[prefix_len + asset_name_len], suffix, suffix_len + 1);
 
-	ASSERT_1(!pigeon_load_asset_meta(asset, meta_file_path));
-	ASSERT_1(asset->type == PIGEON_ASSET_TYPE_IMAGE);
+	ASSERT_R1(!pigeon_load_asset_meta(asset, meta_file_path));
+	ASSERT_R1(asset->type == PIGEON_ASSET_TYPE_IMAGE);
 	if (normals)
 	{
-		ASSERT_1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR);
+		ASSERT_R1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR);
 	}
 	else
 	{
-		ASSERT_1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB);
+		ASSERT_R1(asset->texture_meta.format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB);
 	}
-	ASSERT_1(asset->texture_meta.width % 4 == 0);
-	ASSERT_1(asset->texture_meta.height % 4 == 0);
-	ASSERT_1(asset->texture_meta.has_mip_maps);
+	ASSERT_R1(asset->texture_meta.width % 4 == 0);
+	ASSERT_R1(asset->texture_meta.height % 4 == 0);
+	ASSERT_R1(asset->texture_meta.has_mip_maps);
 
 	char *data_file_path = meta_file_path;
 	memcpy(&data_file_path[prefix_len + asset_name_len], ".data", 6);
 
-	ASSERT_1(!pigeon_load_asset_data(asset, data_file_path));
+	ASSERT_R1(!pigeon_load_asset_data(asset, data_file_path));
 
 	return 0;
 }
 
-static ERROR_RETURN_TYPE load_audio_assets(void)
-{
-	if(!NUM_AUDIO) return 0;
-	ASSERT_1(!pigeon_audio_create_buffers(NUM_AUDIO, audio_buffers));
-
-	for (unsigned int i = 0; i < NUM_AUDIO; i++)
-	{
-		ASSERT_1(!pigeon_load_asset_meta(&audio_assets[i], audio_file_paths[i][0]));
-		ASSERT_1(audio_assets[i].type == PIGEON_ASSET_TYPE_AUDIO);
-		ASSERT_1(!pigeon_load_asset_data(&audio_assets[i], audio_file_paths[i][1]));
-		ASSERT_1(!pigeon_decompress_asset(&audio_assets[i], NULL, 0));
-		ASSERT_1(!pigeon_audio_upload(audio_buffers[i], audio_assets[i].audio_meta, 
-			audio_assets[i].subresources[0].decompressed_data,
-			audio_assets[i].subresources[0].decompressed_data_length));
-		pigeon_free_asset(&audio_assets[i]);
-	}
-
-	ASSERT_1(!pigeon_audio_create_sources(1, &pigeon_source));
-	
-	return 0;
-}
-
-static void audio_cleanup(void)
-{
-	if(pigeon_source) pigeon_audio_destroy_sources(1, &pigeon_source);
-	if(NUM_AUDIO && audio_buffers[0]) pigeon_audio_destroy_buffers(NUM_AUDIO, audio_buffers);
-	pigeon_audio_deinit();
-}
-
-static ERROR_RETURN_TYPE load_animation_asset(void)
-{
-
-	PigeonAsset * a = &model_assets[ANIMATED_MODEL_ASSET_INDEX];
-
-	unsigned int i = 0;
-	for(;; i++) {
-		if(!a->mesh_meta.attribute_types[i]) break;
-	}
-	if(a->mesh_meta.index_count > 0) i++;
-
-	for(; i < PIGEON_ASSET_MAX_SUBRESOURCES; i++) {
-		if(a->subresources[i].decompressed_data_length) {
-			ASSERT_1(!pigeon_decompress_asset(a, NULL, i));
-		}
-		else break;
-	}
-
-	return 0;
-}
-
-static ERROR_RETURN_TYPE load_model_assets(void)
-{
-	texture_assets_count = 0;
-	for (unsigned int i = 0; i < NUM_MODELS; i++)
-	{
-		ASSERT_1(!pigeon_load_asset_meta(&model_assets[i], model_file_paths[i][0]));
-		for (unsigned int j = 0; j < model_assets[i].materials_count; j++)
-		{
-			if (model_assets[i].materials[j].texture)
-			{
-				texture_assets_count++;
-			}
-			if (model_assets[i].materials[j].normal_map_texture)
-			{
-				texture_assets_count++;
-			}
-		}
-		ASSERT_1(model_assets[i].type == PIGEON_ASSET_TYPE_MODEL);
-		ASSERT_1(model_assets[i].mesh_meta.attribute_types[0] == PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED);
-		unsigned int j = 1;
-		if(model_assets[i].mesh_meta.attribute_types[1] == PIGEON_WGI_VERTEX_ATTRIBUTE_BONE) {
-			j = 2;
-		}
-		ASSERT_1(
-			model_assets[i].mesh_meta.attribute_types[j] == PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT &&
-			model_assets[i].mesh_meta.attribute_types[j+1] == PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL &&
-			model_assets[i].mesh_meta.attribute_types[j+2] == PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT
-		);
-		ASSERT_1(!pigeon_load_asset_data(&model_assets[i], model_file_paths[i][1]));
-	}
-	return 0;
-}
-
-static ERROR_RETURN_TYPE load_texture_assets()
+static PIGEON_ERR_RET load_texture_assets()
 {
 	texture_assets = calloc(texture_assets_count, sizeof *texture_assets);
-	ASSERT_1(texture_assets);
+	ASSERT_R1(texture_assets);
 
 	texture_locations = malloc(texture_assets_count * sizeof *texture_locations);
 
 	unsigned int tex_i = 0;
-	unsigned int material_index = 0;
-	for (unsigned int i = 0; i < NUM_MODELS; i++)
+	for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
 	{
-		total_material_count += model_assets[i].materials_count;
-		model_materials[i] = calloc(model_assets[i].materials_count, sizeof *model_materials[i]);
-		ASSERT_1(model_materials[i]);
+		model_texture_indices[i] = calloc(model_assets[i].materials_count, sizeof *model_texture_indices[i]);
+		ASSERT_R1(model_texture_indices[i]);
 
 		for (unsigned int j = 0; j < model_assets[i].materials_count; j++)
 		{
-			model_materials[i][j].index = material_index++;
 			if (model_assets[i].materials[j].texture)
 			{
-				model_materials[i][j].texture_index = tex_i;
-				ASSERT_1(!load_texture_asset(model_assets[i].materials[j].texture, &texture_assets[tex_i],
-											 false));
+				model_texture_indices[i][j].texture_index = tex_i;
+				ASSERT_R1(!load_texture_asset(model_assets[i].materials[j].texture, &texture_assets[tex_i],
+											  false));
 
 				tex_i++;
 			}
 			else
 			{
-				model_materials[i][j].texture_index = UINT32_MAX;
+				model_texture_indices[i][j].texture_index = UINT32_MAX;
 			}
 			if (model_assets[i].materials[j].normal_map_texture)
 			{
-				model_materials[i][j].normal_index = tex_i;
-				ASSERT_1(!load_texture_asset(model_assets[i].materials[j].normal_map_texture,
-											 &texture_assets[tex_i], true));
+				model_texture_indices[i][j].normal_index = tex_i;
+				ASSERT_R1(!load_texture_asset(model_assets[i].materials[j].normal_map_texture,
+											  &texture_assets[tex_i], true));
 
 				tex_i++;
 			}
 			else
 			{
-				model_materials[i][j].normal_index = UINT32_MAX;
+				model_texture_indices[i][j].normal_index = UINT32_MAX;
 			}
 		}
 	}
 	return 0;
 }
 
-static ERROR_RETURN_TYPE load_assets(void)
-{
-	ASSERT_1(!load_model_assets());
-	ASSERT_1(!load_animation_asset());
-	ASSERT_1(!load_audio_assets());
 
-	// This assumes that textures are not shared between models
-
-	if (!texture_assets_count)
-	{
-		return 0;
-	}
-
-	ASSERT_1(!load_texture_assets());
-	return 0;
-}
-
-
-static ERROR_RETURN_TYPE populate_array_textures(void)
+static PIGEON_ERR_RET populate_array_textures(void)
 {
 	for (unsigned int i = 0; i < texture_assets_count; i++)
 	{
@@ -358,60 +322,60 @@ static ERROR_RETURN_TYPE populate_array_textures(void)
 
 		PigeonWGIImageFormat base_format = asset->texture_meta.format;
 		PigeonWGIImageFormat true_format = base_format;
-		unsigned int subregion_index = 0;
-		unsigned int chosen_subregion = 0;
+		unsigned int subresource_index = 0;
+		unsigned int chosen_subresource = 0;
 
 		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB) {
 			if (asset->texture_meta.has_bc1) {
-				subregion_index++;
+				subresource_index++;
 				if(pigeon_wgi_bc1_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB;
 				}
 			}
 			if (asset->texture_meta.has_bc3) {
-				subregion_index++;
+				subresource_index++;
 				if(pigeon_wgi_bc3_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB;
 				}
 			}
 			if (asset->texture_meta.has_bc7) {
-				subregion_index++;
+				subresource_index++;
 				if(pigeon_wgi_bc7_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB;
 				}
 			}
 			if (asset->texture_meta.has_etc1) {
-				subregion_index++;
+				subresource_index++;
 				if(pigeon_wgi_etc1_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC1_LINEAR;
 				}
 				if(pigeon_wgi_etc2_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB;
 				}
 			}
 			if (asset->texture_meta.has_etc2) {
-				subregion_index++;
+				subresource_index++;
 				if(pigeon_wgi_etc2_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB;
 				}
 			}
 			if (asset->texture_meta.has_etc2_alpha) {
-				subregion_index++;
+				subresource_index++;
 				if(pigeon_wgi_etc2_rgba_optimal_available()) {
-					chosen_subregion = subregion_index;
+					chosen_subresource = subresource_index;
 					true_format = PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB_ALPHA_SRGB;
 				}
 			}
 		}
 		if(base_format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR && asset->texture_meta.has_bc5
 			&& pigeon_wgi_bc5_optimal_available()) {
-			chosen_subregion = 1;
+			chosen_subresource = 1;
 			true_format = PIGEON_WGI_IMAGE_FORMAT_BC5;
 		}
 
@@ -435,14 +399,14 @@ static ERROR_RETURN_TYPE populate_array_textures(void)
 			}
 			if(!array_texture) {
 				arr->next = calloc(1, sizeof *arr->next);
-				ASSERT_1(arr->next);
+				ASSERT_R1(arr->next);
 				array_texture = arr->next;
 				texture_index++;
 			}
 		}
 		else {
 			array_texture_0 = calloc(1, sizeof *array_texture_0);
-			ASSERT_1(array_texture_0);
+			ASSERT_R1(array_texture_0);
 			array_texture = array_texture_0;
 		}
 
@@ -455,19 +419,18 @@ static ERROR_RETURN_TYPE populate_array_textures(void)
 		texture_locations[i].texture = &array_texture->t;
 		texture_locations[i].texture_index = texture_index;
 		texture_locations[i].layer = array_texture->t.layers-1;
-		texture_locations[i].subregion_index = chosen_subregion;
+		texture_locations[i].subresource_index = chosen_subresource;
 	}
 	return 0;
 }
 
 // Runs in first frame
-static ERROR_RETURN_TYPE create_array_textures(PigeonWGICommandBuffer *cmd)
+static PIGEON_ERR_RET create_array_textures(PigeonWGICommandBuffer *cmd)
 {
-	ASSERT_1(!populate_array_textures());
 
 	ArrayTexture * arr = array_texture_0;
 	while(arr) {
-		ASSERT_1(!pigeon_wgi_create_array_texture(&arr->t, arr->t.width, arr->t.height,
+		ASSERT_R1(!pigeon_wgi_create_array_texture(&arr->t, arr->t.width, arr->t.height,
 			arr->t.layers, arr->t.format, arr->t.mip_maps ? 0 : 1, cmd));
 
 		
@@ -476,7 +439,7 @@ static ERROR_RETURN_TYPE create_array_textures(PigeonWGICommandBuffer *cmd)
 		{
 			if(texture_locations[i].texture == &arr->t) {
 				void *dst = pigeon_wgi_array_texture_upload(&arr->t, layer++, cmd);
-				ASSERT_1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].subregion_index));
+				ASSERT_R1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].subresource_index));
 			}
 		}
 
@@ -499,6 +462,66 @@ static void destroy_array_textures(void)
 	}
 }
 
+
+static PIGEON_ERR_RET load_animation_assets(void)
+{
+
+	for (unsigned int j = 0; j < MODEL_ASSET_COUNT; j++)
+	{
+		PigeonAsset *a = &model_assets[j];
+		unsigned int i = 0;
+		for (;; i++)
+		{
+			if (!a->mesh_meta.attribute_types[i])
+				break;
+		}
+		if (a->mesh_meta.index_count > 0)
+			i++;
+
+		for (; i < PIGEON_ASSET_MAX_SUBRESOURCES; i++)
+		{
+			if (a->subresources[i].decompressed_data_length)
+			{
+				ASSERT_R1(!pigeon_decompress_asset(a, NULL, i));
+			}
+			else
+				break;
+		}
+	}
+
+	return 0;
+}
+
+static PIGEON_ERR_RET load_audio_assets(void)
+{
+	if (!AUDIO_ASSET_COUNT)
+		return 0;
+	ASSERT_R1(!pigeon_audio_create_buffers(AUDIO_ASSET_COUNT, audio_buffers));
+
+	for (unsigned int i = 0; i < AUDIO_ASSET_COUNT; i++)
+	{
+		ASSERT_R1(!pigeon_load_asset_meta(&audio_assets[i], audio_file_paths[i][0]));
+		ASSERT_R1(audio_assets[i].type == PIGEON_ASSET_TYPE_AUDIO);
+		ASSERT_R1(!pigeon_load_asset_data(&audio_assets[i], audio_file_paths[i][1]));
+		ASSERT_R1(!pigeon_decompress_asset(&audio_assets[i], NULL, 0));
+		ASSERT_R1(!pigeon_audio_upload(audio_buffers[i], audio_assets[i].audio_meta,
+									   audio_assets[i].subresources[0].decompressed_data,
+									   audio_assets[i].subresources[0].decompressed_data_length));
+		pigeon_free_asset(&audio_assets[i]);
+	}
+
+	return 0;
+}
+
+static PIGEON_ERR_RET load_assets(void)
+{
+	ASSERT_R1(!load_model_assets());
+	ASSERT_R1(!load_animation_assets());
+	ASSERT_R1(!load_audio_assets());
+	ASSERT_R1(!load_texture_assets());
+	return 0;
+}
+
 static void free_assets(void)
 {
 	if (texture_assets)
@@ -509,129 +532,140 @@ static void free_assets(void)
 		}
 		free(texture_assets);
 	}
-	for (unsigned int i = 0; i < NUM_MODELS; i++)
+	for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
 	{
 		pigeon_free_asset(&model_assets[i]);
 	}
+	for (unsigned int i = 0; i < AUDIO_ASSET_COUNT; i++)
+	{
+		pigeon_free_asset(&audio_assets[i]);
+	}
 }
 
-static ERROR_RETURN_TYPE create_mesh(PigeonWGIMultiMesh* mm, bool big_indices, bool skinned)
+static void audio_cleanup(void)
+{
+	if (AUDIO_ASSET_COUNT && audio_buffers[0])
+		pigeon_audio_destroy_buffers(AUDIO_ASSET_COUNT, audio_buffers);
+	pigeon_audio_deinit();
+}
+
+static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices, bool skinned)
 {
 	uint64_t size = 0;
-    unsigned int vertex_count = 0;
+	unsigned int vertex_count = 0;
 	unsigned int index_count = 0;
 	unsigned int first_model_index = 0;
 
-	for (unsigned int i = 0; i < NUM_MODELS; i++)
+	for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
 	{
-		if(!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned) continue;
+		if (!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned)
+			continue;
 		first_model_index = i;
 
 		uint64_t sz = pigeon_wgi_mesh_meta_size_requirements(&model_assets[i].mesh_meta);
 
 		uint64_t full_size = 0;
-		for(unsigned int j = 0; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; j++) {
+		for (unsigned int j = 0; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; j++)
+		{
 			full_size += model_assets[i].subresources[j].decompressed_data_length;
-			if(!model_assets[i].mesh_meta.attribute_types[j]) break;
+			if (!model_assets[i].mesh_meta.attribute_types[j])
+				break;
 		}
-		ASSERT_1(full_size == sz);
+		ASSERT_R1(full_size == sz);
 
 		model_assets[i].mesh_meta.multimesh_start_vertex = vertex_count;
 		model_assets[i].mesh_meta.multimesh_start_index = index_count;
 		vertex_count += model_assets[i].mesh_meta.vertex_count;
-		index_count += model_assets[i].mesh_meta.index_count ?
-			model_assets[i].mesh_meta.index_count :
-			model_assets[i].mesh_meta.vertex_count;
+		index_count += model_assets[i].mesh_meta.index_count ? model_assets[i].mesh_meta.index_count : model_assets[i].mesh_meta.vertex_count;
 	}
 
 	uint8_t *mapping;
-	ASSERT_1(!pigeon_wgi_create_multimesh(mm,
-		model_assets[first_model_index].mesh_meta.attribute_types, vertex_count, index_count, big_indices,
-		&size, (void **)&mapping));
+	ASSERT_R1(!pigeon_wgi_create_multimesh(mm,
+										   model_assets[first_model_index].mesh_meta.attribute_types, vertex_count, index_count, big_indices,
+										   &size, (void **)&mapping));
 
 	// Load vertex attributes
 
-	PigeonWGIVertexAttributeType * attributes = model_assets[first_model_index].mesh_meta.attribute_types;
+	PigeonWGIVertexAttributeType *attributes = model_assets[first_model_index].mesh_meta.attribute_types;
 	uint64_t offset = 0;
 	unsigned int j = 0;
-	for (; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; j++) {
-		if(!attributes[j]) break;
+	for (; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; j++)
+	{
+		if (!attributes[j])
+			break;
 
-		for (unsigned int i = 0; i < NUM_MODELS; i++) {
-			if(!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned) continue;
+		for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
+		{
+			if (!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned)
+				continue;
 
 			uint64_t sz = pigeon_wgi_get_vertex_attribute_type_size(attributes[j]) * model_assets[i].mesh_meta.vertex_count;
-			ASSERT_1(sz == model_assets[i].subresources[j].decompressed_data_length);
-			ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
+			ASSERT_R1(sz == model_assets[i].subresources[j].decompressed_data_length);
+			ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
 			offset += sz;
 		}
 	}
 
 	// Load indices
 
-	for (unsigned int i = 0; i < NUM_MODELS; i++) {
-		if(!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned) continue;
+	for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
+	{
+		if (!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned)
+			continue;
 
-		if(j < model_assets[i].subresources[j].decompressed_data_length) {
-			if(model_assets[i].mesh_meta.big_indices == big_indices) {
-				ASSERT_1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
+		if (j < model_assets[i].subresources[j].decompressed_data_length)
+		{
+			if (model_assets[i].mesh_meta.big_indices == big_indices)
+			{
+				ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
 				offset += big_indices ? 4 : 2 * model_assets[i].mesh_meta.index_count;
 			}
-			else {
-				ASSERT_1(big_indices);
+			else
+			{
+				ASSERT_R1(big_indices);
 
 				// Convert indices from u16 to u32
 
-				uint16_t * u16 = malloc(2 * model_assets[i].mesh_meta.index_count);
-				ASSERT_1(u16);
+				uint16_t *u16 = malloc(2 * model_assets[i].mesh_meta.index_count);
+				ASSERT_R1(u16);
 
-				ASSERT_1(!pigeon_decompress_asset(&model_assets[i], u16, j));
+				ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], u16, j));
 
-				for(unsigned int k = 0; k < model_assets[i].mesh_meta.index_count; k++) {
+				for (unsigned int k = 0; k < model_assets[i].mesh_meta.index_count; k++)
+				{
 					uint16_t a = u16[k];
 
 					mapping[offset++] = (uint8_t)a;
-					mapping[offset++] = (uint8_t)(a>>8);
+					mapping[offset++] = (uint8_t)(a >> 8);
 					mapping[offset++] = 0;
 					mapping[offset++] = 0;
 				}
 				free(u16);
-				
 			}
 		}
-		else {
+		else
+		{
 			// Flat shaded model- create indices
-			for(unsigned int k = 0; k < model_assets[i].mesh_meta.vertex_count; k++) {
+			for (unsigned int k = 0; k < model_assets[i].mesh_meta.vertex_count; k++)
+			{
 				mapping[offset++] = (uint8_t)k;
-				mapping[offset++] = (uint8_t)(k>>8);
-				if(big_indices) {
-					mapping[offset++] = (uint8_t)(k>>16);
-					mapping[offset++] = (uint8_t)(k>>24);
+				mapping[offset++] = (uint8_t)(k >> 8);
+				if (big_indices)
+				{
+					mapping[offset++] = (uint8_t)(k >> 16);
+					mapping[offset++] = (uint8_t)(k >> 24);
 				}
 			}
 		}
 	}
 	assert(offset == size);
 
-	ASSERT_1(!pigeon_wgi_multimesh_unmap(mm));
+	ASSERT_R1(!pigeon_wgi_multimesh_unmap(mm));
 
 	return 0;
 }
 
-static ERROR_RETURN_TYPE create_meshes(void)
-{
-	ASSERT_1(!create_mesh(&mesh, true, false));
-	ASSERT_1(!create_mesh(&mesh_skinned, false, true));
-	return 0;
-}
-
-static void upload_meshes(PigeonWGICommandBuffer *cmd)
-{
-	pigeon_wgi_upload_multimesh(cmd, &mesh);
-	pigeon_wgi_upload_multimesh(cmd, &mesh_skinned);
-}
-
-static void destroy_meshes(void)
+static void destroy_multimeshes(void)
 {
 	if (mesh.staged_buffer)
 		pigeon_wgi_destroy_multimesh(&mesh);
@@ -639,7 +673,12 @@ static void destroy_meshes(void)
 		pigeon_wgi_destroy_multimesh(&mesh_skinned);
 }
 
-
+static PIGEON_ERR_RET create_multimeshes(void)
+{
+	ASSERT_R1(!create_multimesh(&mesh, true, false));
+	ASSERT_R1(!create_multimesh(&mesh_skinned, false, true));
+	return 0;
+}
 
 #ifdef NDEBUG
 #define SHADER_PATH(x) ("build/release/standard_assets/shaders/" x ".spv")
@@ -647,27 +686,27 @@ static void destroy_meshes(void)
 #define SHADER_PATH(x) ("build/debug/standard_assets/shaders/" x ".spv")
 #endif
 
-static ERROR_RETURN_TYPE create_skybox_pipeline(void)
+static PIGEON_ERR_RET create_skybox_pipeline(void)
 {
 	unsigned long vs_spv_len = 0, fs_spv_len = 0;
 
-	uint32_t *vs_spv = (uint32_t *)load_file(SHADER_PATH("skybox.vert"), 0, &vs_spv_len);
-	ASSERT__1(vs_spv, "Error loading vertex shader");
+	uint32_t *vs_spv = (uint32_t *)pigeon_load_file(SHADER_PATH("skybox.vert"), 0, &vs_spv_len);
+	ASSERT_LOG_R1(vs_spv, "Error loading vertex shader");
 
-	uint32_t *fs_spv = (uint32_t *)load_file(SHADER_PATH("skybox.frag"), 0, &fs_spv_len);
+	uint32_t *fs_spv = (uint32_t *)pigeon_load_file(SHADER_PATH("skybox.frag"), 0, &fs_spv_len);
 	if (!fs_spv)
 	{
 		free(vs_spv);
-		ASSERT__1(false, "Error loading fragment shader");
+		ASSERT_LOG_R1(false, "Error loading fragment shader");
 	}
 
-	PigeonWGIShader vs = { 0 }, fs = { 0 };
+	PigeonWGIShader vs = {0}, fs = {0};
 
 	if (pigeon_wgi_create_shader(&vs, vs_spv, (uint32_t)vs_spv_len, PIGEON_WGI_SHADER_TYPE_VERTEX))
 	{
 		free(vs_spv);
 		free(fs_spv);
-		ASSERT_1(false);
+		ASSERT_R1(false);
 	}
 
 	if (pigeon_wgi_create_shader(&fs, fs_spv, (uint32_t)fs_spv_len, PIGEON_WGI_SHADER_TYPE_FRAGMENT))
@@ -675,31 +714,34 @@ static ERROR_RETURN_TYPE create_skybox_pipeline(void)
 		pigeon_wgi_destroy_shader(&vs);
 		free(vs_spv);
 		free(fs_spv);
-		ASSERT_1(false);
+		ASSERT_R1(false);
 	}
 
 	int err = pigeon_wgi_create_skybox_pipeline(&skybox_pipeline, &vs, &fs);
 
-	
 	pigeon_wgi_destroy_shader(&vs);
 	pigeon_wgi_destroy_shader(&fs);
 	free(vs_spv);
 	free(fs_spv);
 
-	ASSERT_1(!err);
+	ASSERT_R1(!err);
 	return 0;
 }
 
-static void create_pipeline_cleanup(uint32_t * spv_data[6], PigeonWGIShader shaders[6])
+static void create_pipeline_cleanup(uint32_t *spv_data[6], PigeonWGIShader shaders[6])
 {
-	for(unsigned int i = 0; i < 6; i++) {
-		if(spv_data[i]) free(spv_data[i]);
-		if(shaders[i].shader) pigeon_wgi_destroy_shader(&shaders[i]);
-	}	
+	for (unsigned int i = 0; i < 6; i++)
+	{
+		if (spv_data[i])
+			free(spv_data[i]);
+		if (shaders[i].shader)
+			pigeon_wgi_destroy_shader(&shaders[i]);
+	}
 }
 
-static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline * pipeline,
-	const char * shader_paths[6], PigeonWGIPipelineConfig * config)
+
+static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
+	const char * shader_paths[6], PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
 {
 
 	PigeonWGIShaderType shader_types[6] = {
@@ -719,30 +761,31 @@ static ERROR_RETURN_TYPE create_pipeline(PigeonWGIPipeline * pipeline,
 	#define CHECK(x) \
 		if(!(x)) { \
 			create_pipeline_cleanup(spv_data, shaders); \
-			ASSERT_1(false); \
+			ASSERT_R1(false); \
 		}
 
 	for(unsigned int i = 0; i < 6; i++) {
 		if(shader_paths[i]) {
-			spv_data[i] = (uint32_t *)load_file(shader_paths[i], 0, &spv_lengths[i]);
+			spv_data[i] = (uint32_t *)pigeon_load_file(shader_paths[i], 0, &spv_lengths[i]);
 			CHECK(spv_data[i]);
 			CHECK(!pigeon_wgi_create_shader(&shaders[i], spv_data[i], (uint32_t)spv_lengths[i], shader_types[i]));
 		}	
 	}
 
 	int err = pigeon_wgi_create_pipeline(pipeline, &shaders[0], &shaders[1], &shaders[2],
-		shaders[3].shader ? &shaders[3] : NULL, &shaders[4], &shaders[5], config);
+		shaders[3].shader ? &shaders[3] : NULL, &shaders[4], &shaders[5], config, skinned, transparent);
 
 	create_pipeline_cleanup(spv_data, shaders);
 
-	ASSERT_1(!err);
+	ASSERT_R1(!err);
 
 	return 0;
 }
 
-static ERROR_RETURN_TYPE create_pipelines(void)
+
+static PIGEON_ERR_RET create_pipelines(void)
 {
-	ASSERT_1(!create_skybox_pipeline());
+	ASSERT_R1(!create_skybox_pipeline());
 
 	PigeonWGIPipelineConfig config = {0};
 	config.depth_test = true;
@@ -751,53 +794,42 @@ static ERROR_RETURN_TYPE create_pipelines(void)
 	config.depth_test = true;
 	config.cull_mode = PIGEON_WGI_CULL_MODE_BACK;
 
-
-	const char * shader_paths[6] = {
+	const char *shader_paths[6] = {
 		SHADER_PATH("object.vert.depth"),
 		SHADER_PATH("object.vert.light"),
 		SHADER_PATH("object.vert"),
 		NULL,
 		SHADER_PATH("object_light.frag"),
-		SHADER_PATH("object.frag")
-	};
+		SHADER_PATH("object.frag")};
 
-	memcpy(config.vertex_attributes, model_assets[NON_ANIMATED_MODEL_ASSET_INDEX].mesh_meta.attribute_types,
-		   sizeof config.vertex_attributes);
-	ASSERT_1(!create_pipeline(&render_pipeline, shader_paths, &config));
+	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
+	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, &config, false, false));
 
-	const char * shader_paths_skinned[6] = {
+	const char *shader_paths_skinned[6] = {
 		SHADER_PATH("object.vert.skinned.depth"),
 		SHADER_PATH("object.vert.skinned.light"),
 		SHADER_PATH("object.vert.skinned"),
 		NULL,
 		SHADER_PATH("object_light.frag"),
-		SHADER_PATH("object.frag")
-	};
+		SHADER_PATH("object.frag")};
 
-	memcpy(config.vertex_attributes, model_assets[ANIMATED_MODEL_ASSET_INDEX].mesh_meta.attribute_types,
-		   sizeof config.vertex_attributes);
-	ASSERT_1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, &config));
-
+	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, &config, true, false));
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
 	config.cull_mode = PIGEON_WGI_CULL_MODE_NONE;
 	shader_paths[0] = SHADER_PATH("object.vert.depth_alpha");
 	shader_paths[3] = SHADER_PATH("object_depth_alpha.frag");
 
-	memcpy(config.vertex_attributes, model_assets[NON_ANIMATED_MODEL_ASSET_INDEX].mesh_meta.attribute_types,
-		   sizeof config.vertex_attributes);
-	ASSERT_1(!create_pipeline(&render_pipeline_transparent, shader_paths, &config));
-
+	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
+	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, &config, false, true));
 
 	shader_paths_skinned[0] = SHADER_PATH("object.vert.skinned.depth_alpha");
 	shader_paths_skinned[3] = SHADER_PATH("object_depth_alpha.frag");
-	memcpy(config.vertex_attributes, model_assets[ANIMATED_MODEL_ASSET_INDEX].mesh_meta.attribute_types,
-		   sizeof config.vertex_attributes);
-	ASSERT_1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, &config));
+	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, &config, true, true));
 
 	return 0;
-
-
 
 #undef SHADER_PATH
 }
@@ -816,357 +848,51 @@ static void destroy_pipelines(void)
 		pigeon_wgi_destroy_pipeline(&render_pipeline_transparent);
 }
 
-
-static ERROR_RETURN_TYPE render_frame(PigeonWGICommandBuffer *command_buffer, bool depth_only, bool light_pass,
-	unsigned int draw_counts[4])
+static void set_camera_transform(vec2 rotation, vec3 position)
 {
-	assert(command_buffer);
+	vec3 angles = {rotation[0], -rotation[1], 0.0f};
 
-	ASSERT_1(!pigeon_wgi_start_command_buffer(command_buffer));
+	glm_euler_zyx(angles, t_camera->matrix_transform);
 
-	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline, &mesh, 0, draw_counts[DRAW_TYPE_STATIC_OPAQUE], 0);
-	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline_skinned, &mesh_skinned, 
-		draw_counts[DRAW_TYPE_STATIC_OPAQUE]+draw_counts[DRAW_TYPE_STATIC_TRANSPARENT],
-		draw_counts[DRAW_TYPE_SKINNED], 
-		draw_counts[DRAW_TYPE_STATIC_OPAQUE]+draw_counts[DRAW_TYPE_STATIC_TRANSPARENT]);
-	
-	if (!depth_only && !light_pass) {
-		pigeon_wgi_draw_without_mesh(command_buffer, &skybox_pipeline, 3);
-	}
-
-	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline_transparent, &mesh, 
-		draw_counts[DRAW_TYPE_STATIC_OPAQUE],
-		draw_counts[DRAW_TYPE_STATIC_TRANSPARENT], draw_counts[DRAW_TYPE_STATIC_OPAQUE]);
-
-	pigeon_wgi_multidraw_submit(command_buffer, &render_pipeline_skinned_transparent, &mesh_skinned, 
-		draw_counts[DRAW_TYPE_STATIC_OPAQUE]+draw_counts[DRAW_TYPE_STATIC_TRANSPARENT]
-			+draw_counts[DRAW_TYPE_SKINNED],
-		draw_counts[DRAW_TYPE_SKINNED_TRANSPARENT], 
-		draw_counts[DRAW_TYPE_STATIC_OPAQUE]+draw_counts[DRAW_TYPE_STATIC_TRANSPARENT]
-			+draw_counts[DRAW_TYPE_SKINNED]);
-
-	ASSERT_1(!pigeon_wgi_end_command_buffer(command_buffer));
-	return 0;
+	mat4 t_mat;
+	glm_translate_make(t_mat, position);
+	glm_mat4_mul(t_mat, t_camera->matrix_transform, t_camera->matrix_transform);
+	pigeon_invalidate_world_transform(t_camera);
 }
 
-static void set_scene_uniform_data(PigeonWGISceneUniformData *scene_uniform_data,
-	vec2 rotation, vec3 position, mat4 rot_mat)
+static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT])
 {
-	unsigned int window_width, window_height;
-	pigeon_wgi_get_window_dimensions(&window_width, &window_height);
+	static double values[PIGEON_WGI_TIMERS_COUNT];
+	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
+		values[i] += delayed_timer_values[i] - delayed_timer_values[0];
 
-	vec3 inverted_angles = {-rotation[0], rotation[1], 0.0f};
-	vec3 inverted_position = {-position[0], -position[1], -position[2]};
+	static unsigned int frame_counter;
+	frame_counter++;
 
-	glm_mat4_identity(scene_uniform_data->view);
-	glm_translate(scene_uniform_data->view, inverted_position);
-
-	glm_euler_xyz(inverted_angles, rot_mat);
-	glm_mat4_mul(rot_mat, scene_uniform_data->view, scene_uniform_data->view);
-
-	pigeon_wgi_perspective(scene_uniform_data->proj, 45, (float)window_width / (float)window_height);
-
-	glm_mat4_mul(scene_uniform_data->proj, scene_uniform_data->view, scene_uniform_data->proj_view);
-	scene_uniform_data->viewport_size[0] = (float)window_width;
-	scene_uniform_data->viewport_size[1] = (float)window_height;
-	scene_uniform_data->one_pixel_x = 1.0f / (float)window_width;
-	scene_uniform_data->one_pixel_y = 1.0f / (float)window_height;
-	scene_uniform_data->time = pigeon_wgi_get_time_seconds();
-	scene_uniform_data->ambient[0] = 0.3f;
-	scene_uniform_data->ambient[1] = 0.3f;
-	scene_uniform_data->ambient[2] = 0.3f;
-	scene_uniform_data->ssao_cutoff = debug_disable_ssao ? -1 : 0.02f;
-
-	scene_uniform_data->number_of_lights = 1;
-	
-	PigeonWGILight *light = &scene_uniform_data->lights[0];
-	light->intensity[0] = 7;
-	light->intensity[1] = 7;
-	light->intensity[2] = 7;
-}
-
-static void set_object_uniform_data(PigeonWGIDrawObject *data,
-	PigeonAsset *model_asset, GO* game_object, mat4 rot_mat, PigeonWGISceneUniformData *scene_uniform_data,
-	Mat * material, PigeonWGIMaterialImport * material_import, bool is_transparent_material, unsigned int bone_start_index)
-{
-	/* Mesh metadata */
-	memcpy(data->position_min, model_asset->mesh_meta.bounds_min, 3 * 4);
-	memcpy(data->position_range, model_asset->mesh_meta.bounds_range, 3 * 4);
-
-	/* Object data */
-
-	data->ssao_intensity = 1.35f;
-
-	glm_mat4_identity(data->model);
-	glm_scale(data->model, game_object->scale);
-
-	glm_euler_xyz(game_object->rotation, rot_mat);
-	glm_mat4_mul(rot_mat, data->model, data->model);
-
-	mat4 translation;
-	glm_translate_make(translation, game_object->position);
-	glm_mat4_mul(translation, data->model, data->model);
-
-	pigeon_wgi_get_normal_model_matrix(data->model, data->normal_model_matrix);
-
-	glm_mat4_mul(scene_uniform_data->view, data->model, data->view_model);
-	glm_mat4_mul(scene_uniform_data->proj_view, data->model, data->proj_view_model[0]);
-
-	/* Material data */
-
-
-	vec3 colour;
-	for(unsigned int p = 0; p < 3; p++) {
-		colour[p] = material_import->colour[p] * game_object->colour[p];
-	}
-	memcpy(data->colour, colour, 3 * 4);
-	memcpy(data->under_colour, colour, 3 * 4);
-	data->alpha_channel_usage = is_transparent_material ?
-		PIGEON_WGI_ALPHA_CHANNEL_TRANSPARENCY : PIGEON_WGI_ALPHA_CHANNEL_UNUSED;
-	
-
-	unsigned int texture_asset_index = material->texture_index;
-	unsigned int normal_asset_index = material->normal_index;
-
-	if (texture_asset_index != UINT32_MAX)
-	{
-		TextureLocation *p = &texture_locations[texture_asset_index];
-		data->texture_sampler_index_plus1 = p->texture_index+1;
-		data->texture_index = (float)p->layer;
-		data->texture_uv_base_and_range[0] = 0;
-		data->texture_uv_base_and_range[1] = 0;
-		data->texture_uv_base_and_range[2] = 1;
-		data->texture_uv_base_and_range[3] = 1;
-	}
-	else
-	{
-		data->texture_sampler_index_plus1 = 0;
-	}
-	if (normal_asset_index != UINT32_MAX)
-	{
-		TextureLocation *p = &texture_locations[normal_asset_index];
-		data->normal_map_sampler_index_plus1 = p->texture_index+1;
-		data->normal_map_index = (float)p->layer;
-		data->normal_map_uv_base_and_range[0] = 0;
-		data->normal_map_uv_base_and_range[1] = 0;
-		data->normal_map_uv_base_and_range[2] = 1;
-		data->normal_map_uv_base_and_range[3] = 1;
-	}
-	else
-	{
-		data->normal_map_sampler_index_plus1 = 0;
+	if(frame_counter < 300) {
+		return;
 	}
 
-	data->first_bone_index = bone_start_index;
-}
+	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
+		values[i] /= 300.0;
 
-// static void mat3x4_to_mat4(const float * mat3x4, float * mat4)
-// {
-// 	mat4[0] = mat3x4[0];
-// 	mat4[1] = mat3x4[1];
-// 	mat4[2] = mat3x4[2];
-// 	mat4[3] = 0;
-// 	mat4[4] = mat3x4[3];
-// 	mat4[5] = mat3x4[4];
-// 	mat4[6] = mat3x4[5];
-// 	mat4[7] = 0;
-// 	mat4[8] = mat3x4[6];
-// 	mat4[9] = mat3x4[7];
-// 	mat4[10] = mat3x4[8];
-// 	mat4[11] = 0;
-// 	mat4[12] = mat3x4[9];
-// 	mat4[13] = mat3x4[10];
-// 	mat4[14] = mat3x4[11];
-// 	mat4[15] = 1;
-// }
+	printf("Render time statistics (300-frame average):\n");
+	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
+	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
+	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
+	printf("\tLight Pass: %f\n", values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
+	printf("\tLight Blur: %f\n", values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE]);
+	printf("\tBloom Downsample: %f\n", values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
+	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
+	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
+	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
 
-static void mat4_to_mat3x4(const float * mat4, float * mat3x4)
-{
-	mat3x4[0] = mat4[0];
-	mat3x4[1] = mat4[1];
-	mat3x4[2] = mat4[2];
-	mat3x4[3] = mat4[4];
-	mat3x4[4] = mat4[5];
-	mat3x4[5] = mat4[6];
-	mat3x4[6] = mat4[8];
-	mat3x4[7] = mat4[9];
-	mat3x4[8] = mat4[10];
-	mat3x4[9] = mat4[12];
-	mat3x4[10] = mat4[13];
-	mat3x4[11] = mat4[14];
-}
-
-static float mix(float a, float b, float x)
-{
-	return x*b + (1.0f-x)*a;
-}
-
-static void get_bone_matrix(unsigned int i,
-	PigeonWGIBoneMatrix * bone_array, PigeonWGIBoneData const* bone_data,
-	float frame, unsigned int total_frames,
-	unsigned int total_animation_bones)
-{	
-	unsigned int frame0 = ((unsigned)frame) % total_frames;
-	unsigned int frame1 = ((unsigned)ceilf(frame)) % total_frames;
-	float frame_interp = fmodf(frame - floorf(frame), 1.0f);
-
-	unsigned int animation_bone_index0 = frame0*total_animation_bones+ i;
-	unsigned int animation_bone_index1 = frame1*total_animation_bones+ i;
-
-	mat4 m;
-
-
-	glm_mat4_zero(m);
-	float s = mix(bone_data[animation_bone_index0].scale, bone_data[animation_bone_index1].scale, frame_interp);
-	m[0][0] = s;
-	m[1][1] = s;
-	m[2][2] = s;
-	m[3][3] = 1;
-
-
-
-	float q0[4] = {bone_data[animation_bone_index0].rotate[1], bone_data[animation_bone_index0].rotate[2],
-		bone_data[animation_bone_index0].rotate[3], bone_data[animation_bone_index0].rotate[0]};
-	float q1[4] = {bone_data[animation_bone_index1].rotate[1], bone_data[animation_bone_index1].rotate[2],
-		bone_data[animation_bone_index1].rotate[3], bone_data[animation_bone_index1].rotate[0]};
-
-	float q[4];
-	glm_quat_slerp(q0, q1, frame_interp, q);
-
-	mat4 this_transform_rotation;
-	glm_quat_mat4(q, this_transform_rotation);
-	glm_mat4_mul(this_transform_rotation, m, m);
-
-
-	mat4 this_transform_translate;
-	glm_mat4_identity(this_transform_translate);
-	this_transform_translate[3][0] = mix(bone_data[animation_bone_index0].translate[0], 
-		bone_data[animation_bone_index1].translate[0], frame_interp);
-	this_transform_translate[3][1] = mix(bone_data[animation_bone_index0].translate[1], 
-		bone_data[animation_bone_index1].translate[1], frame_interp);
-	this_transform_translate[3][2] = mix(bone_data[animation_bone_index0].translate[2], 
-		bone_data[animation_bone_index1].translate[2], frame_interp);
-	glm_mat4_mul(this_transform_translate, m, m);
-	
-
-	
-	mat4_to_mat3x4(&m[0][0], bone_array[i].mat3x4);
+	frame_counter = 0;
+	memset(values, 0, sizeof values);
 
 }
 
-static void update_object_bone_matrices(
-	unsigned int model_bones_count,
-	PigeonWGIBoneData const* animation_bone_data,
-	PigeonWGIBoneMatrix * bone_array, float frame, 
-	unsigned int total_frames, unsigned int total_animation_bones)
-{
-	for(unsigned int i = 0; i < model_bones_count; i++) {
-		get_bone_matrix(i, bone_array, animation_bone_data, frame, total_frames, total_animation_bones);
-	}
-}
-
-static void set_uniforms_and_draws(PigeonWGISceneUniformData *scene_uniform_data, vec2 rotation, vec3 position,
-	PigeonWGIDrawObject *draw_objects, unsigned int total_draws, unsigned int draw_counts[4],
-	PigeonWGIBoneMatrix * bone_array)
-{
-#ifdef NDEBUG
-	(void)total_draws;
-#endif
-
-	mat4 rot_mat;
-	set_scene_uniform_data(scene_uniform_data, rotation, position, rot_mat);
-	
-
-	// TODO sort transparent objects far -> near
-
-	unsigned int draw_index = 0;
-	unsigned int bone_index = 0;
-
-	// TODO global variable, realloc as needed
-	int * model_object_to_bone_start = malloc(total_draws*4);
-	assert(model_object_to_bone_start);
-	memset(model_object_to_bone_start, 0xff, total_draws*4);
-
-	// one count for each draw type
-	memset(draw_counts, 0, sizeof(unsigned int)*4);
-
-	for(int draw_type = DRAW_TYPE_STATIC_OPAQUE; draw_type <= DRAW_TYPE_SKINNED_TRANSPARENT; draw_type++) {
-		bool draw_skinned = draw_type == DRAW_TYPE_SKINNED || draw_type == DRAW_TYPE_SKINNED_TRANSPARENT;
-		bool draw_transparent = draw_type == DRAW_TYPE_STATIC_TRANSPARENT || draw_type == DRAW_TYPE_SKINNED_TRANSPARENT;
-
-		unsigned int model_object_index = 0;
-
-		for (unsigned int i = 0; i < NUM_MODELS; i++)
-		{
-			if(!model_assets[i].mesh_meta.vertex_count || 
-				(model_assets[i].bones_count > 0) != draw_skinned) continue;
-			
-			unsigned int model_object_index_old = model_object_index;
-
-			PigeonAsset *model_asset = &model_assets[i];
-			for (unsigned int j = 0; j < model_asset->materials_count; j++)
-			{
-				model_object_index = model_object_index_old;
-
-				const unsigned int t = model_materials[i][j].texture_index;
-				bool is_transparent_material = t != UINT32_MAX && texture_assets[t].texture_meta.has_alpha;
-				if(is_transparent_material != draw_transparent) {
-					continue;
-				}
-
-				unsigned int object_count = 0;
-				for (unsigned int k = 0; k < NUM_GAME_OBJECTS; k++, model_object_index++)
-				{
-					if (game_objects[k].model_index != i)
-						continue;
-
-					if(model_object_to_bone_start[model_object_index] == -1 && model_asset->bones_count &&
-						(draw_type == DRAW_TYPE_SKINNED || draw_type == DRAW_TYPE_SKINNED_TRANSPARENT))
-					{
-						unsigned int animation_subr_index = 0;
-						for(;; animation_subr_index++) {
-							if(!model_asset->mesh_meta.attribute_types[animation_subr_index]) break;
-						}
-						if(model_asset->mesh_meta.index_count > 0) animation_subr_index++;
-						animation_subr_index += game_objects[k].animation;
-
-
-						update_object_bone_matrices(model_asset->bones_count,
-							model_asset->subresources[animation_subr_index].decompressed_data,
-							&bone_array[bone_index], 
-							(float)((pigeon_wgi_get_time_seconds_double() - start_time) * (double)model_asset->animations[0].fps), 
-							model_asset->animations[game_objects[k].animation].frame_count, model_asset->bones_count);
-						
-						model_object_to_bone_start[model_object_index] = (int)bone_index;
-						bone_index += model_asset->bones_count;
-					}
-
-					set_object_uniform_data(&draw_objects[draw_index],
-						model_asset, &game_objects[k], rot_mat, scene_uniform_data, &model_materials[i][j],
-						&model_asset->materials[j], is_transparent_material,
-						(unsigned int)model_object_to_bone_start[model_object_index]);
-
-					draw_index++;
-					object_count++;	
-				}
-
-				if(!object_count) continue;
-
-				pigeon_wgi_multidraw_draw(model_asset->mesh_meta.multimesh_start_vertex,
-					object_count, model_asset->mesh_meta.multimesh_start_index + model_asset->materials[j].first, 
-					model_asset->materials[j].count);
-				
-				draw_counts[draw_type] += object_count;
-			}
-		}
-	}
-
-	free(model_object_to_bone_start);
-
-
-	assert(total_draws == draw_index);
-	assert(total_draws == draw_counts[0] + draw_counts[1] + draw_counts[2] + draw_counts[3]);
-}
 
 static void fps_camera_mouse_input(vec2 rotation)
 {
@@ -1248,161 +974,29 @@ static void fps_camera_input(float delta_time, vec2 rotation, vec3 position)
 	}
 }
 
-static unsigned int get_total_draws(void)
+
+static PIGEON_ERR_RET game_loop(void)
 {
-	unsigned total_draws = 0;
-	for (unsigned int i = 0; i < NUM_MODELS; i++)
-	{
-		if(!model_assets[i].mesh_meta.vertex_count) continue;
-
-		PigeonAsset *model = &model_assets[i];
-		for (unsigned int k = 0; k < NUM_GAME_OBJECTS; k++)
-		{
-			if (game_objects[k].model_index == i)
-			{
-				total_draws += model->materials_count;
-			}
-		}
-	}
-	return total_draws;
-}
-
-static ERROR_RETURN_TYPE recreate_swapchain(void)
-{
-	while (true) {
-		int err = pigeon_wgi_recreate_swapchain();
-		if (err == 2)
-		{
-			pigeon_wgi_wait_events();
-			continue;
-		}
-		else if (err)
-		{
-			return 1;
-		}
-		break;
-	}
-	return 0;
-}
-
-static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT])
-{
-	static double values[PIGEON_WGI_TIMERS_COUNT];
-	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
-		values[i] += delayed_timer_values[i] - delayed_timer_values[0];
-
-	static unsigned int frame_counter;
-	frame_counter++;
-
-	if(frame_counter < 300) {
-		return;
-	}
-
-	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
-		values[i] /= 300.0;
-
-	printf("Render time statistics (300-frame average):\n");
-	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
-	printf("\tLight Pass: %f\n", values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
-	printf("\tLight Blur: %f\n", values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE]);
-	printf("\tBloom Downsample: %f\n", values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
-	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
-	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
-	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
-
-	frame_counter = 0;
-	memset(values, 0, sizeof values);
-
-}
-
-
-static void set_audio_listener(vec3 position, vec2 rotation, vec3 position_prev, float delta_time)
-{
-	vec3 velocity;
-	memcpy(velocity, position, sizeof(vec3));
-	velocity[0] -= position_prev[0];
-	velocity[1] -= position_prev[1];
-	velocity[2] -= position_prev[2];
-	velocity[0] *= delta_time;
-	velocity[1] *= delta_time;
-	velocity[2] *= delta_time;
-
-	mat4 rotation_matrix;
-	vec3 angles = {rotation[0], -rotation[1], 0.0f};
-	glm_euler_zyx(angles, rotation_matrix);
-
-	vec3 forwards = {0, 0, -1};
-	glm_vec3_rotate_m4(rotation_matrix, forwards, forwards);
-
-	vec3 up = {0, 1, 0};
-	glm_vec3_rotate_m4(rotation_matrix, up, up);
-
-	pigeon_audio_set_listener(position, forwards, up, velocity);
-}
-
-// TODO ERROR_RETURN_TYPE
-static void game_loop(void)
-{
-	unsigned total_draws = get_total_draws();
-
-	PigeonWGISceneUniformData scene_uniform_data = {0};
-	PigeonWGIDrawObject *draw_objects = calloc(total_draws, sizeof *draw_objects);
-	if (!draw_objects)
-		return;
-
-	PigeonWGIBoneMatrix * bone_matrix_array = calloc(model_assets[ANIMATED_MODEL_ASSET_INDEX].bones_count,
-		sizeof *bone_matrix_array);
-
-	vec2 rotation = {0};
-	vec3 position = {0, 1.7f, 0};
-	vec3 position_prev = {0, 1.7f, 0};
 
 	float last_frame_time = pigeon_wgi_get_time_seconds() - 1 / 60.0f;
 
 	float last_fps_output_time = pigeon_wgi_get_time_seconds();
 	unsigned int fps_frame_counter = 0;
-
-	PigeonWGIShadowParameters shadows[4] = {{0}};
-	{
-		shadows[0].resolution = 2048;
-		shadows[0].near_plane = 6.0f;
-		shadows[0].far_plane = 13.0f;
-		shadows[0].sizeX = 6;
-		shadows[0].sizeY = 6;
-
-		vec3 angles = {glm_rad(70.0f), glm_rad(45.0f), glm_rad(0.0f)};
-		glm_euler_xyz(angles, shadows[0].view_matrix);
-
-		vec3 pos = {2, -10, 0};
-		mat4 t;
-		glm_translate_make(t, pos);
-
-		glm_mat4_mul(shadows[0].view_matrix, t, shadows[0].view_matrix);
-	}
-
-
 	unsigned int frame_number = 0;
+
+	vec2 rotation = {0};
+	vec3 position = {0, 1.7f, 0};
+	vec3 position_prev = {0, 1.7f, 0};
+
+
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
 		double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT];
 
-		int start_frame_err = pigeon_wgi_start_frame(true, total_draws, total_draws,
-			delayed_timer_values, shadows, model_assets[ANIMATED_MODEL_ASSET_INDEX].bones_count);
-		if (start_frame_err == 3)
-		{
-			if(recreate_swapchain()) return;
-			start_frame_err = pigeon_wgi_start_frame(true, total_draws, total_draws,
-				delayed_timer_values, shadows, model_assets[ANIMATED_MODEL_ASSET_INDEX].bones_count);
-		}
-		if (start_frame_err)
-		{
-			ERRLOG("start frame error");
-			return;
-		}
 
+		ASSERT_R1(!pigeon_wgi_next_frame_wait(delayed_timer_values));
+
+		
 		if(delayed_timer_values[0] > 0.0 || delayed_timer_values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] > 0.0)
 			print_timer_stats(delayed_timer_values);
 
@@ -1419,43 +1013,40 @@ static void game_loop(void)
 			fps_frame_counter++;
 		}
 
-		game_objects[SPINNY_CUBE_INDEX].rotation[1] = fmodf(game_objects[SPINNY_CUBE_INDEX].rotation[1] + delta_time, 2.0f * 3.1315f);
+
+		// game logic
+
+
+		float cube_rotation = fmodf((float) (time_now - start_time), 2.0f * 3.1315f);
+		mat4 identity = GLM_MAT4_IDENTITY_INIT;
+		glm_rotate_y(identity, cube_rotation, t_spinning_cube->matrix_transform);
+		mat4 spin_cube_translation_mat4;
+		vec3 spin_cube_translation_vec3 = {-3.0f, 0.5f, 0.1f};
+		glm_translate_make(spin_cube_translation_mat4, spin_cube_translation_vec3);
+		glm_mat4_mul(spin_cube_translation_mat4, t_spinning_cube->matrix_transform, t_spinning_cube->matrix_transform);
+		pigeon_invalidate_world_transform(t_spinning_cube);
+
 
 		memcpy(position_prev, position, sizeof(vec3));
 		fps_camera_input(delta_time, rotation, position);
-		set_audio_listener(position, rotation, position_prev, delta_time);
-
-		unsigned int draw_counts[4];
-		set_uniforms_and_draws(&scene_uniform_data, rotation, position, draw_objects, 
-			total_draws, draw_counts, bone_matrix_array);
-		if (pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_objects, total_draws,
-			bone_matrix_array, model_assets[ANIMATED_MODEL_ASSET_INDEX].bones_count)) return;
+		set_camera_transform(rotation, position);
 
 		PigeonWGICommandBuffer *upload_command_buffer = pigeon_wgi_get_upload_command_buffer();
-		PigeonWGICommandBuffer *depth_command_buffer = pigeon_wgi_get_depth_command_buffer();
-		PigeonWGICommandBuffer *shadow_command_buffer = pigeon_wgi_get_shadow_command_buffer(0);
-		PigeonWGICommandBuffer *light_pass_command_buffer = pigeon_wgi_get_light_pass_command_buffer();
-		PigeonWGICommandBuffer *render_command_buffer = pigeon_wgi_get_render_command_buffer();
 
 		if (frame_number == 0)
 		{
-			if (pigeon_wgi_start_command_buffer(upload_command_buffer))
-				return;
-			upload_meshes(upload_command_buffer);
-			if (create_array_textures(upload_command_buffer))
-				return;
-			if (pigeon_wgi_end_command_buffer(upload_command_buffer))
-				return;
+			ASSERT_R1(!pigeon_wgi_start_command_buffer(upload_command_buffer));
+			pigeon_wgi_upload_multimesh(upload_command_buffer, &mesh);
+			pigeon_wgi_upload_multimesh(upload_command_buffer, &mesh_skinned);
+			ASSERT_R1(!create_array_textures(upload_command_buffer));
+			ASSERT_R1(!pigeon_wgi_end_command_buffer(upload_command_buffer));
 		}
 		else if (frame_number == 1)
 		{
 			pigeon_wgi_multimesh_transfer_done(&mesh);
 			pigeon_wgi_multimesh_transfer_done(&mesh_skinned);
-		}
-
-		// TODO don't rebind every time if possible-
-		// ^ still need to bind 2+ times though (once for each possible frame in flight)
-
+		}	
+		
 		ArrayTexture * arr = array_texture_0;
 		unsigned int array_texture_index = 0;
 		while(arr) {
@@ -1465,82 +1056,199 @@ static void game_loop(void)
 			arr = arr->next;
 		}
 
-		if (render_frame(depth_command_buffer, true, false, draw_counts))
-			return;
-		if (render_frame(shadow_command_buffer, true, false, draw_counts))
-			return;
-		if (render_frame(light_pass_command_buffer, false, true, draw_counts))
-			return;
-		if (render_frame(render_command_buffer, false, false, draw_counts))
-			return;
 
-		
+		ASSERT_R1(!pigeon_draw_frame(t_camera, debug_disable_ssao, &skybox_pipeline));
+		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
 
-		int present_frame_error = pigeon_wgi_present_frame(debug_disable_bloom);
-		if (present_frame_error == 2)
-		{
-			if (recreate_swapchain()) return;
-		}
-		else if (present_frame_error)
-		{
-			ERRLOG("start frame error");
-			return;
-		}
 
-		// printf("%d\n", frames);
+		ASSERT_R1(!pigeon_wgi_present_frame(debug_disable_bloom));
+
 		frame_number++;
 	}
-}
 
-static void mouse_callback(PigeonWGIMouseEvent e)
-{
-	if (e.button == PIGEON_WGI_MOUSE_BUTTON_RIGHT && !e.pressed)
-	{
-		mouse_grabbed = !mouse_grabbed;
-		pigeon_wgi_set_cursor_type(mouse_grabbed ? PIGEON_WGI_CURSOR_TYPE_FPS_CAMERA : PIGEON_WGI_CURSOR_TYPE_NORMAL);
-		if(mouse_grabbed) last_mouse_x = last_mouse_y = -1;
-	}
+	return 0;
 }
 
 int main(void)
 {
-	if (start())
-	{
-		return 1;
+	ASSERT_R1(!start());
+	ASSERT_R1(!load_assets());
+	ASSERT_R1(!create_multimeshes());
+	ASSERT_R1(!create_pipelines());
+	ASSERT_R1(!populate_array_textures());
+
+	t_floor = pigeon_create_transform(NULL);
+	t_character = pigeon_create_transform(NULL);
+	t_spinning_cube = pigeon_create_transform(NULL);
+	t_light = pigeon_create_transform(NULL);
+	t_camera = pigeon_create_transform(NULL);
+	t_sphere = pigeon_create_transform(NULL);
+	t_pigeon = pigeon_create_transform(NULL);
+	ASSERT_R1(t_floor && t_character && t_spinning_cube && t_light && t_camera && t_sphere && t_pigeon);
+
+	t_floor->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
+	t_floor->scale[0] = 10000;
+	t_floor->scale[1] = 0.1f;
+	t_floor->scale[2] = 10000;
+	t_floor->translation[1] = -0.05f;
+
+	t_sphere->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
+	t_sphere->scale[0] = 1;
+	t_sphere->scale[1] = 1;
+	t_sphere->scale[2] = 1;
+	t_sphere->translation[0] = 2;
+	t_sphere->translation[1] = 0.5;
+	t_sphere->translation[2] = -1;
+
+	t_character->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
+	t_character->scale[0] = 1;
+	t_character->scale[1] = 1;
+	t_character->scale[2] = 1;
+	t_character->translation[2] = -4;
+
+	t_light->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
+	t_light->scale[0] = 1;
+	t_light->scale[1] = 1;
+	t_light->scale[2] = 1;
+	t_light->translation[0] = 0;
+	t_light->translation[1] = 10;
+	t_light->translation[2] = -3;
+	t_light->rotation[0] = 0.819152f;
+	t_light->rotation[3] = -0.5735764f;
+
+
+	// set each frame
+	t_spinning_cube->transform_type = PIGEON_TRANSFORM_TYPE_MATRIX;
+	t_camera->transform_type = PIGEON_TRANSFORM_TYPE_MATRIX;
+
+
+	light = pigeon_create_light();
+	ASSERT_R1(light);
+	light->intensity[0] = light->intensity[1] = light->intensity[2] = 7;
+	light->shadow_resolution = 2048;
+	light->shadow_near = 6;
+	light->shadow_far = 13;
+	light->shadow_size_x = 5;
+	light->shadow_size_y = 5;
+	ASSERT_R1(!pigeon_join_transform_and_component(t_light, &light->c));
+
+
+	rs_static_opaque = pigeon_create_render_state(&mesh, &render_pipeline);
+	rs_static_transparent = pigeon_create_render_state(&mesh, &render_pipeline_transparent);
+	rs_skinned_opaque = pigeon_create_render_state(&mesh_skinned, &render_pipeline_skinned);
+	rs_skinned_transparent = pigeon_create_render_state(&mesh_skinned, &render_pipeline_skinned_transparent);
+
+	ASSERT_R1(rs_static_opaque);
+	ASSERT_R1(rs_static_transparent);
+	ASSERT_R1(rs_skinned_opaque);
+	ASSERT_R1(rs_skinned_transparent);
+
+	model_cube = pigeon_create_model_renderer(&model_assets[0], 0);
+	model_sphere = pigeon_create_model_renderer(&model_assets[2], 0);
+	ASSERT_R1(model_cube && model_sphere);
+
+	model_character = malloc(sizeof *model_character * model_assets[1].materials_count);
+	ASSERT_R1(model_character);
+
+	ASSERT_R1(!pigeon_join_rs_model(rs_static_opaque, model_cube));
+	ASSERT_R1(!pigeon_join_rs_model(rs_static_opaque, model_sphere));
+
+	mr_floor = pigeon_create_material_renderer(model_cube);
+	mr_spinning_cube = pigeon_create_material_renderer(model_cube);
+	mr_sphere = pigeon_create_material_renderer(model_sphere);
+	ASSERT_R1(mr_floor && mr_spinning_cube && mr_sphere);
+
+	mr_spinning_cube->colour[0] = 1.1f;
+	mr_spinning_cube->colour[1] = 0.5f;
+	mr_spinning_cube->colour[2] = 1.15f;
+
+	mr_sphere->colour[0] = 0.15f;
+	mr_sphere->colour[1] = 0.5f;
+	mr_sphere->colour[2] = 2.1f;
+
+	mr_character = malloc(sizeof *mr_character * model_assets[1].materials_count);
+	ASSERT_R1(mr_character);
+
+	as_character = pigeon_create_animation_state(&model_assets[1]);
+	ASSERT_R1(as_character);
+	as_character->animation_start_time = pigeon_wgi_get_time_seconds_double();
+	as_character->animation_index = 1;
+
+	audio_pigeon = pigeon_create_audio_player();
+	ASSERT_R1(audio_pigeon);
+	ASSERT_R1(!pigeon_join_transform_and_component(t_pigeon, &audio_pigeon->c));
+
+
+	for(unsigned int i = 0; i < model_assets[1].materials_count; i++) {
+		model_character[i] = pigeon_create_model_renderer(&model_assets[1], i);
+		ASSERT_R1(model_character[i]);
+
+
+		mr_character[i] = pigeon_create_material_renderer(model_character[i]);
+		ASSERT_R1(mr_character[i]);
+
+
+		TextureIndices * ti = &model_texture_indices[1][i];
+
+		if(ti->texture_index != UINT32_MAX) {
+			TextureLocation * tl = &texture_locations[ti->texture_index];
+			mr_character[i]->diffuse_bind_point = tl->texture_index;
+			mr_character[i]->diffuse_layer = tl->layer;
+			if(texture_assets[tl->texture_index].texture_meta.has_alpha)
+				mr_character[i]->use_transparency = true;
+		}
+		if(ti->normal_index != UINT32_MAX) {
+			TextureLocation * tl = &texture_locations[ti->normal_index];
+			mr_character[i]->nmap_bind_point = tl->texture_index;
+			mr_character[i]->nmap_layer = tl->layer;			
+		}
+
+		if(mr_character[i]->use_transparency) {
+			ASSERT_R1(!pigeon_join_rs_model(rs_skinned_transparent, model_character[i]));
+		} else {
+			ASSERT_R1(!pigeon_join_rs_model(rs_skinned_opaque, model_character[i]));
+		}
+
+		ASSERT_R1(!pigeon_join_mr_anim(mr_character[i], as_character));
+
+		ASSERT_R1(!pigeon_join_transform_and_component(t_character, &mr_character[i]->c));
 	}
 
-	pigeon_wgi_set_mouse_button_callback(mouse_callback);
+	ASSERT_R1(!pigeon_join_transform_and_component(t_floor, &mr_floor->c));
+	ASSERT_R1(!pigeon_join_transform_and_component(t_spinning_cube, &mr_spinning_cube->c));
+	ASSERT_R1(!pigeon_join_transform_and_component(t_sphere, &mr_sphere->c));
 
-	if (load_assets())
-	{
-		free_assets();
-		return 1;
-	}
+	int err = game_loop();
 
-	if (create_meshes())
-	{
-		destroy_meshes();
-		free_assets();
-		return 1;
-	}
 
-	if (create_pipelines())
-	{
-		destroy_pipelines();
-		destroy_meshes();
-		free_assets();
-		return 1;
-	}
-
-	game_loop();
 
 	pigeon_wgi_wait_idle();
-	destroy_pipelines();
-	destroy_meshes();
+
+	pigeon_destroy_light(&light);
+
+	// TODO these should take pointers and set the variable to NULL
+	pigeon_destroy_material_renderer(mr_floor);
+	pigeon_destroy_material_renderer(mr_spinning_cube);
+	
+	for(unsigned int i = 0; i < model_assets[1].materials_count; i++) {
+		pigeon_destroy_material_renderer(mr_character[i]);
+		pigeon_destroy_model_renderer(model_character[i]);
+	}
+
+	pigeon_destroy_model_renderer(model_cube);
+
+	pigeon_destroy_render_state(rs_static_opaque);
+	pigeon_destroy_render_state(rs_static_transparent);
+	pigeon_destroy_render_state(rs_skinned_opaque);
+	pigeon_destroy_render_state(rs_skinned_transparent);
+
 	destroy_array_textures();
+	destroy_pipelines();
+	destroy_multimeshes();
 	free_assets();
 	audio_cleanup();
 	pigeon_wgi_deinit();
+	pigeon_deinit();
 
-	return 0;
+	return err;
 }

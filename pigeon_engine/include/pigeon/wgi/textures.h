@@ -34,7 +34,7 @@ typedef struct PigeonWGIGridTextureGrid {
     unsigned int used_tiles;
 } PigeonWGIGridTextureGrid;
 
-ERROR_RETURN_TYPE pigeon_wgi_allocate_empty_grids(PigeonWGIGridTextureGrid**, unsigned int * grids_count, unsigned int tiles);
+PIGEON_ERR_RET pigeon_wgi_allocate_empty_grids(PigeonWGIGridTextureGrid**, unsigned int * grids_count, unsigned int tiles);
 
 
 typedef struct PigeonWGITextureGridPosition {
@@ -43,7 +43,7 @@ typedef struct PigeonWGITextureGridPosition {
 
 // Start with pigeon_wgi_minimum_texture_grids_needed + 1 empty grids
 // tiles_width and tiles_height are size of texture in 512x512 tiles
-ERROR_RETURN_TYPE pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid **, unsigned int* grids_count,
+PIGEON_ERR_RET pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid **, unsigned int* grids_count,
     void * texture, // Can be anything.
     unsigned int tiles_width, unsigned int tiles_height, PigeonWGITextureGridPosition*,
     bool allow_add_new_grids);
@@ -66,7 +66,7 @@ typedef struct PigeonWGIArrayTexture {
 } PigeonWGIArrayTexture;
 
 // mapping is set to a host-accessible write-only memory mapping
-ERROR_RETURN_TYPE pigeon_wgi_create_array_texture(PigeonWGIArrayTexture*, 
+PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture*, 
     uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat,
     unsigned int mip_maps, // 0 = auto, 1 = no mipmapping
     PigeonWGICommandBuffer*);
@@ -98,7 +98,7 @@ typedef struct PigeonWGIGridTexture {
 } PigeonWGIGridTexture;
 
 // mapping is set to a host-accessible write-only memory mapping
-ERROR_RETURN_TYPE pigeon_wgi_create_grid_texture(PigeonWGIGridTexture*, uint32_t grids, PigeonWGIImageFormat,
+PIGEON_ERR_RET pigeon_wgi_create_grid_texture(PigeonWGIGridTexture*, uint32_t grids, PigeonWGIImageFormat,
     PigeonWGICommandBuffer*, bool mip_maps);
 
 // 512 * 512 * bytes per pixel * 1.33333ish

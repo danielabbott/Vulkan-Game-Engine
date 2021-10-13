@@ -1,16 +1,17 @@
 #include <pigeon/wgi/vulkan/command.h>
 #include "singleton.h"
 #include <assert.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
+#include <stdlib.h>
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool* command_pool, unsigned int buffer_count, bool primary, bool use_transfer_queue)
+PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool* command_pool, unsigned int buffer_count, bool primary, bool use_transfer_queue)
 {
 	assert(command_pool);
 	assert(buffer_count);
 
 	if(buffer_count > 1) {
 		command_pool->vk_command_buffers = malloc(sizeof *command_pool->vk_command_buffers * buffer_count);
-		ASSERT_1(command_pool->vk_command_buffers);
+		ASSERT_R1(command_pool->vk_command_buffers);
 	}
 
 	VkCommandPoolCreateInfo pool_create = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
@@ -57,7 +58,7 @@ static VkCommandBuffer get_cmd_buf(PigeonVulkanCommandPool* command_pool, unsign
 			command_pool->vk_command_buffer : command_pool->vk_command_buffers[buffer_index];
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_start_submission(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index)
+PIGEON_ERR_RET pigeon_vulkan_start_submission(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
@@ -70,7 +71,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_start_submission(PigeonVulkanCommandPool* comman
 		begin.pInheritanceInfo = &inheritance;
 	}
 
-	ASSERT__1(vkBeginCommandBuffer(get_cmd_buf(command_pool, buffer_index), &begin) == VK_SUCCESS, "vkBeginCommandBuffer error");
+	ASSERT_LOG_R1(vkBeginCommandBuffer(get_cmd_buf(command_pool, buffer_index), &begin) == VK_SUCCESS, "vkBeginCommandBuffer error");
 	return 0;
 }
 
@@ -99,7 +100,7 @@ int pigeon_vulkan_start_submission2(PigeonVulkanCommandPool* command_pool, unsig
 	}
 
 
-	ASSERT__1(vkBeginCommandBuffer(get_cmd_buf(command_pool, buffer_index), &begin) == VK_SUCCESS, "vkBeginCommandBuffer error");
+	ASSERT_LOG_R1(vkBeginCommandBuffer(get_cmd_buf(command_pool, buffer_index), &begin) == VK_SUCCESS, "vkBeginCommandBuffer error");
 	return 0;
 }
 
@@ -639,19 +640,21 @@ void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool* command_pool, unsigned 
 void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, 
 	PigeonVulkanPipeline* pipeline, unsigned int push_constants_size, void * push_constants_data,
 	PigeonVulkanBuffer* buffer, uint64_t buffer_offset,
-	uint32_t first_multidraw_index, uint32_t draws)
+	uint32_t first_multidraw_index, uint32_t multidraw_cmd_count)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
 	assert(!push_constants_size || push_constants_data);
 	assert(pipeline && pipeline->vk_pipeline_layout);
+	assert((uint64_t)buffer_offset + ((uint64_t)first_multidraw_index + (uint64_t)multidraw_cmd_count) 
+		* sizeof(VkDrawIndexedIndirectCommand) <= buffer->size);
 	
 	VkCommandBuffer cmd_buf = get_cmd_buf(command_pool, buffer_index);
 	set_push_constants(cmd_buf, pipeline, push_constants_size, push_constants_data);
 
 	vkCmdDrawIndexedIndirect(cmd_buf, buffer->vk_buffer,
 		buffer_offset + first_multidraw_index * sizeof(VkDrawIndexedIndirectCommand),
-		draws, sizeof(VkDrawIndexedIndirectCommand)
+		multidraw_cmd_count, sizeof(VkDrawIndexedIndirectCommand)
 	);
 }
 
@@ -698,12 +701,12 @@ void pigeon_vulkan_set_timer(PigeonVulkanCommandPool* command_pool, unsigned int
 	}
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_end_submission(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index)
+PIGEON_ERR_RET pigeon_vulkan_end_submission(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
 
-	ASSERT__1(vkEndCommandBuffer(get_cmd_buf(command_pool, buffer_index)) == VK_SUCCESS, "vkEndCommandBuffer error");
+	ASSERT_LOG_R1(vkEndCommandBuffer(get_cmd_buf(command_pool, buffer_index)) == VK_SUCCESS, "vkEndCommandBuffer error");
 	return 0;
 }
 
@@ -715,7 +718,7 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 	assert(buffer_index < command_pool->buffer_count);
 
 
-	ASSERT__1(vkEndCommandBuffer(get_cmd_buf(command_pool, buffer_index)) == VK_SUCCESS, "vkEndCommandBuffer error");
+	ASSERT_LOG_R1(vkEndCommandBuffer(get_cmd_buf(command_pool, buffer_index)) == VK_SUCCESS, "vkEndCommandBuffer error");
 
 
 	VkSubmitInfo submit = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -757,7 +760,7 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 	}
 
 
-	ASSERT__1(vkQueueSubmit(
+	ASSERT_LOG_R1(vkQueueSubmit(
 		command_pool->use_transfer_queue ? singleton_data.transfer_queue : singleton_data.general_queue,
 		1, &submit,
 		fence ? fence->vk_fence : VK_NULL_HANDLE) == VK_SUCCESS, "vkQueueSubmit error");
@@ -771,17 +774,17 @@ int pigeon_vulkan_submit2(PigeonVulkanCommandPool* command_pool, unsigned int bu
 	return pigeon_vulkan_submit3(command_pool, buffer_index, fence, wait_sempaphore, NULL, signal_sempaphore, NULL);
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_submit(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, PigeonVulkanFence* fence)
+PIGEON_ERR_RET pigeon_vulkan_submit(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, PigeonVulkanFence* fence)
 {
 	return pigeon_vulkan_submit3(command_pool, buffer_index, fence, NULL, NULL, NULL, NULL);
 }
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_reset_command_pool(PigeonVulkanCommandPool* command_pool)
+PIGEON_ERR_RET pigeon_vulkan_reset_command_pool(PigeonVulkanCommandPool* command_pool)
 {
 	assert(command_pool && command_pool->vk_command_pool);
 
-	ASSERT__1(vkResetCommandPool(vkdev, command_pool->vk_command_pool, 0) == VK_SUCCESS, "vkResetCommandPool error");
+	ASSERT_LOG_R1(vkResetCommandPool(vkdev, command_pool->vk_command_pool, 0) == VK_SUCCESS, "vkResetCommandPool error");
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 #include "singleton.h"
 #include <assert.h>
 #include <stdlib.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <pigeon/wgi/vulkan/image.h>
 #include <pigeon/wgi/vulkan/buffer.h>
 
@@ -39,7 +39,7 @@ static int get_best_memory_type(uint32_t * best_memory_type_index,
 	PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePreferences preferences)
 {
 	int* memory_type_scores = malloc(singleton_data.memory_properties.memoryTypeCount * sizeof *memory_type_scores);
-	ASSERT_1(memory_type_scores);
+	ASSERT_R1(memory_type_scores);
 
 	for (unsigned int i = 0; i < singleton_data.memory_properties.memoryTypeCount; i++) {
 		VkMemoryPropertyFlags flags = singleton_data.memory_properties.memoryTypes[i].propertyFlags;
@@ -89,11 +89,11 @@ static int do_allocatate(PigeonVulkanMemoryAllocation* memory, PigeonVulkanMemor
 	PigeonVulkanMemoryTypePreferences preferences, bool dedicated, 
 	PigeonVulkanImage* image, PigeonVulkanBuffer * buffer)
 {
-	ASSERT_1(memory);
-	if(dedicated) ASSERT_1((image || buffer) && (!image || !buffer) && singleton_data.dedicated_allocation_supported);
+	ASSERT_R1(memory);
+	if(dedicated) ASSERT_R1((image || buffer) && (!image || !buffer) && singleton_data.dedicated_allocation_supported);
 
 	uint32_t best_memory_type_index;
-	ASSERT_1(!get_best_memory_type(&best_memory_type_index, memory_req, preferences));
+	ASSERT_R1(!get_best_memory_type(&best_memory_type_index, memory_req, preferences));
 
 	VkMemoryPropertyFlags flags = singleton_data.memory_properties.memoryTypes[best_memory_type_index].propertyFlags;
 
@@ -114,7 +114,7 @@ static int do_allocatate(PigeonVulkanMemoryAllocation* memory, PigeonVulkanMemor
 		alloc.pNext = &dedicated_info;
 	}
 
-	ASSERT__1(vkAllocateMemory(vkdev, &alloc, NULL, &memory->vk_device_memory) == VK_SUCCESS, "vkAllocateMemory error");
+	ASSERT_LOG_R1(vkAllocateMemory(vkdev, &alloc, NULL, &memory->vk_device_memory) == VK_SUCCESS, "vkAllocateMemory error");
 	return 0;
 }
 
@@ -143,11 +143,11 @@ void pigeon_vulkan_free_memory(PigeonVulkanMemoryAllocation* memory)
 }
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation* memory, void** data_ptr)
+PIGEON_ERR_RET pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation* memory, void** data_ptr)
 {
 	assert(memory);
 	if (!memory->mapping) {
-		ASSERT__1(vkMapMemory(vkdev, memory->vk_device_memory, 0, VK_WHOLE_SIZE, 0, &memory->mapping)
+		ASSERT_LOG_R1(vkMapMemory(vkdev, memory->vk_device_memory, 0, VK_WHOLE_SIZE, 0, &memory->mapping)
 			== VK_SUCCESS, "vkMapMemory error");
 
 		if(data_ptr) *data_ptr = memory->mapping;
@@ -155,7 +155,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation* memory,
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation* memory, uint64_t offset, uint64_t size)
+PIGEON_ERR_RET pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation* memory, uint64_t offset, uint64_t size)
 {
 	assert(memory);
 	
@@ -165,7 +165,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation* memor
 		range.offset = offset;
 		range.size = size ? size : VK_WHOLE_SIZE;
 
-		ASSERT__1(vkFlushMappedMemoryRanges(vkdev, 1, &range) == VK_SUCCESS, "vkFlushMappedMemoryRanges error");
+		ASSERT_LOG_R1(vkFlushMappedMemoryRanges(vkdev, 1, &range) == VK_SUCCESS, "vkFlushMappedMemoryRanges error");
 	}
 	return 0;
 }

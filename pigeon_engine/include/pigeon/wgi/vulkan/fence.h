@@ -10,13 +10,13 @@ typedef struct PigeonVulkanFence {
 } PigeonVulkanFence;
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_fence(PigeonVulkanFence*, bool start_triggered);
+PIGEON_ERR_RET pigeon_vulkan_create_fence(PigeonVulkanFence*, bool start_triggered);
 
 // Timeout 3 seconds
-ERROR_RETURN_TYPE pigeon_vulkan_wait_fence(PigeonVulkanFence*);
+PIGEON_ERR_RET pigeon_vulkan_wait_fence(PigeonVulkanFence*);
 
-ERROR_RETURN_TYPE pigeon_vulkan_poll_fence(PigeonVulkanFence* fence, bool* state);
+PIGEON_ERR_RET pigeon_vulkan_poll_fence(PigeonVulkanFence* fence, bool* state);
 
-ERROR_RETURN_TYPE pigeon_vulkan_reset_fence(PigeonVulkanFence*);
+PIGEON_ERR_RET pigeon_vulkan_reset_fence(PigeonVulkanFence*);
 
 void pigeon_vulkan_destroy_fence(PigeonVulkanFence*);

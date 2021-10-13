@@ -2,6 +2,9 @@
 #include <pigeon/wgi/vulkan/framebuffer.h>
 #include "singleton.h"
 #include <cglm/cam.h>
+#include <string.h>
+#include <pigeon/assert.h>
+#include <cglm/affine.h>
 
 static void ortho_rh_z_1_0(float left, float right,
                 float bottom,  float top,
@@ -26,17 +29,17 @@ static int shadow_compare(const void *i0_, const void *i1_)
 	return (int)p1->resolution - (int)p0->resolution;
 }
 
-static ERROR_RETURN_TYPE validate(void)
+static PIGEON_ERR_RET validate(void)
 {
     for(unsigned int i = 0; i < 4; i++) {
         PigeonWGIShadowParameters *p = &singleton_data.shadow_parameters[i];
         if(!p->resolution) continue;
 
-        ASSERT_1(p->resolution % 2 == 0);
-        ASSERT_1(p->resolution <= 4096);
-        ASSERT_1(p->near_plane > 0);
-        ASSERT_1(p->sizeX > 0);
-        ASSERT_1(p->sizeY > 0);
+        ASSERT_R1(p->resolution % 2 == 0);
+        ASSERT_R1(p->resolution <= 4096);
+        ASSERT_R1(p->near_plane > 0);
+        ASSERT_R1(p->sizeX > 0);
+        ASSERT_R1(p->sizeY > 0);
 
         float x = p->sizeX;
         float y = p->sizeY;
@@ -51,19 +54,19 @@ static ERROR_RETURN_TYPE validate(void)
 }
 
 
-static ERROR_RETURN_TYPE create_shadow_framebuffer(PigeonWGIShadowParameters * p, unsigned int framebuffer_index)
+static PIGEON_ERR_RET create_shadow_framebuffer(PigeonWGIShadowParameters * p, unsigned int framebuffer_index)
 {
-    ASSERT_1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_images[framebuffer_index],
+    ASSERT_R1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_images[framebuffer_index],
         PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, p->resolution, p->resolution, false, false));
 
-    ASSERT_1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
+    ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
         &singleton_data.shadow_images[framebuffer_index].image_view, NULL, &singleton_data.rp_depth));
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_assign_shadow_framebuffers(void)
+PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void)
 {
-    ASSERT_1(!validate());
+    ASSERT_R1(!validate());
 
     unsigned int shadow_param_indices_sorted[4] = {0, 1, 2, 3};
     qsort(shadow_param_indices_sorted, sizeof shadow_param_indices_sorted[0], 4, shadow_compare);
@@ -123,7 +126,7 @@ ERROR_RETURN_TYPE pigeon_wgi_assign_shadow_framebuffers(void)
             singleton_data.shadow_framebuffer_assigned[i] = true;
             p->framebuffer_index = (int)i;
 
-            ASSERT_1(!create_shadow_framebuffer(p, i));
+            ASSERT_R1(!create_shadow_framebuffer(p, i));
             break;
         }
 
@@ -140,14 +143,12 @@ void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDr
         if(!p->resolution) continue;
         
         data->lights[i].shadow_pixel_offset = 1.0f / (float)p->resolution;
+
         memcpy(data->lights[i].shadow_proj_view, p->proj_view, 64);
         data->lights[i].is_shadow_caster = 1.0f;
 
-        mat4 inv_view;
-        glm_mat4_inv(p->view_matrix, inv_view);
-
-        vec4 dir = {0, 0, 1, 0};
-        glm_mat4_mulv(inv_view, dir, dir);
+        vec4 dir = {0, 0, -1, 0};
+        glm_mat4_mulv(p->view_matrix, dir, dir);
 
         data->lights[i].neg_direction[0] = dir[0];
         data->lights[i].neg_direction[1] = dir[1];

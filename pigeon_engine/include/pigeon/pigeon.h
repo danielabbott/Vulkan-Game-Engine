@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdbool.h>
-#include "wgi/window.h"
-#include <stdbool.h>
+// #include "wgi/window.h"
 
+void pigeon_init(void);
+void pigeon_deinit(void);

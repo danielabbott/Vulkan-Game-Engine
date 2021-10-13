@@ -8,14 +8,16 @@
 #include "mesh.h"
 #include "shadow.h"
 #include "animation.h"
-#define CGLM_FORCE_DEPTH_ZERO_TO_ONE
+#ifndef CGLM_FORCE_DEPTH_ZERO_TO_ONE
+    #define CGLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #include <cglm/types.h>
 #include "rendergraph.h"
 
 struct PigeonVulkanCommandPool;
 
 /* Returns 0 on success. If fails, call pigeon_wgi_deinit() to cleanup */
-ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu,
+PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu,
 	PigeonWGIRenderConfig render_cfg, float znear, float zfar);
 
 void pigeon_wgi_set_depth_range(float znear, float zfar);
@@ -36,8 +38,9 @@ typedef enum {
     PIGEON_WGI_TIMERS_COUNT
 } PigeonWGITimer;
 
-// Returns 1 on error, 2 if not ready yet, 3 if swapchain must be recreated
-// If returns 3, call pigeon_wgi_recreate_swapchain()
+PIGEON_ERR_RET pigeon_wgi_next_frame_wait(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT]);
+PIGEON_ERR_RET pigeon_wgi_next_frame_poll(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT], bool* ready);
+
 // max_draws determines the minimum size of the draws ssbo
 // max_multidraw_draws = maximum number of draws within multidraw draws
 // Instancing counts as multiple draws
@@ -45,11 +48,11 @@ typedef enum {
 // index into shadows = index into lights array in per-frame uniform data
 // total_bones = total number of bones accross all objects with a skinned mesh
 //      (multiple instances of the same mesh still add to the count)
-ERROR_RETURN_TYPE pigeon_wgi_start_frame(bool block, uint32_t max_draws,
-    uint32_t max_multidraw_draws, double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT],
+PIGEON_ERR_RET pigeon_wgi_start_frame(uint32_t max_draws,
+    uint32_t max_multidraw_draws,
     PigeonWGIShadowParameters shadows[4], unsigned int total_bones);
 
-ERROR_RETURN_TYPE pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
+PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
     PigeonWGIDrawObject *, unsigned int draws_count,
     PigeonWGIBoneMatrix*, unsigned int bones_count);
 
@@ -64,7 +67,7 @@ PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light
 PigeonWGICommandBuffer * pigeon_wgi_get_light_pass_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
 
-ERROR_RETURN_TYPE pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);
+PIGEON_ERR_RET pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);
 void pigeon_wgi_draw_without_mesh(PigeonWGICommandBuffer*, PigeonWGIPipeline*, unsigned int vertices);
 // pigeon_wgi_upload_multimesh
 
@@ -75,19 +78,19 @@ void pigeon_wgi_draw(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMulti
     uint32_t start_vertex, uint32_t draw_index, uint32_t instances,
     uint32_t first, unsigned int count);
 
-void pigeon_wgi_multidraw_draw(unsigned int start_vertex, uint32_t instances, uint32_t first, uint32_t count);
+void pigeon_wgi_multidraw_draw(unsigned int start_vertex, uint32_t instances,
+    uint32_t first, uint32_t count, uint32_t first_instance);
 
 void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMultiMesh*,
-    uint32_t first_multidraw_index, uint32_t draws, uint32_t first_draw_index);
+    uint32_t first_multidraw_index, uint32_t multidraw_count, uint32_t first_draw_index, uint32_t draws);
 
-ERROR_RETURN_TYPE pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
+PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 
-// If returns 2, call pigeon_wgi_recreate_swapchain. Do *NOT* call present again; start the next frame.
-ERROR_RETURN_TYPE pigeon_wgi_present_frame(bool debug_disable_bloom);
+PIGEON_ERR_RET pigeon_wgi_present_frame(bool debug_disable_bloom);
 
 
 // Returns 2 (fail) if the window is minimised or smaller than 16x16 pixels
-ERROR_RETURN_TYPE pigeon_wgi_recreate_swapchain(void);
+PIGEON_ERR_RET pigeon_wgi_recreate_swapchain(void);
 void pigeon_wgi_wait_events(void);
 
 // Waits for GPU idle. Use before freeing all resources at application exit

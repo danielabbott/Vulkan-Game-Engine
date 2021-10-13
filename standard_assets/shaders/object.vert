@@ -122,7 +122,7 @@ void main() {
     float x = ((in_position.x << 1) | (in_position.a & 1)) / 2047.0;
     float y = ((in_position.y << 1) | (in_position.a >> 1)) / 2047.0;
 
-    uint draw_index = push_constants.draw_index_offset + gl_DrawID + gl_InstanceIndex;
+    uint draw_index = push_constants.draw_index_offset + gl_InstanceIndex;
     DrawObject data = draw_objects.obj[draw_index];
     vec3 p = vec3(x,y,z) * data.position_range.xyz + data.position_min.xyz;
 
@@ -131,7 +131,7 @@ void main() {
     #endif
 
     #ifdef SKINNED
-    {
+    if(data.first_bone_index != 0xffffffff){
         uint bone_index0 = in_bone.x >> 8;
         uint bone_index1 = in_bone.x & 0xff;
         float bone_weight = in_bone.y / 65535.0;

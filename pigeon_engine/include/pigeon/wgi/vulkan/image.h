@@ -26,7 +26,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage*, PigeonWGIImageFormat,
 
 int pigeon_vulkan_image_bind_memory(PigeonVulkanImage*, PigeonVulkanMemoryAllocation*, 
 	unsigned int offset);
-ERROR_RETURN_TYPE pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage*, PigeonVulkanMemoryAllocation*);
+PIGEON_ERR_RET pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage*, PigeonVulkanMemoryAllocation*);
 void pigeon_vulkan_destroy_image(PigeonVulkanImage*);
 
 
@@ -37,13 +37,13 @@ typedef struct PigeonVulkanImageView
 	PigeonWGIImageFormat format;
 } PigeonVulkanImageView;
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_image_view(PigeonVulkanImageView*, PigeonVulkanImage*, bool array_texture);
+PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView*, PigeonVulkanImage*, bool array_texture);
 void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView*);
 
 
 // Convenience function
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
+PIGEON_ERR_RET pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
 	PigeonVulkanMemoryAllocation * memory, PigeonVulkanImageView * image_view,
 	PigeonWGIImageFormat format, unsigned int width, unsigned int height,
 	unsigned int layers, unsigned int mip_maps, bool device_local);

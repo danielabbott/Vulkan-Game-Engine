@@ -1,13 +1,13 @@
 #include <pigeon/wgi/vulkan/buffer.h>
 #include <pigeon/wgi/vulkan/memory.h>
 #include <pigeon/wgi/vulkan/command.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include "singleton.h"
 
-int pigeon_vulkan_create_buffer(PigeonVulkanBuffer* buffer, uint64_t size, PigeonVulkanBufferUsages usages,
+PIGEON_ERR_RET pigeon_vulkan_create_buffer(PigeonVulkanBuffer* buffer, uint64_t size, PigeonVulkanBufferUsages usages,
     PigeonVulkanMemoryRequirements* memory_requirements)
 {
-    assert(buffer && size && memory_requirements);
+    ASSERT_R1(buffer && size && memory_requirements);
 
     VkBufferCreateInfo create = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     create.size = size;
@@ -35,7 +35,7 @@ int pigeon_vulkan_create_buffer(PigeonVulkanBuffer* buffer, uint64_t size, Pigeo
         create.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }
 
-    ASSERT__1(vkCreateBuffer(vkdev, &create, NULL, &buffer->vk_buffer) == VK_SUCCESS, "vkCreateBuffer error");
+    ASSERT_LOG_R1(vkCreateBuffer(vkdev, &create, NULL, &buffer->vk_buffer) == VK_SUCCESS, "vkCreateBuffer error");
 
     if(singleton_data.dedicated_allocation_supported) {
 		VkMemoryDedicatedRequirements dedicated_requirements = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
@@ -69,19 +69,19 @@ int pigeon_vulkan_create_buffer(PigeonVulkanBuffer* buffer, uint64_t size, Pigeo
     return 0;
 }
 
-int pigeon_vulkan_buffer_bind_memory(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation* memory, 
+PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation* memory, 
 	uint64_t offset)
 {
-	ASSERT_1(buffer && buffer->vk_buffer && memory && memory->vk_device_memory && !memory->is_dedicated);
-	ASSERT_1(!buffer->requires_dedicated_memory);
-	ASSERT__1(vkBindBufferMemory(vkdev, buffer->vk_buffer, memory->vk_device_memory, offset) == VK_SUCCESS, "vkBindBufferMemory error");
+	ASSERT_R1(buffer && buffer->vk_buffer && memory && memory->vk_device_memory && !memory->is_dedicated);
+	ASSERT_R1(!buffer->requires_dedicated_memory);
+	ASSERT_LOG_R1(vkBindBufferMemory(vkdev, buffer->vk_buffer, memory->vk_device_memory, offset) == VK_SUCCESS, "vkBindBufferMemory error");
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_buffer_bind_memory_dedicated(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation* memory)
+PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory_dedicated(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation* memory)
 {
-	ASSERT_1(buffer && buffer->vk_buffer && memory && memory->vk_device_memory && memory->is_dedicated);
-	ASSERT__1(vkBindBufferMemory(vkdev, buffer->vk_buffer, memory->vk_device_memory, 0) == VK_SUCCESS, "vkBindBufferMemory error");
+	ASSERT_R1(buffer && buffer->vk_buffer && memory && memory->vk_device_memory && memory->is_dedicated);
+	ASSERT_LOG_R1(vkBindBufferMemory(vkdev, buffer->vk_buffer, memory->vk_device_memory, 0) == VK_SUCCESS, "vkBindBufferMemory error");
 	return 0;
 }
 
@@ -97,14 +97,14 @@ void pigeon_vulkan_destroy_buffer(PigeonVulkanBuffer* buffer)
 	}
 }
 
-static int create_device_local(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation * memory, 
+static PIGEON_ERR_RET create_device_local(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation * memory, 
 	uint64_t size, PigeonVulkanBufferUsages usages)
 {
 	usages.transfer_dst = true;
 	usages.transfer_src = false;
 
 	PigeonVulkanMemoryRequirements mem_req;
-	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
+	ASSERT_R1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
 
 	PigeonVulkanMemoryTypePreferences preferences = { 0 };
 	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_MUST;
@@ -128,13 +128,13 @@ static int create_device_local(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAll
 	return 0;
 }
 
-static int create_host_visible(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation * memory, 
+static PIGEON_ERR_RET create_host_visible(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation * memory, 
 	uint64_t size, PigeonVulkanBufferUsages usages, bool maybe_device_local)
 {
 	usages.transfer_dst = false;
 
 	PigeonVulkanMemoryRequirements mem_req;
-	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
+	ASSERT_R1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
 
 	PigeonVulkanMemoryTypePreferences preferences = { 0 };
 	preferences.device_local = maybe_device_local ? 
@@ -156,47 +156,47 @@ static int create_host_visible(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAll
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_staged_buffer(PigeonVulkanStagedBuffer* buffer, uint64_t size, PigeonVulkanBufferUsages usages)
+PIGEON_ERR_RET pigeon_vulkan_create_staged_buffer(PigeonVulkanStagedBuffer* buffer, uint64_t size, PigeonVulkanBufferUsages usages)
 {
-	ASSERT_1(buffer && !buffer->buffer.vk_buffer && size);
+	ASSERT_R1(buffer && !buffer->buffer.vk_buffer && size);
 	bool device_local_failed = create_device_local(&buffer->buffer, &buffer->memory, size, usages) != 0;
 
 	if(device_local_failed) {
 		usages.transfer_src = false;
 		buffer->buffer_is_host_visible = true;
-		ASSERT_1(!create_host_visible(&buffer->buffer, &buffer->memory, size, usages, true));
+		ASSERT_R1(!create_host_visible(&buffer->buffer, &buffer->memory, size, usages, true));
 	}
 	else {
 		usages.transfer_src = true;
 		buffer->buffer_is_host_visible = false;
-		ASSERT_1(!create_host_visible(&buffer->staging_buffer, &buffer->staging_memory, size, usages, false));
+		ASSERT_R1(!create_host_visible(&buffer->staging_buffer, &buffer->staging_memory, size, usages, false));
 	}
 
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_staged_buffer_map(PigeonVulkanStagedBuffer* buffer, void ** ptr)
+PIGEON_ERR_RET pigeon_vulkan_staged_buffer_map(PigeonVulkanStagedBuffer* buffer, void ** ptr)
 {
-	ASSERT_1(buffer && buffer->buffer.vk_buffer && ptr);
+	ASSERT_R1(buffer && buffer->buffer.vk_buffer && ptr);
 	if(buffer->buffer_is_host_visible) {
-		ASSERT_1(!pigeon_vulkan_map_memory(&buffer->memory, ptr));
+		ASSERT_R1(!pigeon_vulkan_map_memory(&buffer->memory, ptr));
 	}
 	else {
-		ASSERT_1(!pigeon_vulkan_map_memory(&buffer->staging_memory, ptr));
+		ASSERT_R1(!pigeon_vulkan_map_memory(&buffer->staging_memory, ptr));
 	}
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_staged_buffer_write_done(PigeonVulkanStagedBuffer* buffer)
+PIGEON_ERR_RET pigeon_vulkan_staged_buffer_write_done(PigeonVulkanStagedBuffer* buffer)
 {
 	assert(buffer && buffer->buffer.vk_buffer);
 
 	if(buffer->buffer_is_host_visible) {
-		ASSERT_1(!pigeon_vulkan_flush_memory(&buffer->memory, 0, 0));
+		ASSERT_R1(!pigeon_vulkan_flush_memory(&buffer->memory, 0, 0));
 		pigeon_vulkan_unmap_memory(&buffer->memory);
 	}
 	else {
-		ASSERT_1(!pigeon_vulkan_flush_memory(&buffer->staging_memory, 0, 0));
+		ASSERT_R1(!pigeon_vulkan_flush_memory(&buffer->staging_memory, 0, 0));
 		pigeon_vulkan_unmap_memory(&buffer->staging_memory);
 	}
 	return 0;
@@ -237,16 +237,16 @@ void pigeon_vulkan_destroy_staged_buffer(PigeonVulkanStagedBuffer* buffer)
 	}
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_staging_buffer_with_dedicated_memory(PigeonVulkanBuffer* buffer,
+PIGEON_ERR_RET pigeon_vulkan_create_staging_buffer_with_dedicated_memory(PigeonVulkanBuffer* buffer,
 	PigeonVulkanMemoryAllocation * memory, uint64_t size, void ** mapping)
 {
-	ASSERT_1(buffer && memory && size && mapping);
+	ASSERT_R1(buffer && memory && size && mapping);
 
     PigeonVulkanBufferUsages usages = {0};
     usages.transfer_src = true;
     
 	PigeonVulkanMemoryRequirements mem_req;
-	ASSERT_1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
+	ASSERT_R1(!pigeon_vulkan_create_buffer(buffer, size, usages, &mem_req));
 
 	PigeonVulkanMemoryTypePreferences preferences = { 0 };
 	preferences.device_local = PIGEON_VULKAN_MEMORY_TYPE_PREFERRED_NOT;

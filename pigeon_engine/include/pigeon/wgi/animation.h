@@ -1,7 +1,6 @@
 #pragma once
 
 #include "bone.h"
-#include <pigeon/util.h>
 #include <stdint.h>
 
 struct PigeonAsset;

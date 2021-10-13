@@ -37,5 +37,5 @@ typedef struct PigeonVulkanRenderPass {
 	bool has_writeable_depth_image;
 } PigeonVulkanRenderPass;
 
-ERROR_RETURN_TYPE pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass*, PigeonVulkanRenderPassConfig);
+PIGEON_ERR_RET pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass*, PigeonVulkanRenderPassConfig);
 void pigeon_vulkan_destroy_render_pass(PigeonVulkanRenderPass*);

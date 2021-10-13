@@ -2,10 +2,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
 
-ERROR_RETURN_TYPE pigeon_create_vulkan_logical_device_and_queues(void)
+PIGEON_ERR_RET pigeon_create_vulkan_logical_device_and_queues(void)
 {
 	VkDeviceQueueCreateInfo queue_create_infos[2] = { {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO},{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO} };
 
@@ -30,6 +30,7 @@ ERROR_RETURN_TYPE pigeon_create_vulkan_logical_device_and_queues(void)
 	physical_device_features.depthClamp = singleton_data.depth_clamp_supported;
 	physical_device_features.samplerAnisotropy = singleton_data.anisotropy_supported;
 	physical_device_features.multiDrawIndirect = 1;
+	physical_device_features.drawIndirectFirstInstance = 1;
 
 	VkDeviceCreateInfo device_create_info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 	device_create_info.pQueueCreateInfos = queue_create_infos;
@@ -51,7 +52,7 @@ ERROR_RETURN_TYPE pigeon_create_vulkan_logical_device_and_queues(void)
 	device_create_info.ppEnabledLayerNames = &validation_layer_name;
 #endif
 
-	ASSERT__1(vkCreateDevice(singleton_data.physical_device, &device_create_info, NULL, &singleton_data.device) == VK_SUCCESS, "vkCreateDevice error");
+	ASSERT_LOG_R1(vkCreateDevice(singleton_data.physical_device, &device_create_info, NULL, &singleton_data.device) == VK_SUCCESS, "vkCreateDevice error");
 
 	/* Create queues */
 

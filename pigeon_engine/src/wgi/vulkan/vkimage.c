@@ -2,7 +2,7 @@
 #include <pigeon/wgi/vulkan/image.h>
 #include <pigeon/wgi/image_formats.h>
 #include <pigeon/wgi/vulkan/memory.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <assert.h>
 
 VkFormat pigeon_get_vulkan_image_format(PigeonWGIImageFormat f)
@@ -66,7 +66,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 {
 	assert(image && format && width && height && layers && memory_requirements);
 
-	ASSERT__1(width <= 16384 && height <= 16384 && layers <= 2048, "Image dimensions too large");
+	ASSERT_LOG_R1(width <= 16384 && height <= 16384 && layers <= 2048, "Image dimensions too large");
 
 	VkImageCreateInfo image_create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -105,7 +105,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 
-	ASSERT__1(vkCreateImage(vkdev, &image_create_info, NULL, &image->vk_image) == VK_SUCCESS, "vkCreateImage error");
+	ASSERT_LOG_R1(vkCreateImage(vkdev, &image_create_info, NULL, &image->vk_image) == VK_SUCCESS, "vkCreateImage error");
 	
 	image->format = format;
 	image->width = width;
@@ -151,16 +151,16 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 int pigeon_vulkan_image_bind_memory(PigeonVulkanImage* image, PigeonVulkanMemoryAllocation* memory,
 	unsigned int offset)
 {
-	ASSERT_1(image && image->vk_image && memory && memory->vk_device_memory && !memory->is_dedicated);
-	ASSERT_1(!image->requires_dedicated_memory);
-	ASSERT__1(vkBindImageMemory(vkdev, image->vk_image, memory->vk_device_memory, offset) == VK_SUCCESS, "vkBindImageMemory error");
+	ASSERT_R1(image && image->vk_image && memory && memory->vk_device_memory && !memory->is_dedicated);
+	ASSERT_R1(!image->requires_dedicated_memory);
+	ASSERT_LOG_R1(vkBindImageMemory(vkdev, image->vk_image, memory->vk_device_memory, offset) == VK_SUCCESS, "vkBindImageMemory error");
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage* image, PigeonVulkanMemoryAllocation* memory)
+PIGEON_ERR_RET pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage* image, PigeonVulkanMemoryAllocation* memory)
 {
-	ASSERT_1(image && image->vk_image && memory && memory->vk_device_memory && memory->is_dedicated);
-	ASSERT__1(vkBindImageMemory(vkdev, image->vk_image, memory->vk_device_memory, 0) == VK_SUCCESS, "vkBindImageMemory error");
+	ASSERT_R1(image && image->vk_image && memory && memory->vk_device_memory && memory->is_dedicated);
+	ASSERT_LOG_R1(vkBindImageMemory(vkdev, image->vk_image, memory->vk_device_memory, 0) == VK_SUCCESS, "vkBindImageMemory error");
 	return 0;
 }
 
@@ -176,7 +176,7 @@ void pigeon_vulkan_destroy_image(PigeonVulkanImage* image)
 }
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_view, PigeonVulkanImage* image,
+PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_view, PigeonVulkanImage* image,
 	bool array_texture)
 {
 	VkImageViewCreateInfo create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -197,7 +197,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_v
 	create_info.subresourceRange.layerCount = image->layers;
 
 	
-	ASSERT__1(vkCreateImageView(vkdev, &create_info, NULL, &image_view->vk_image_view) == VK_SUCCESS, "vkCreateImageView error");
+	ASSERT_LOG_R1(vkCreateImageView(vkdev, &create_info, NULL, &image_view->vk_image_view) == VK_SUCCESS, "vkCreateImageView error");
 	
 	
 	image_view->width = image->width;
@@ -221,14 +221,14 @@ void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView* image_view)
 }
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
+PIGEON_ERR_RET pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulkanImage * image, 
 	PigeonVulkanMemoryAllocation * memory, PigeonVulkanImageView * image_view,
 	PigeonWGIImageFormat format, unsigned int width, unsigned int height,
 	unsigned int layers, unsigned int mip_maps, bool device_local)
 {
     PigeonVulkanMemoryRequirements memory_req;
 
-	ASSERT_1 (!pigeon_vulkan_create_image(
+	ASSERT_R1 (!pigeon_vulkan_create_image(
 		image,
 		format,
 		width, height, layers, mip_maps == 0 ? 1 : mip_maps,
@@ -247,19 +247,19 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_texture_with_dedicated_memory(PigeonVulka
 	if (pigeon_vulkan_allocate_memory_dedicated(memory, memory_req, preferences,
         image, NULL)) {
         pigeon_vulkan_destroy_image(image);
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
 	if (pigeon_vulkan_image_bind_memory_dedicated(image, memory)) {
         pigeon_vulkan_destroy_image(image);
         pigeon_vulkan_free_memory(memory);
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
 	if (pigeon_vulkan_create_image_view(image_view, image, true)) {
         pigeon_vulkan_destroy_image(image);
         pigeon_vulkan_free_memory(memory);
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
     return 0;
 }

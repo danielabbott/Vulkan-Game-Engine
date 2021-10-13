@@ -7,11 +7,12 @@
 #include <pigeon/wgi/vulkan/fence.h>
 #include <pigeon/wgi/vulkan/command.h>
 #include <pigeon/wgi/textures.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 
-ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
+PIGEON_ERR_RET pigeon_wgi_create_descriptor_layouts(void)
 {
 	PigeonVulkanDescriptorBinding bindings[6];
 
@@ -35,7 +36,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[2].vertex_shader_accessible = true;
 	bindings[2].elements = 1;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.depth_descriptor_layout, 3, bindings));
+	ASSERT_R1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.depth_descriptor_layout, 3, bindings));
 
 
 	/* 1 texture */
@@ -46,7 +47,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[0].fragment_shader_accessible = true;
 	bindings[0].elements = 1;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.one_texture_descriptor_layout, 1, bindings));
+	ASSERT_R1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.one_texture_descriptor_layout, 1, bindings));
 
 
 	/* 2 textures */
@@ -55,7 +56,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[1].fragment_shader_accessible = true;
 	bindings[1].elements = 1;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.two_texture_descriptor_layout, 2, bindings));
+	ASSERT_R1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.two_texture_descriptor_layout, 2, bindings));
 	
 
 
@@ -66,7 +67,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[1].fragment_shader_accessible = true;
 	bindings[1].elements = 1;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.post_descriptor_layout, 2, bindings));
+	ASSERT_R1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.post_descriptor_layout, 2, bindings));
 
 
 
@@ -106,7 +107,7 @@ ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_layouts(void)
 	bindings[5].fragment_shader_accessible = true;
 	bindings[5].elements = 90;
 
-	ASSERT_1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.render_descriptor_layout, 6, bindings));
+	ASSERT_R1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.render_descriptor_layout, 6, bindings));
 
 
 	return 0;
@@ -127,12 +128,12 @@ void pigeon_wgi_destroy_descriptor_layouts(void)
 		pigeon_vulkan_destroy_descriptor_layout(&singleton_data.post_descriptor_layout);
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_samplers(void)
+PIGEON_ERR_RET pigeon_wgi_create_samplers(void)
 {
-	ASSERT_1(!pigeon_vulkan_create_sampler(&singleton_data.nearest_filter_sampler, false, false, false, true, false));
-	ASSERT_1(!pigeon_vulkan_create_sampler(&singleton_data.bilinear_sampler, true, false, false, true, false));
-	ASSERT_1(!pigeon_vulkan_create_sampler(&singleton_data.shadow_sampler, false, false, true, true, false));
-	ASSERT_1(!pigeon_vulkan_create_sampler(&singleton_data.texture_sampler, true, true, true, false, true));	
+	ASSERT_R1(!pigeon_vulkan_create_sampler(&singleton_data.nearest_filter_sampler, false, false, false, true, false));
+	ASSERT_R1(!pigeon_vulkan_create_sampler(&singleton_data.bilinear_sampler, true, false, false, true, false));
+	ASSERT_R1(!pigeon_vulkan_create_sampler(&singleton_data.shadow_sampler, false, false, true, true, false));
+	ASSERT_R1(!pigeon_vulkan_create_sampler(&singleton_data.texture_sampler, true, true, true, false, true));	
 	return 0;
 }
 
@@ -144,7 +145,7 @@ void pigeon_wgi_destroy_samplers(void)
 	if (singleton_data.texture_sampler.vk_sampler) pigeon_vulkan_destroy_sampler(&singleton_data.texture_sampler);
 }
 
-static ERROR_RETURN_TYPE create_default_image_objects(void)
+static PIGEON_ERR_RET create_default_image_objects(void)
 {
 	PigeonVulkanMemoryRequirements memory_req;
 	PigeonVulkanMemoryRequirements memory_req2;
@@ -194,7 +195,7 @@ static ERROR_RETURN_TYPE create_default_image_objects(void)
 }
 
 
-static ERROR_RETURN_TYPE transition_default_images()
+static PIGEON_ERR_RET transition_default_images()
 {
 	PigeonVulkanCommandPool command_pool;
 	if (pigeon_vulkan_create_command_pool(&command_pool, 1, true, false)) return 1;
@@ -238,7 +239,7 @@ static ERROR_RETURN_TYPE transition_default_images()
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_default_textures(void)
+PIGEON_ERR_RET pigeon_wgi_create_default_textures(void)
 {
 	if (create_default_image_objects()) return 1;
 	if (transition_default_images()) return 1;
@@ -264,7 +265,7 @@ void pigeon_wgi_destroy_default_textures(void)
 		pigeon_vulkan_free_memory(&singleton_data.default_shadow_map_memory);
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_descriptor_pools(void)
+PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void)
 {
 	// TODO have 1 descriptor pool with multiple sets
 

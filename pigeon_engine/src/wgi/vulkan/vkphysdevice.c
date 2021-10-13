@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
 
 static bool is_device_swapchain_capable(VkPhysicalDevice physical_device)
@@ -109,6 +109,11 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 		return false;
 	}
 
+	if(!device_features.drawIndirectFirstInstance) {
+		fputs("Draw Indirect First Instance unsupported\n", stderr);
+		return false;
+	}
+
 	singleton_data.depth_clamp_supported = device_features.depthClamp;
 	singleton_data.anisotropy_supported = device_features.samplerAnisotropy && device_properties.limits.maxSamplerAnisotropy >= 16;
 	
@@ -176,12 +181,12 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 }
 
 
-ERROR_RETURN_TYPE pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
+PIGEON_ERR_RET pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
 {
 	uint32_t device_count = 0;
 	vkEnumeratePhysicalDevices(singleton_data.instance, &device_count, NULL);
 
-	ASSERT__1(device_count != 0, "No GPUs");
+	ASSERT_LOG_R1(device_count != 0, "No GPUs");
 
 	VkPhysicalDevice* devices = malloc(sizeof *devices * device_count);
 	if (!devices) return 1;
@@ -209,7 +214,7 @@ ERROR_RETURN_TYPE pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
 
 	free(devices);
 
-	ASSERT__1(singleton_data.physical_device, "No suitable GPU found");
+	ASSERT_LOG_R1(singleton_data.physical_device, "No suitable GPU found");
 
 
 

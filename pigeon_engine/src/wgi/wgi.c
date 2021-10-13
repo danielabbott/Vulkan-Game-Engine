@@ -10,16 +10,16 @@
 #include <string.h>
 #include <cglm/affine.h>
 #include <cglm/clipspace/persp_rh_zo.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <pigeon/wgi/rendergraph.h>
 
-static ERROR_RETURN_TYPE set_render_cfg(PigeonWGIRenderConfig render_cfg)
+static PIGEON_ERR_RET set_render_cfg(PigeonWGIRenderConfig render_cfg)
 {
 	singleton_data.render_cfg = render_cfg;
 
 	singleton_data.light_image_components = render_cfg.ssao ? 1 : 0;
 	singleton_data.light_image_components += render_cfg.shadow_casting_lights;
-	ASSERT_1(singleton_data.light_image_components <= 4);
+	ASSERT_R1(singleton_data.light_image_components <= 4);
 
 	if(singleton_data.light_image_components == 0) {
 		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_NONE;
@@ -44,19 +44,19 @@ static ERROR_RETURN_TYPE set_render_cfg(PigeonWGIRenderConfig render_cfg)
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_init(PigeonWindowParameters window_parameters, 
+PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, 
 	bool prefer_dedicated_gpu,
 	PigeonWGIRenderConfig render_cfg, float znear, float zfar)
 {
 	pigeon_wgi_deinit();
-	ASSERT_1(!set_render_cfg(render_cfg));
+	ASSERT_R1(!set_render_cfg(render_cfg));
 	
 
 	pigeon_wgi_set_depth_range(znear, zfar);
 
 
-	ASSERT_1(!pigeon_create_window(window_parameters));
-	ASSERT_1(!pigeon_create_vulkan_context(prefer_dedicated_gpu));
+	ASSERT_R1(!pigeon_create_window(window_parameters));
+	ASSERT_R1(!pigeon_create_vulkan_context(prefer_dedicated_gpu));
 
 	if (pigeon_vulkan_create_swapchain()) return 1;
 
@@ -86,7 +86,7 @@ void pigeon_wgi_wait_idle(void)
 }
 
 
-ERROR_RETURN_TYPE pigeon_wgi_recreate_swapchain(void)
+PIGEON_ERR_RET pigeon_wgi_recreate_swapchain(void)
 {
     pigeon_wgi_wait_idle();
     pigeon_wgi_destroy_per_frame_objects();
@@ -96,9 +96,9 @@ ERROR_RETURN_TYPE pigeon_wgi_recreate_swapchain(void)
     int err = pigeon_vulkan_create_swapchain();
     if(err) return err;
 
-    ASSERT_1(!pigeon_wgi_create_framebuffers());
+    ASSERT_R1(!pigeon_wgi_create_framebuffers());
     pigeon_wgi_set_global_descriptors();
-    ASSERT_1(!pigeon_wgi_create_per_frame_objects());
+    ASSERT_R1(!pigeon_wgi_create_per_frame_objects());
     return 0;
 }
 

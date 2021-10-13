@@ -1,6 +1,6 @@
 #include "singleton.h"
 #include <pigeon/wgi/vulkan/renderpass.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
 
 
@@ -126,16 +126,16 @@ static void get_subpass(PigeonVulkanRenderPassConfig config, VkSubpassDescriptio
 	*subpass_dependency_count = i;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass * rp, PigeonVulkanRenderPassConfig config)
+PIGEON_ERR_RET pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass * rp, PigeonVulkanRenderPassConfig config)
 {
 	assert(rp);
-	ASSERT__1(config.depth_mode == PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP || config.colour_image != PIGEON_WGI_IMAGE_FORMAT_NONE, "No-op renderpass");
+	ASSERT_LOG_R1(config.depth_mode == PIGEON_VULKAN_RENDER_PASS_DEPTH_KEEP || config.colour_image != PIGEON_WGI_IMAGE_FORMAT_NONE, "No-op renderpass");
 
 	if(config.depth_mode != PIGEON_VULKAN_RENDER_PASS_DEPTH_NONE) 
-		ASSERT_1(pigeon_wgi_image_format_is_depth(config.depth_format));
+		ASSERT_R1(pigeon_wgi_image_format_is_depth(config.depth_format));
 
 	if(config.colour_image2)
-		ASSERT_1(config.colour_image);
+		ASSERT_R1(config.colour_image);
 
 	VkAttachmentDescription attachments[3] = {{0}};
 	unsigned int attachment_count;
@@ -160,7 +160,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_make_render_pass(PigeonVulkanRenderPass * rp, Pi
 	render_pass_create.pDependencies = subpass_dependencies;
 
 
-	ASSERT__1(vkCreateRenderPass(vkdev, &render_pass_create, NULL, &rp->vk_renderpass) == VK_SUCCESS, "vkCreateRenderPass error");
+	ASSERT_LOG_R1(vkCreateRenderPass(vkdev, &render_pass_create, NULL, &rp->vk_renderpass) == VK_SUCCESS, "vkCreateRenderPass error");
 
 	rp->has_colour_image = config.colour_image != PIGEON_WGI_IMAGE_FORMAT_NONE;
 	rp->has_2_colour_images = config.colour_image2 != PIGEON_WGI_IMAGE_FORMAT_NONE;

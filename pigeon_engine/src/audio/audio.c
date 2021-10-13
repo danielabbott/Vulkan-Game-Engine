@@ -1,32 +1,34 @@
 #include <pigeon/audio/audio.h>
 #include <AL/al.h>
 #include <AL/alc.h>
+#include <pigeon/assert.h>
+#include <string.h>
 
 static ALCdevice * device;
 static ALCcontext * context;
 
-ERROR_RETURN_TYPE pigeon_audio_init(void)
+PIGEON_ERR_RET pigeon_audio_init(void)
 {
     if(device) return 0;
 
     device = alcOpenDevice(NULL);
-    ASSERT_1(device);
+    ASSERT_R1(device);
 
 
     context = alcCreateContext(device, NULL);
     if(!context) {
         pigeon_audio_deinit();
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
     if(!alcMakeContextCurrent(context)) {
         pigeon_audio_deinit(); 
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
     if(alGetError()) {
         pigeon_audio_deinit(); 
-        ASSERT_1(false);
+        ASSERT_R1(false);
     }
 
     return 0;
@@ -46,42 +48,42 @@ void pigeon_audio_set_listener(vec3 position, vec3 look_at, vec3 look_up, vec3 v
 }
 
 
-ERROR_RETURN_TYPE pigeon_audio_create_buffers(unsigned int n, PigeonAudioBuffer* out)
+PIGEON_ERR_RET pigeon_audio_create_buffers(unsigned int n, PigeonAudioBufferID* out)
 {
     alGenBuffers((ALsizei)n, out);
-    ASSERT_1(!alGetError());
+    ASSERT_R1(!alGetError());
     return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_audio_upload(PigeonAudioBuffer buffer, PigeonAudioMeta meta,
+PIGEON_ERR_RET pigeon_audio_upload(PigeonAudioBufferID buffer, PigeonAudioMeta meta,
     void * data, unsigned int length_in_bytes)
 {
     ALenum format = meta.channels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16;
     alBufferData(buffer, format, data, (ALsizei)length_in_bytes, (ALsizei)meta.sample_rate);
-    ASSERT_1(!alGetError());
+    ASSERT_R1(!alGetError());
     return 0;
 }
 
-void pigeon_audio_destroy_buffers(unsigned int n, PigeonAudioBuffer const* buffers)
+void pigeon_audio_destroy_buffers(unsigned int n, PigeonAudioBufferID const* buffers)
 {
     alDeleteBuffers((ALsizei)n, buffers);
     alGetError();
 }
 
-ERROR_RETURN_TYPE pigeon_audio_create_sources(unsigned int n, PigeonAudioSource* out)
+PIGEON_ERR_RET pigeon_audio_create_sources(unsigned int n, PigeonAudioSourceID* out)
 {
     alGenSources((ALsizei)n, out);
-    ASSERT_1(!alGetError());
+    ASSERT_R1(!alGetError());
     return 0;
 }
 
-void pigeon_audio_destroy_sources(unsigned int n, PigeonAudioSource const* sources)
+void pigeon_audio_destroy_sources(unsigned int n, PigeonAudioSourceID const* sources)
 {
     alDeleteSources((ALsizei)n, sources);
     alGetError();
 }
 
-void pigeon_audio_update_source(PigeonAudioSource source, PigeonAudioSourceParameters const* parameters)
+void pigeon_audio_update_source(PigeonAudioSourceID source, PigeonAudioSourceParameters const* parameters)
 {
     alSourcef(source, AL_PITCH, parameters->pitch);
     alSourcef(source, AL_GAIN, parameters->gain);
@@ -91,7 +93,7 @@ void pigeon_audio_update_source(PigeonAudioSource source, PigeonAudioSourceParam
     alGetError();
 }
 
-void pigeon_audio_play(PigeonAudioSource source, PigeonAudioBuffer buffer)
+void pigeon_audio_play(PigeonAudioSourceID source, PigeonAudioBufferID buffer)
 {
     alSourcei(source, AL_BUFFER, (int)buffer);
     alSourcePlay(source);

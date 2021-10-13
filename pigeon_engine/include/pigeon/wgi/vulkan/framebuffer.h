@@ -10,10 +10,10 @@ typedef struct PigeonVulkanFramebuffer
 	struct VkFramebuffer_T* vk_framebuffer;
 } PigeonVulkanFramebuffer;
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer*, 
+PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer*, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanRenderPass*);
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer*, 
+PIGEON_ERR_RET pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer*, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanImageView * colour2,
     PigeonVulkanRenderPass*);
 

@@ -1,18 +1,19 @@
 #include "tex.h"
+#include <pigeon/assert.h>
 
 
 
-ERROR_RETURN_TYPE pigeon_wgi_create_array_texture(PigeonWGIArrayTexture* array_texture, 
+PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture* array_texture, 
     uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat format, unsigned int mip_maps,
     PigeonWGICommandBuffer* cmd_buf)
 {
-    ASSERT_1(array_texture && cmd_buf && width && width <= 16384 && height && height <= 16384 && layers && layers <= 1024);
-    ASSERT_1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
+    ASSERT_R1(array_texture && cmd_buf && width && width <= 16384 && height && height <= 16384 && layers && layers <= 1024);
+    ASSERT_R1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
     || (format >= PIGEON_WGI_IMAGE_FORMAT__FIRST_COMPRESSED_FORMAT &&
         format <= PIGEON_WGI_IMAGE_FORMAT__LAST_COMPRESSED_FORMAT));
 
     array_texture->data = calloc(1, sizeof *array_texture->data);
-    ASSERT_1(array_texture->data);
+    ASSERT_R1(array_texture->data);
 
     if(!mip_maps) {
         unsigned int w = width, h = height;
@@ -119,6 +120,8 @@ void pigeon_wgi_array_texture_transfer_done(PigeonWGIArrayTexture* array_texture
 
 void pigeon_wgi_destroy_array_texture(PigeonWGIArrayTexture* array_texture)
 {
+    assert(array_texture);
+
     if(array_texture->data) {
         if(array_texture->data->image_view.vk_image_view)
             pigeon_vulkan_destroy_image_view(&array_texture->data->image_view);
@@ -137,9 +140,6 @@ void pigeon_wgi_destroy_array_texture(PigeonWGIArrayTexture* array_texture)
 
 
         free(array_texture->data);
-    }
-    else {
-        assert(false);
     }
 }
 

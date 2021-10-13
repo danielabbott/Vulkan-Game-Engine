@@ -31,9 +31,9 @@ typedef struct PigeonVulkanCommandPool {
 } PigeonVulkanCommandPool;
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool*, unsigned int buffer_count, bool primary, bool use_transfer_queue);
+PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool*, unsigned int buffer_count, bool primary, bool use_transfer_queue);
 
-ERROR_RETURN_TYPE pigeon_vulkan_start_submission(PigeonVulkanCommandPool*, unsigned int buffer_index);
+PIGEON_ERR_RET pigeon_vulkan_start_submission(PigeonVulkanCommandPool*, unsigned int buffer_index);
 int pigeon_vulkan_start_submission2(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
 	PigeonVulkanRenderPass * render_pass, PigeonVulkanFramebuffer * framebuffer);
 
@@ -96,7 +96,7 @@ void pigeon_vulkan_draw_indexed(PigeonVulkanCommandPool*, unsigned int buffer_in
 void pigeon_vulkan_multidraw_indexed(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 	PigeonVulkanPipeline*, unsigned int push_constants_size, void * push_constants_data,
 	PigeonVulkanBuffer*, uint64_t buffer_offset,
-	uint32_t first_multidraw_index, uint32_t draws);
+	uint32_t first_multidraw_index, uint32_t multidraw_cmd_count);
 
 void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool*, unsigned int buffer_index, 
 		PigeonVulkanBuffer * dst, uint64_t dst_offset,
@@ -106,10 +106,10 @@ void pigeon_vulkan_buffer_transfer(PigeonVulkanCommandPool*, unsigned int buffer
 void pigeon_vulkan_reset_query_pool(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanTimerQueryPool*);
 void pigeon_vulkan_set_timer(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanTimerQueryPool*, unsigned int n);
 
-ERROR_RETURN_TYPE pigeon_vulkan_end_submission(PigeonVulkanCommandPool*, unsigned int buffer_index);
+PIGEON_ERR_RET pigeon_vulkan_end_submission(PigeonVulkanCommandPool*, unsigned int buffer_index);
 
 // Fence is optional
-ERROR_RETURN_TYPE pigeon_vulkan_submit(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*);
+PIGEON_ERR_RET pigeon_vulkan_submit(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*);
 int pigeon_vulkan_submit2(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*,
 	 PigeonVulkanSemaphore* wait_sempaphore, PigeonVulkanSemaphore* signal_sempaphore);
 int pigeon_vulkan_submit3(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*,
@@ -118,5 +118,5 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool*, unsigned int buffer_index, P
 
 // * Wait for execution to complete before resetting or destroying a command pool *
 
-ERROR_RETURN_TYPE pigeon_vulkan_reset_command_pool(PigeonVulkanCommandPool*);
+PIGEON_ERR_RET pigeon_vulkan_reset_command_pool(PigeonVulkanCommandPool*);
 void pigeon_vulkan_destroy_command_pool(PigeonVulkanCommandPool*);

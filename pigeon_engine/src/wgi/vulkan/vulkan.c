@@ -6,7 +6,7 @@
 #include <string.h>
 #include <pigeon/wgi/window.h>
 #include <pigeon/wgi/vulkan/vulkan.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
 #define GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_VULKAN
@@ -20,18 +20,18 @@ static const char* validation_layer_name = "VK_LAYER_KHRONOS_validation";
 static bool validation_layers_available();
 #endif
 
-static ERROR_RETURN_TYPE create_vk_instance(void);
+static PIGEON_ERR_RET create_vk_instance(void);
 
-ERROR_RETURN_TYPE pigeon_create_vulkan_context(bool prefer_dedicated_gpu)
+PIGEON_ERR_RET pigeon_create_vulkan_context(bool prefer_dedicated_gpu)
 {
-	ASSERT_1(!create_vk_instance());
+	ASSERT_R1(!create_vk_instance());
 
 	// Create surface
-	ASSERT__1(glfwCreateWindowSurface(singleton_data.instance, pigeon_wgi_get_glfw_window_handle(), 
+	ASSERT_LOG_R1(glfwCreateWindowSurface(singleton_data.instance, pigeon_wgi_get_glfw_window_handle(), 
 		NULL, &singleton_data.surface) == VK_SUCCESS, "glfwCreateWindowSurface error");
 
-	ASSERT_1(!pigeon_find_vulkan_device(prefer_dedicated_gpu));
-	ASSERT_1(!pigeon_create_vulkan_logical_device_and_queues());
+	ASSERT_R1(!pigeon_find_vulkan_device(prefer_dedicated_gpu));
+	ASSERT_R1(!pigeon_create_vulkan_logical_device_and_queues());
 
 	return 0;
 }
@@ -124,7 +124,7 @@ static bool validation_layers_available(void)
 }
 #endif
 
-static ERROR_RETURN_TYPE create_vk_instance(void)
+static PIGEON_ERR_RET create_vk_instance(void)
 {
 	VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	appInfo.pApplicationName = "Pigeon-powered Application";
@@ -160,13 +160,13 @@ static ERROR_RETURN_TYPE create_vk_instance(void)
 	}
 
 
-	ASSERT__1(result != VK_ERROR_OUT_OF_HOST_MEMORY, "vkCreateInstance error: Out of Memory");
-	ASSERT__1(result != VK_ERROR_OUT_OF_DEVICE_MEMORY, "vkCreateInstance error: Out of Device Memory");
-	ASSERT__1(result != VK_ERROR_INITIALIZATION_FAILED, "vkCreateInstance error: Initialisation Failed");
-	ASSERT__1(result != VK_ERROR_LAYER_NOT_PRESENT, "vkCreateInstance error: Validation Layer not Present");
-	ASSERT__1(result != VK_ERROR_EXTENSION_NOT_PRESENT, "vkCreateInstance error: Extension not Present");
-	ASSERT__1(result != VK_ERROR_INCOMPATIBLE_DRIVER, "vkCreateInstance error: Incompatible Driver");
-	ASSERT__1(result == VK_SUCCESS, "vkCreateInstance error");
+	ASSERT_LOG_R1(result != VK_ERROR_OUT_OF_HOST_MEMORY, "vkCreateInstance error: Out of Memory");
+	ASSERT_LOG_R1(result != VK_ERROR_OUT_OF_DEVICE_MEMORY, "vkCreateInstance error: Out of Device Memory");
+	ASSERT_LOG_R1(result != VK_ERROR_INITIALIZATION_FAILED, "vkCreateInstance error: Initialisation Failed");
+	ASSERT_LOG_R1(result != VK_ERROR_LAYER_NOT_PRESENT, "vkCreateInstance error: Validation Layer not Present");
+	ASSERT_LOG_R1(result != VK_ERROR_EXTENSION_NOT_PRESENT, "vkCreateInstance error: Extension not Present");
+	ASSERT_LOG_R1(result != VK_ERROR_INCOMPATIBLE_DRIVER, "vkCreateInstance error: Incompatible Driver");
+	ASSERT_LOG_R1(result == VK_SUCCESS, "vkCreateInstance error");
 
 
 	return 0;

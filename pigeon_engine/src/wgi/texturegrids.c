@@ -1,19 +1,21 @@
 // * untested *
 #include "tex.h"
 #include <stdlib.h>
+#include <pigeon/assert.h>
+#include <string.h>
 
 // TODO replace 8 with GRID_SIZE and 4096 with IMAGE_WIDTH_HEIGHT
 // #define GRID_SIZE 8
 // #define IMAGE_WIDTH_HEIGHT (GRID_SIZE*512)
 
-ERROR_RETURN_TYPE pigeon_wgi_allocate_empty_grids(PigeonWGIGridTextureGrid** grid_ptr, unsigned int * grids_count, 
+PIGEON_ERR_RET pigeon_wgi_allocate_empty_grids(PigeonWGIGridTextureGrid** grid_ptr, unsigned int * grids_count, 
     unsigned int tiles)
 {
     unsigned int tiles_per_grid = 8*8;
     unsigned int grids = (tiles+tiles_per_grid-1) / tiles_per_grid;
 
     *grid_ptr = calloc(grids, sizeof(PigeonWGIGridTextureGrid));
-    ASSERT_1(*grid_ptr);
+    ASSERT_R1(*grid_ptr);
     *grids_count = grids;
 
     return 0;
@@ -31,17 +33,17 @@ static bool grid_region_empty(void ** tiles, unsigned int w, unsigned h, unsigne
     return true;
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid ** grids_, unsigned int* grids_count,
+PIGEON_ERR_RET pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid ** grids_, unsigned int* grids_count,
     void * texture,
     unsigned int tiles_width, unsigned int tiles_height, PigeonWGITextureGridPosition* position,
     bool allow_add_new_grids)
 {
-    ASSERT_1(tiles_width > 0 && tiles_width <= 8 && tiles_height > 0 && tiles_height <= 8);
-    ASSERT_1(grids_ && grids_count && position);
+    ASSERT_R1(tiles_width > 0 && tiles_width <= 8 && tiles_height > 0 && tiles_height <= 8);
+    ASSERT_R1(grids_ && grids_count && position);
 
     PigeonWGIGridTextureGrid * grids = *grids_;
 
-    if(*grids_count) ASSERT_1(grids);
+    if(*grids_count) ASSERT_R1(grids);
 
     for(unsigned int i = 0; i < *grids_count; i++) {
         if(grids[i].used_tiles == 8*8) continue;
@@ -76,7 +78,7 @@ ERROR_RETURN_TYPE pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid ** gri
     unsigned int new_grids_count = *grids_count + 1;
     grids = realloc(grids, new_grids_count * sizeof *grids);
 
-    ASSERT_1(grids);
+    ASSERT_R1(grids);
 
     memset(&grids[new_grids_count-1], 0, sizeof *grids);
 
@@ -87,15 +89,15 @@ ERROR_RETURN_TYPE pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid ** gri
         texture, tiles_width, tiles_height, position, false);
 }
 
-ERROR_RETURN_TYPE pigeon_wgi_create_grid_texture(PigeonWGIGridTexture* grid_texture, 
+PIGEON_ERR_RET pigeon_wgi_create_grid_texture(PigeonWGIGridTexture* grid_texture, 
     uint32_t grids, PigeonWGIImageFormat format, PigeonWGICommandBuffer* cmd_buf, bool mip_maps)
 {
-    ASSERT_1(grid_texture && cmd_buf);
-    ASSERT_1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
+    ASSERT_R1(grid_texture && cmd_buf);
+    ASSERT_R1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
     || (format >= PIGEON_WGI_IMAGE_FORMAT__FIRST_COMPRESSED_FORMAT &&
         format <= PIGEON_WGI_IMAGE_FORMAT__LAST_COMPRESSED_FORMAT));
 
-    ASSERT_1(pigeon_wgi_create_array_texture(&grid_texture->array_texture, 
+    ASSERT_R1(pigeon_wgi_create_array_texture(&grid_texture->array_texture, 
         4096, 4096, grids, format, mip_maps ? 8 : 1, cmd_buf));
     return 0;
 }

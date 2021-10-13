@@ -1,7 +1,9 @@
-#include <pigeon/util.h>
+#include <pigeon/misc.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-
-size_t* load_file(const char* file, unsigned int extra, unsigned long * file_size) {
+size_t* pigeon_load_file(const char* file, unsigned int extra, unsigned long * file_size) {
 	FILE* f = fopen(file, "rb");
 	if (!f) {
 		fprintf(stderr, "File not found: %s\n", file);
@@ -40,7 +42,4 @@ size_t* load_file(const char* file, unsigned int extra, unsigned long * file_siz
 
 }
 
-unsigned int round_up(unsigned int x, unsigned int round)
-{
-    return ((x + round-1) / round) * round;
-}
+

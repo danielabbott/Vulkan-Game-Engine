@@ -1,11 +1,11 @@
 #include "singleton.h"
 #include <pigeon/wgi/vulkan/sampler.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 
 int pigeon_vulkan_create_sampler(PigeonVulkanSampler* sampler, bool linear_filter, bool anisiotropic_filtering,
 	bool shadow_map, bool clamp_to_edge, bool multi_mip_map_sample)
 {
-    ASSERT_1(sampler);
+    ASSERT_R1(sampler);
 
     VkSamplerCreateInfo sampler_create = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -42,7 +42,7 @@ int pigeon_vulkan_create_sampler(PigeonVulkanSampler* sampler, bool linear_filte
         sampler_create.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     }
 
-    ASSERT__1(vkCreateSampler(vkdev, &sampler_create, NULL, &sampler->vk_sampler) == VK_SUCCESS, "vkCreateSampler error");
+    ASSERT_LOG_R1(vkCreateSampler(vkdev, &sampler_create, NULL, &sampler->vk_sampler) == VK_SUCCESS, "vkCreateSampler error");
 
 
 	return 0;

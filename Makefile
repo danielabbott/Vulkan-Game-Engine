@@ -11,7 +11,8 @@ CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
 -Wunused-macros -Wcast-align -Werror=incompatible-pointer-types \
--Wformat-security -Wundef -Wconversion -Werror=unused-result\
+-Wformat-security -Wundef -Wconversion -Werror=unused-result \
+-Werror=int-conversion \
 -Iconfig_parser -fstack-protector -I pigeon_engine/include -isystem deps
 
 
@@ -69,6 +70,7 @@ $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv
 
 SOURCES = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
 $(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
+$(wildcard pigeon_engine/src/scene/*.c) \
 $(wildcard tests/1/*.c) config_parser/parser.c
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 

@@ -56,8 +56,8 @@ int pigeon_vulkan_allocate_memory_dedicated(PigeonVulkanMemoryAllocation*,
 	struct PigeonVulkanImage* image, struct PigeonVulkanBuffer * buffer);
 
 
-ERROR_RETURN_TYPE pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation*, void** data_ptr);
-ERROR_RETURN_TYPE pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation*, uint64_t offset, uint64_t size);
+PIGEON_ERR_RET pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation*, void** data_ptr);
+PIGEON_ERR_RET pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation*, uint64_t offset, uint64_t size);
 void pigeon_vulkan_unmap_memory(PigeonVulkanMemoryAllocation*);
 
 

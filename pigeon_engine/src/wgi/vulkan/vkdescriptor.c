@@ -1,6 +1,6 @@
 #include "singleton.h"
 #include <pigeon/wgi/vulkan/descriptor.h>
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
 #include <stdlib.h>
 
 int pigeon_vulkan_create_descriptor_layout(PigeonVulkanDescriptorLayout * layout,
@@ -54,7 +54,7 @@ int pigeon_vulkan_create_descriptor_layout(PigeonVulkanDescriptorLayout * layout
 	layout_create_info.bindingCount = bindings_count;
 	layout_create_info.pBindings = layouts;
 
-	ASSERT__1(vkCreateDescriptorSetLayout(vkdev, &layout_create_info, NULL, &layout->handle) == VK_SUCCESS,
+	ASSERT_LOG_R1(vkCreateDescriptorSetLayout(vkdev, &layout_create_info, NULL, &layout->handle) == VK_SUCCESS,
 		"vkCreateDescriptorSetLayout error");
 
 	free(layouts);
@@ -108,7 +108,7 @@ static int create_pool(PigeonVulkanDescriptorPool* pool,
 	poolInfo.pPoolSizes = pool_sizes;
 	poolInfo.maxSets = set_count;
 
-	ASSERT__1(vkCreateDescriptorPool(vkdev, &poolInfo, NULL, &pool->vk_descriptor_pool) == VK_SUCCESS, "vkCreateDescriptorPool error");
+	ASSERT_LOG_R1(vkCreateDescriptorPool(vkdev, &poolInfo, NULL, &pool->vk_descriptor_pool) == VK_SUCCESS, "vkCreateDescriptorPool error");
 
 	return 0;
 }
@@ -118,7 +118,7 @@ int pigeon_vulkan_create_descriptor_pool(PigeonVulkanDescriptorPool* pool,
 {
 	assert(pool && layouts && set_count > 0);
 
-	ASSERT_1(!create_pool(pool, set_count, layouts));
+	ASSERT_R1(!create_pool(pool, set_count, layouts));
 
 	VkDescriptorSetLayout* layouts_vk = malloc(sizeof *layouts_vk * set_count);
 	if(!layouts_vk) {
@@ -145,7 +145,7 @@ int pigeon_vulkan_create_descriptor_pool(PigeonVulkanDescriptorPool* pool,
 		}
 	}
 
-	ASSERT__1(vkAllocateDescriptorSets(vkdev, &allocInfo, 
+	ASSERT_LOG_R1(vkAllocateDescriptorSets(vkdev, &allocInfo, 
 		set_count > 1 ? pool->vk_descriptor_sets : &pool->vk_descriptor_set
 	) == VK_SUCCESS, "vkAllocateDescriptorSets error");
 

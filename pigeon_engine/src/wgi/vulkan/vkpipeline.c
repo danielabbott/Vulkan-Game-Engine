@@ -1,8 +1,9 @@
 #include <pigeon/wgi/vulkan/pipeline.h>
 #include "singleton.h"
-#include <pigeon/util.h>
+#include <pigeon/assert.h>
+#include <pigeon/misc.h>
 
-ERROR_RETURN_TYPE pigeon_vulkan_create_shader(PigeonVulkanShader* shader, const uint32_t* spv, unsigned int spv_size)
+PIGEON_ERR_RET pigeon_vulkan_create_shader(PigeonVulkanShader* shader, const uint32_t* spv, unsigned int spv_size)
 {
 	assert(shader && spv && spv_size);
 
@@ -12,7 +13,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_shader(PigeonVulkanShader* shader, const 
 
 	int err = vkCreateShaderModule(vkdev, &create_info, NULL, &shader->vk_shader_module);
 
-	ASSERT__1(err == VK_SUCCESS, "vkCreateShaderModule error");
+	ASSERT_LOG_R1(err == VK_SUCCESS, "vkCreateShaderModule error");
 	return 0;
 }
 
@@ -47,19 +48,19 @@ static VkFormat get_vertex_attribute_format(PigeonWGIVertexAttributeType type)
 	return 0;
 }
 
-ERROR_RETURN_TYPE pigeon_vulkan_load_shader(PigeonVulkanShader* shader, const char* file_path)
+PIGEON_ERR_RET pigeon_vulkan_load_shader(PigeonVulkanShader* shader, const char* file_path)
 {
 	assert(shader && file_path);
 
 	unsigned long file_size;
-	uint32_t* binary_data = (uint32_t*)load_file(file_path, 0, &file_size);
-	ASSERT_1(binary_data);
+	uint32_t* binary_data = (uint32_t*)pigeon_load_file(file_path, 0, &file_size);
+	ASSERT_R1(binary_data);
 
 	int err = pigeon_vulkan_create_shader(shader, binary_data, (uint32_t)file_size);
 	
 	free(binary_data);
 
-	ASSERT_1(!err);
+	ASSERT_R1(!err);
 	return 0;
 }
 
@@ -73,11 +74,11 @@ void pigeon_vulkan_destroy_shader(PigeonVulkanShader* shader)
 	}
 }
 
-static ERROR_RETURN_TYPE create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout* descriptor_layout,
+static PIGEON_ERR_RET create_layout(VkPipelineLayout* layout, PigeonVulkanDescriptorLayout* descriptor_layout,
 	unsigned int push_constants_size)
 {
-	ASSERT_1(layout && !*layout);
-	if(descriptor_layout) ASSERT_1(descriptor_layout->handle);
+	ASSERT_R1(layout && !*layout);
+	if(descriptor_layout) ASSERT_R1(descriptor_layout->handle);
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 
@@ -97,23 +98,23 @@ static ERROR_RETURN_TYPE create_layout(VkPipelineLayout* layout, PigeonVulkanDes
 		pipeline_layout_create.pPushConstantRanges = &push_constants;
 	}
 
-	ASSERT__1(vkCreatePipelineLayout(
+	ASSERT_LOG_R1(vkCreatePipelineLayout(
 		vkdev, &pipeline_layout_create, NULL, layout) == VK_SUCCESS,
 		"vkCreatePipelineLayout error");
 	return 0;
 }
 
 // N.b. Shader objects can be deleted after creating a pipeline
-ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanShader* vs, PigeonVulkanShader* fs,
+PIGEON_ERR_RET pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, PigeonVulkanShader* vs, PigeonVulkanShader* fs,
 	unsigned int push_constants_size, PigeonVulkanRenderPass* render_pass,
 	PigeonVulkanDescriptorLayout* descriptor_layout, const PigeonWGIPipelineConfig* cfg,
 	unsigned int specialisation_constants, uint32_t * sc_data)
 {
 	if (!pipeline || !vs || !render_pass || !render_pass->vk_renderpass || push_constants_size > 128 || specialisation_constants > 16) {
-		ASSERT_1(false);
+		ASSERT_R1(false);
 	}
 
-	ASSERT_1 (!create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size)) ;
+	ASSERT_R1 (!create_layout(&pipeline->vk_pipeline_layout, descriptor_layout, push_constants_size)) ;
 
 	VkPipelineShaderStageCreateInfo shaders[2] = { {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO},
 		{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO} };
@@ -267,7 +268,7 @@ ERROR_RETURN_TYPE pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, 
 	if (vkCreateGraphicsPipelines(vkdev, VK_NULL_HANDLE, 1, &pipeline_create,
 			NULL, &pipeline->vk_pipeline) != VK_SUCCESS) {
 		vkDestroyPipelineLayout(vkdev, pipeline->vk_pipeline_layout, NULL);
-		ASSERT__1(false, "vkCreateGraphicsPipelines error");
+		ASSERT_LOG_R1(false, "vkCreateGraphicsPipelines error");
 	}
 	return 0;
 }
