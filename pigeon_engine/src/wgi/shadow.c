@@ -5,6 +5,7 @@
 #include <string.h>
 #include <pigeon/assert.h>
 #include <cglm/affine.h>
+#include <stdlib.h>
 
 static void ortho_rh_z_1_0(float left, float right,
                 float bottom,  float top,

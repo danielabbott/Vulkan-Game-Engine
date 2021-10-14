@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "config_parser.h"
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>

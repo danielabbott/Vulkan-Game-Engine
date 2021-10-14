@@ -1,0 +1,300 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\WGI">
+      <UniqueIdentifier>{6aa7a5b4-6388-4ab1-bdb6-bbe975c2aadb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\WGI\Vulkan">
+      <UniqueIdentifier>{93da9951-eb6d-416b-86f2-0d2eb96d5270}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene">
+      <UniqueIdentifier>{712cc298-29f9-4734-8f5a-0bffddbf66ee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Audio">
+      <UniqueIdentifier>{aed8948b-afd4-4b53-984a-f83c8c591f0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Audio">
+      <UniqueIdentifier>{65d00e90-cc9c-48fc-87a2-5e98485c3a99}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene">
+      <UniqueIdentifier>{46045ab4-b741-4a9c-9d3a-4dcd356b7ff1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\WGI">
+      <UniqueIdentifier>{5890ab51-49ca-463e-b6b3-0302f6d528ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\WGI\Vulkan">
+      <UniqueIdentifier>{d18c2008-d364-4184-b5f2-580f54296600}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\array_list.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\asset.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\object_pool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pigeon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\util.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\arraytexture.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\framebuffers.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\mesh.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\pipeline.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\render.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\shadow.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\texturegrids.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\textures.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\wgi.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\window.c">
+      <Filter>Source Files\WGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkbuffer.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkcommand.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkdescriptor.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkfence.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkframebuffer.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkimage.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkmemory.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkphysdevice.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkpipeline.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkquery.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkqueue.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkrenderpass.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vksampler.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vksemaphore.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vkswapchain.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\vulkan\vulkan.c">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\scene_audio.c">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\draw.c">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\light.c">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\mesh_renderer.c">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\pointer_list.c">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\transform.c">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\audio\audio.c">
+      <Filter>Source Files\Audio</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\bit_functions.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\wgi\singleton.h">
+      <Filter>Source Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\wgi\tex.h">
+      <Filter>Source Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="src\wgi\vulkan\singleton.h">
+      <Filter>Source Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\pointer_list.h">
+      <Filter>Source Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\array_list.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\assert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\asset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\misc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\object_pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\pigeon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\scene\audio.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\scene\component.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\scene\light.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\scene\mesh_renderer.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\scene\scene.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\scene\transform.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\buffer.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\command.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\descriptor.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\fence.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\framebuffer.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\image.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\memory.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\pipeline.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\query.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\renderpass.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\sampler.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\semaphore.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\swapchain.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\vulkan\vulkan.h">
+      <Filter>Header Files\WGI\Vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\animation.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\bone.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\image_formats.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\input.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\keys.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\material.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\mesh.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\pipeline.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\rendergraph.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\shadow.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\textures.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\uniform.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\wgi.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\window.h">
+      <Filter>Header Files\WGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\audio\audio.h">
+      <Filter>Header Files\Audio</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

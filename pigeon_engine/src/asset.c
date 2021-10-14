@@ -1,7 +1,7 @@
 #include <pigeon/asset.h>
 #include <pigeon/assert.h>
 #include <pigeon/misc.h>
-#include <parser.h>
+#include <config_parser.h>
 #include <zstd.h>
 #include <stb_vorbis.c>
 

@@ -3,6 +3,14 @@ build
 null.d
 *.blend1
 config_parser/x64
+config_parser/Debug
 image_asset_converter/x64
+image_asset_converter/Debug
+audio_asset_converter/x64
+audio_asset_converter/Debug
 pigeon_engine/x64
+pigeon_engine/Debug
 tests/*/x64
+.vs
+deps/cglm
+x64

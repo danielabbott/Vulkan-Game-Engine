@@ -94,7 +94,7 @@ void pigeon_array_list_remove2(PigeonArrayList* al, void * element)
 {
     pigeon_array_list_remove(
         al,
-        (unsigned) ((uintptr_t)(element - al->elements) / (uintptr_t)al->element_size),
+        (unsigned) (((uintptr_t)element - (uintptr_t)al->elements) / (uintptr_t)al->element_size),
         1
     );
 }
@@ -103,7 +103,7 @@ void pigeon_array_list_remove_preserve_order2(PigeonArrayList* al, void * elemen
 {
     pigeon_array_list_remove_preserve_order(
         al,
-        (unsigned) ((uintptr_t)(element - al->elements) / (uintptr_t)al->element_size),
+        (unsigned) (((uintptr_t)element - (uintptr_t)al->elements) / (uintptr_t)al->element_size),
         1
     );
 }
