@@ -159,7 +159,7 @@ int pigeon_vulkan_image_bind_memory(PigeonVulkanImage* image, PigeonVulkanMemory
 
 PIGEON_ERR_RET pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage* image, PigeonVulkanMemoryAllocation* memory)
 {
-	ASSERT_R1(image && image->vk_image && memory && memory->vk_device_memory && memory->is_dedicated);
+	ASSERT_R1(image && image->vk_image && memory && memory->vk_device_memory);
 	ASSERT_LOG_R1(vkBindImageMemory(vkdev, image->vk_image, memory->vk_device_memory, 0) == VK_SUCCESS, "vkBindImageMemory error");
 	return 0;
 }

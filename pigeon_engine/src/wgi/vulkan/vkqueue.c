@@ -37,13 +37,11 @@ PIGEON_ERR_RET pigeon_create_vulkan_logical_device_and_queues(void)
 	device_create_info.queueCreateInfoCount = singleton_data.transfer_queue_family == UINT32_MAX ? 1 : 2;
 	device_create_info.pEnabledFeatures = &physical_device_features;
 
-	const char * extensions[3] = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-		VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-		VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME
+	const char * extensions[1] = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
-	device_create_info.enabledExtensionCount = singleton_data.dedicated_allocation_supported ? 3 : 1;
+	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = extensions;
 
 #ifndef NDEBUG

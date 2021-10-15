@@ -82,7 +82,7 @@ PIGEON_ERR_RET pigeon_wgi_create_per_frame_objects()
 
 
         // TODO do in bulk
-        for(unsigned int j = 0; j < 90; j++) {
+        for(unsigned int j = 0; j < 59; j++) {
             pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 5, j, 
                 &singleton_data.default_1px_white_texture_array_image_view, &singleton_data.texture_sampler);
             pigeon_vulkan_set_descriptor_texture(&objects->light_pass_descriptor_pool, 0, 5, j, 

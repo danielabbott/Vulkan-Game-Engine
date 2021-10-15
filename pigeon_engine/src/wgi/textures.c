@@ -105,7 +105,7 @@ PIGEON_ERR_RET pigeon_wgi_create_descriptor_layouts(void)
 	// Textures
 	bindings[5].type = PIGEON_VULKAN_DESCRIPTOR_TYPE_TEXTURE;
 	bindings[5].fragment_shader_accessible = true;
-	bindings[5].elements = 90;
+	bindings[5].elements = 59;
 
 	ASSERT_R1(!pigeon_vulkan_create_descriptor_layout(&singleton_data.render_descriptor_layout, 6, bindings));
 

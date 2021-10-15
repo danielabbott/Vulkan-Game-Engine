@@ -80,7 +80,7 @@ PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory(PigeonVulkanBuffer* buffer, Pige
 
 PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory_dedicated(PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation* memory)
 {
-	ASSERT_R1(buffer && buffer->vk_buffer && memory && memory->vk_device_memory && memory->is_dedicated);
+	ASSERT_R1(buffer && buffer->vk_buffer && memory && memory->vk_device_memory);
 	ASSERT_LOG_R1(vkBindBufferMemory(vkdev, buffer->vk_buffer, memory->vk_device_memory, 0) == VK_SUCCESS, "vkBindBufferMemory error");
 	return 0;
 }

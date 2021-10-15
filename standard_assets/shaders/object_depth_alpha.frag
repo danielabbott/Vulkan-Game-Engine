@@ -5,7 +5,7 @@ layout(location = 0) in vec2 in_uv;
 layout(location = 1) in flat uint in_draw_index;
 
 
-layout(binding = 5) uniform sampler2DArray textures[90];
+layout(binding = 5) uniform sampler2DArray textures[59];
 
 #include "ubo.glsl"
 

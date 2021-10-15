@@ -17,7 +17,7 @@ layout(binding = 3) uniform sampler2D shadow_texture;
 
 layout(binding = 4) uniform sampler2DShadow shadow_maps[4];
 
-layout(binding = 5) uniform sampler2DArray textures[90];
+layout(binding = 5) uniform sampler2DArray textures[59];
 
 #include "ubo.glsl"
 
