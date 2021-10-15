@@ -14,7 +14,7 @@ typedef struct PigeonWGIShadowParameters {
     float far_plane; // must be > near_plane
     float sizeX;
     float sizeY;
-    mat4 view_matrix;
+    mat4 inv_view_matrix;
 
 
     // set by pigeon_wgi_set_frame, do not touch

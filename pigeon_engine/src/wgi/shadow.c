@@ -47,7 +47,10 @@ static PIGEON_ERR_RET validate(void)
         mat4 ortho;
         ortho_rh_z_1_0(-x, x, y, -y, p->near_plane, p->far_plane, ortho);
 
-        glm_mat4_mul(ortho, p->view_matrix, p->proj_view);
+        mat4 view_matrix;
+        glm_mat4_inv(p->inv_view_matrix, view_matrix);
+
+        glm_mat4_mul(ortho, view_matrix, p->proj_view);
 
         p->framebuffer_index = -1;
     }
@@ -148,8 +151,8 @@ void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDr
         memcpy(data->lights[i].shadow_proj_view, p->proj_view, 64);
         data->lights[i].is_shadow_caster = 1.0f;
 
-        vec4 dir = {0, 0, -1, 0};
-        glm_mat4_mulv(p->view_matrix, dir, dir);
+        vec4 dir = {0, 0, 1, 0};
+        glm_mat4_mulv(p->inv_view_matrix, dir, dir);
 
         data->lights[i].neg_direction[0] = dir[0];
         data->lights[i].neg_direction[1] = dir[1];

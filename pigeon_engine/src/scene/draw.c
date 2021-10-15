@@ -132,7 +132,7 @@ static void scene_graph_prepass(PigeonWGIShadowParameters shadows[4])
 
             pigeon_scene_calculate_world_matrix(t);
             if(l->shadow_resolution) {
-                glm_mat4_inv(t->world_transform_cache, shadows[light_index].view_matrix);
+                memcpy(shadows[light_index].inv_view_matrix, t->world_transform_cache, 64);
                 shadows[light_index].resolution = l->shadow_resolution;
                 shadows[light_index].near_plane = l->shadow_near;
                 shadows[light_index].far_plane = l->shadow_far;
