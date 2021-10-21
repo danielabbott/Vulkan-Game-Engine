@@ -1,23 +1,40 @@
 #version 460
 
-
-layout(location = 0) in vec2 in_uv;
-layout(location = 1) in flat uint in_draw_index;
+#include "common.glsl"
 
 
+LOCATION(0) in vec2 pass_uv;
+LOCATION(1) flat in int pass_draw_index;
+
+
+
+#if __VERSION__ >= 460
 layout(binding = 5) uniform sampler2DArray textures[59];
+#else
+uniform sampler2DArray diffuse_texture; // opengl binding 4
+uniform sampler2DArray nmap_texture; // opengl binding 7
+#endif
 
 #include "ubo.glsl"
 
 
 void main() {
-    DrawObject data = draw_objects.obj[in_draw_index];  
+#if __VERSION__ >= 460
+    #define data draw_objects.obj[pass_draw_index]
+#else
+    #define data draw_object.obj
+#endif
 
     float alpha = 1;
 
     // data.texture_sampler_index_plus1 >= 1
-    vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
-    float a = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index)).a;
+    float a = texture(
+#if __VERSION__ >= 460
+            textures[data.texture_sampler_index_plus1-1], 
+#else
+            diffuse_texture,
+#endif
+        vec3(pass_uv, data.texture_index)).a;
     
     if(a < 1.0) {
         discard;

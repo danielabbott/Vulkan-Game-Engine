@@ -204,10 +204,10 @@ PIGEON_ERR_RET pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, Pig
 	}
 	rasterizer.polygonMode = cfg->wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
-	if(cfg->depth_bias) {
-		rasterizer.depthBiasEnable = true;
-		rasterizer.depthBiasSlopeFactor = -1;
-	}
+	// if(cfg->depth_bias) {
+	// 	rasterizer.depthBiasEnable = true;
+	// 	rasterizer.depthBiasSlopeFactor = -1;
+	// }
 
 	VkPipelineMultisampleStateCreateInfo multisampling = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -275,17 +275,15 @@ PIGEON_ERR_RET pigeon_vulkan_create_pipeline(PigeonVulkanPipeline* pipeline, Pig
 
 void pigeon_vulkan_destroy_pipeline(PigeonVulkanPipeline* pipeline)
 {
-	if (!pipeline) {
-		assert(false);
-		return;
-	}
-
-	if (pipeline->vk_pipeline) {
-		vkDestroyPipeline(vkdev, pipeline->vk_pipeline, NULL);
-		pipeline->vk_pipeline = NULL;
-	}
-	if (pipeline->vk_pipeline_layout) {
-		vkDestroyPipelineLayout(vkdev, pipeline->vk_pipeline_layout, NULL);
-		pipeline->vk_pipeline_layout = NULL;
+	assert(pipeline);
+	if (pipeline) {
+		if (pipeline->vk_pipeline) {
+			vkDestroyPipeline(vkdev, pipeline->vk_pipeline, NULL);
+			pipeline->vk_pipeline = NULL;
+		}
+		if (pipeline->vk_pipeline_layout) {
+			vkDestroyPipelineLayout(vkdev, pipeline->vk_pipeline_layout, NULL);
+			pipeline->vk_pipeline_layout = NULL;
+		}
 	}
 }

@@ -24,7 +24,7 @@ endif
 
 CFLAGS = $(CFLAGS_COMMON)
 
-LDFLAGS = -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -lm -lc -fuse-ld=lld
+LDFLAGS = -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -ldl -lm -lc -fuse-ld=lld
 
 # -- GLSL CONFIG --
 
@@ -64,14 +64,16 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv
+$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv \
+$(SOURCES_GLSL:%=$(BUILD_DIR)/%)
+
 
 
 
 SOURCES = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
-$(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
-$(wildcard pigeon_engine/src/scene/*.c) \
-$(wildcard tests/1/*.c) config_parser/parser.c
+$(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/wgi/opengl/*.c) \
+$(wildcard pigeon_engine/src/scene/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
+$(wildcard tests/1/*.c) config_parser/parser.c deps/glad.c
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 
 
@@ -141,49 +143,66 @@ $(BUILD_DIR)/%.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
 
+
+$(BUILD_DIR)/%.glsl: %.glsl
+	@mkdir -p $(@D)
+	ln -sf ../../../../$< $@
+
+
 $(BUILD_DIR)/%.spv: %
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth_alpha.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH_ALPHA $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.light.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_LIGHT $(GLSLCFLAGS) $< -o $@
 	
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DSKINNED $(GLSLCFLAGS) $< -o $@
 	
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH_ALPHA -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_LIGHT -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DCOLOUR_TYPE_R $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DCOLOUR_TYPE_RGB $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)
+	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DCOLOUR_TYPE_RGBA $(GLSLCFLAGS) $< -o $@
 
 

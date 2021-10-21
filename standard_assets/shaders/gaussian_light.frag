@@ -1,4 +1,6 @@
-#version 450
+#version 460
+
+#include "common.glsl"
 
 #ifdef COLOUR_TYPE_RGBA
 
@@ -26,13 +28,14 @@
 
 #endif
 
-layout(location = 0) in vec2 in_tex_coord;
+LOCATION(0) in vec2 pass_tex_coord;
 
-layout(location = 0) out COLOUR_TYPE out_colour;
+LOCATION(0) out COLOUR_TYPE out_colour;
 
-layout(binding = 0) uniform sampler2D src_image;
-layout(binding = 1) uniform sampler2D depth_buffer;
+BINDING(0) uniform sampler2D src_image;
+BINDING(1) uniform sampler2D depth_buffer;
 
+#if __VERSION__ >= 460
 
 layout(push_constant) uniform PushConstantsObject
 {
@@ -42,15 +45,31 @@ layout(push_constant) uniform PushConstantsObject
 	float farz;
 } push_constants;
 
+#define SAMPLE_DISTANCE push_constants.sample_distance
+#define HALF_PIXEL push_constants.half_pixel
+#define NEARZ push_constants.farz
+#define FARZ push_constants.nearz
+
+#else
+
+uniform vec4 u_dist_and_half;
+uniform vec2 u_near_far;
+
+#define SAMPLE_DISTANCE u_dist_and_half.rg
+#define HALF_PIXEL u_dist_and_half.ba
+#define NEARZ u_near_far.y
+#define FARZ u_near_far.x
+
+#endif
+
+
 
 float relinearise_depth(float d) {
-	const float nearz = push_constants.farz;
-	const float farz = push_constants.nearz;
-	return farz*nearz / (-d*(farz - nearz) - farz);
+	return FARZ*NEARZ / (-d*(FARZ - NEARZ) - FARZ);
 }
 
 void main() {
-	float centre_depth = relinearise_depth(texture(depth_buffer, in_tex_coord).r);
+	float centre_depth = relinearise_depth(texture(depth_buffer, pass_tex_coord).r);
 
 	COLOUR_TYPE colour = COLOUR_0;
 	float average_sum = 0.0;
@@ -58,8 +77,8 @@ void main() {
 	for(int y = -1; y <= 1; y += 2) {
 		for(int x = -1; x <= 1; x += 2) {
 			vec2 xy = vec2(x,y);
-			vec2 p = in_tex_coord + xy * push_constants.sample_distance;
-			float d = relinearise_depth(texture(depth_buffer, p + xy*push_constants.half_pixel).r);
+			vec2 p = pass_tex_coord + xy * SAMPLE_DISTANCE;
+			float d = relinearise_depth(texture(depth_buffer, p + xy*HALF_PIXEL).r);
 
 			COLOUR_TYPE c = texture(src_image, p).COLOUR_COMPONENTS;
 
@@ -74,7 +93,7 @@ void main() {
 		colour /= average_sum;
 	}
 	else {
-		colour = texture(src_image, in_tex_coord).COLOUR_COMPONENTS;
+		colour = texture(src_image, pass_tex_coord).COLOUR_COMPONENTS;
 	}
 
 	out_colour = colour;

@@ -14,13 +14,13 @@
 #include <cglm/types.h>
 #include "rendergraph.h"
 
-struct PigeonVulkanCommandPool;
 
 /* Returns 0 on success. If fails, call pigeon_wgi_deinit() to cleanup */
-PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu,
+PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, bool prefer_dedicated_gpu, bool prefer_opengl,
 	PigeonWGIRenderConfig render_cfg, float znear, float zfar);
 
 void pigeon_wgi_set_depth_range(float znear, float zfar);
+void pigeon_wgi_set_bloom_intensity(float i);
 
 bool pigeon_wgi_close_requested(void);
 
@@ -41,20 +41,23 @@ typedef enum {
 PIGEON_ERR_RET pigeon_wgi_next_frame_wait(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT]);
 PIGEON_ERR_RET pigeon_wgi_next_frame_poll(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT], bool* ready);
 
+// Alignment (number of bones) of bone data for 1 armature in the bone uniform data
+// This is to align uniform blocks when using OpenGL
+// first_bone_offset must be a multiple of this
+unsigned int pigeon_wgi_get_bone_data_alignment(void);
+
 // max_draws determines the minimum size of the draws ssbo
 // max_multidraw_draws = maximum number of draws within multidraw draws
 // Instancing counts as multiple draws
 // delayed_timer_values is set to the timer query results from 2 or more frames ago
 // index into shadows = index into lights array in per-frame uniform data
-// total_bones = total number of bones accross all objects with a skinned mesh
-//      (multiple instances of the same mesh still add to the count)
 PIGEON_ERR_RET pigeon_wgi_start_frame(uint32_t max_draws,
     uint32_t max_multidraw_draws,
-    PigeonWGIShadowParameters shadows[4], unsigned int total_bones);
+    PigeonWGIShadowParameters shadows[4], unsigned int total_bones,
+    PigeonWGIBoneMatrix ** bone_matrices);
 
 PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
-    PigeonWGIDrawObject *, unsigned int draws_count,
-    PigeonWGIBoneMatrix*, unsigned int bones_count);
+    PigeonWGIDrawObject *, unsigned int draws_count);
 
 struct PigeonWGICommandBuffer;
 
@@ -74,9 +77,16 @@ void pigeon_wgi_draw_without_mesh(PigeonWGICommandBuffer*, PigeonWGIPipeline*, u
 // first and count are either offsets into vertices or indices array depending on whether
 //  the mesh has indices or not
 // Requires 'instances' number of draw objects, starting at 'draw_index'
+// diffuse_texture, nmap_texture, first_bone_index, bones_count are ignored if 
+//  multidraw is supported (vulkan renderer) and can be set to -1.
+//  If multidraw is not supported (opengl) then the textures are the same values
+//  passed to wgi_bind_array_texture
 void pigeon_wgi_draw(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMultiMesh*, 
     uint32_t start_vertex, uint32_t draw_index, uint32_t instances,
-    uint32_t first, unsigned int count);
+    uint32_t first, unsigned int count,
+    int diffuse_texture, int nmap_texture, unsigned int first_bone_index, unsigned int bones_count);
+
+bool pigeon_wgi_multidraw_supported(void);
 
 void pigeon_wgi_multidraw_draw(unsigned int start_vertex, uint32_t instances,
     uint32_t first, uint32_t count, uint32_t first_instance);
@@ -86,7 +96,8 @@ void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, Pi
 
 PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 
-PIGEON_ERR_RET pigeon_wgi_present_frame(bool debug_disable_bloom);
+// Blocks when using OpenGL
+PIGEON_ERR_RET pigeon_wgi_present_frame(void);
 
 
 // Returns 2 (fail) if the window is minimised or smaller than 16x16 pixels

@@ -17,6 +17,8 @@ typedef struct PigeonRenderState
     struct PigeonArrayList* mr; // array of PigeonMaterialRenderer*
 
     unsigned int _draws,_multidraws;
+    unsigned int _start_draw_index;
+    unsigned int _start_multidraw_index;
 } PigeonRenderState;
 
 typedef struct PigeonModelMaterial
@@ -52,7 +54,6 @@ typedef struct PigeonMaterialRenderer
 
     uint32_t diffuse_bind_point; // index into sampler2DArray[] or UINT32_MAX
     uint32_t diffuse_layer; // array texture layer
-    // TODO uv start,size?
     uint32_t nmap_bind_point; // index into sampler2DArray[] or UINT32_MAX
     uint32_t nmap_layer; // array texture layer
     float colour[3];

@@ -239,10 +239,35 @@ static PIGEON_ERR_RET transition_default_images()
 	return 0;
 }
 
+static PIGEON_ERR_RET create_default_image_objects_gl(void)
+{
+	
+	ASSERT_R1(!pigeon_opengl_create_texture(&singleton_data.gl.default_1px_white_texture_image,
+		PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_LINEAR, 1,1, 0, 1));
+	
+	uint8_t pixels[4] = {255,255,255,255};
+	ASSERT_R1(!pigeon_opengl_upload_texture_mip(&singleton_data.gl.default_1px_white_texture_image,
+		0,0, pixels, 4));
+	
+	ASSERT_R1(!pigeon_opengl_create_texture(&singleton_data.gl.default_shadow_map_image,
+		PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, 1,1, 0, 1));
+
+	pigeon_opengl_set_texture_sampler(&singleton_data.gl.default_shadow_map_image,
+		true, false, true, false, false);
+	
+	float depth = 0;
+	ASSERT_R1(!pigeon_opengl_upload_texture_mip(&singleton_data.gl.default_shadow_map_image,
+		0,0, &depth, 4));
+
+	return 0;
+
+}
+
 PIGEON_ERR_RET pigeon_wgi_create_default_textures(void)
 {
-	if (create_default_image_objects()) return 1;
-	if (transition_default_images()) return 1;
+	if (VULKAN && create_default_image_objects()) return 1;
+	if (OPENGL && create_default_image_objects_gl()) return 1;
+	if (VULKAN && transition_default_images()) return 1;
 	return 0;
 }
 

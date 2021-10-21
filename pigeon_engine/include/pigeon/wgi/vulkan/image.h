@@ -2,6 +2,7 @@
 
 #include <pigeon/wgi/image_formats.h>
 #include <pigeon/wgi/vulkan/memory.h>
+#include <pigeon/util.h>
 
 
 struct VkImage_T;
@@ -15,7 +16,7 @@ typedef struct PigeonVulkanImage
 	bool requires_dedicated_memory;
 } PigeonVulkanImage;
 
-int pigeon_vulkan_create_image(PigeonVulkanImage*, PigeonWGIImageFormat,
+PIGEON_ERR_RET pigeon_vulkan_create_image(PigeonVulkanImage*, PigeonWGIImageFormat,
 	unsigned width, unsigned int height, unsigned int layers, unsigned int mip_levels,
 	bool linear_tiling, // true = image is 2D array of pixels, for read/modify on CPU
 	bool preinitialised, // Image data will not be wiped on first use by GPU
@@ -24,7 +25,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage*, PigeonWGIImageFormat,
 	bool to_be_transfer_src, bool to_be_transfer_dst,
 	PigeonVulkanMemoryRequirements*);
 
-int pigeon_vulkan_image_bind_memory(PigeonVulkanImage*, PigeonVulkanMemoryAllocation*, 
+PIGEON_ERR_RET pigeon_vulkan_image_bind_memory(PigeonVulkanImage*, PigeonVulkanMemoryAllocation*, 
 	unsigned int offset);
 PIGEON_ERR_RET pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage*, PigeonVulkanMemoryAllocation*);
 void pigeon_vulkan_destroy_image(PigeonVulkanImage*);

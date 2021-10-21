@@ -88,12 +88,10 @@ PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory_dedicated(PigeonVulkanBuffer* bu
 void pigeon_vulkan_destroy_buffer(PigeonVulkanBuffer* buffer)
 {
     assert(buffer);
+
 	if (buffer && buffer->vk_buffer) {
 		vkDestroyBuffer(vkdev, buffer->vk_buffer, NULL);
 		buffer->vk_buffer = NULL;
-	}
-	else {
-		assert(false);
 	}
 }
 

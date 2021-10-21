@@ -22,8 +22,7 @@ glslc -O -DNDEBUG standard_assets\shaders\object_light.frag -o build\release\sta
 glslc -O -DNDEBUG standard_assets\shaders\post.frag -o build\release\standard_assets\shaders\post.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\skybox.frag -o build\release\standard_assets\shaders\skybox.frag.spv
 
-glslc -O -DNDEBUG standard_assets\shaders\downsample.vert -o build\release\standard_assets\shaders\downsample.vert.spv
-glslc -O -DNDEBUG standard_assets\shaders\gaussian.vert -o build\release\standard_assets\shaders\gaussian.vert.spv
+glslc -O -DNDEBUG standard_assets\shaders\fullscreen.vert -o build\release\standard_assets\shaders\fullscreen.vert.spv
 glslc -O -DNDEBUG standard_assets\shaders\post.vert -o build\release\standard_assets\shaders\post.vert.spv
 glslc -O -DNDEBUG standard_assets\shaders\skybox.vert -o build\release\standard_assets\shaders\skybox.vert.spv
 
@@ -53,8 +52,7 @@ glslc -O0 -DDEBUG standard_assets\shaders\object_light.frag -o build\debug\stand
 glslc -O0 -DDEBUG standard_assets\shaders\post.frag -o build\debug\standard_assets\shaders\post.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\skybox.frag -o build\debug\standard_assets\shaders\skybox.frag.spv
 
-glslc -O0 -DDEBUG standard_assets\shaders\downsample.vert -o build\debug\standard_assets\shaders\downsample.vert.spv
-glslc -O0 -DDEBUG standard_assets\shaders\gaussian.vert -o build\debug\standard_assets\shaders\gaussian.vert.spv
+glslc -O0 -DDEBUG standard_assets\shaders\fullscreen.vert -o build\debug\standard_assets\shaders\fullscreen.vert.spv
 glslc -O0 -DDEBUG standard_assets\shaders\post.vert -o build\debug\standard_assets\shaders\post.vert.spv
 glslc -O0 -DDEBUG standard_assets\shaders\skybox.vert -o build\debug\standard_assets\shaders\skybox.vert.spv
 

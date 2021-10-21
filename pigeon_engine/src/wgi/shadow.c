@@ -7,17 +7,6 @@
 #include <cglm/affine.h>
 #include <stdlib.h>
 
-static void ortho_rh_z_1_0(float left, float right,
-                float bottom,  float top,
-                float nearZ, float farZ,
-                mat4  dest) {
-
-  glm_ortho_rh_zo(left, right,
-                bottom,  top,
-                farZ, nearZ,
-                 dest);
-}
-
 
 static int shadow_compare(const void *i0_, const void *i1_)
 {
@@ -45,7 +34,7 @@ static PIGEON_ERR_RET validate(void)
         float x = p->sizeX;
         float y = p->sizeY;
         mat4 ortho;
-        ortho_rh_z_1_0(-x, x, y, -y, p->near_plane, p->far_plane, ortho);
+        glm_ortho_rh_zo(-x, x, y, -y, p->far_plane, p->near_plane, ortho);
 
         mat4 view_matrix;
         glm_mat4_inv(p->inv_view_matrix, view_matrix);
@@ -61,10 +50,16 @@ static PIGEON_ERR_RET validate(void)
 static PIGEON_ERR_RET create_shadow_framebuffer(PigeonWGIShadowParameters * p, unsigned int framebuffer_index)
 {
     ASSERT_R1(!pigeon_wgi_create_framebuffer_images(&singleton_data.shadow_images[framebuffer_index],
-        PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, p->resolution, p->resolution, false, false));
+        PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32, p->resolution, p->resolution, false, false, true));
 
-    ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
-        &singleton_data.shadow_images[framebuffer_index].image_view, NULL, &singleton_data.rp_depth));
+    if(VULKAN) {
+        ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.shadow_framebuffers[framebuffer_index],
+            &singleton_data.shadow_images[framebuffer_index].image_view, NULL, &singleton_data.rp_depth));
+    }
+    else {
+        ASSERT_R1(!pigeon_opengl_create_framebuffer(&singleton_data.gl.shadow_framebuffers[framebuffer_index],
+            &singleton_data.shadow_images[framebuffer_index].gltex2d, NULL));
+    }
     return 0;
 }
 
@@ -81,7 +76,6 @@ PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void)
 
     for(unsigned int param_index_ = 0; param_index_ < 4; param_index_++) {
 	    PigeonWGIShadowParameters *p = &singleton_data.shadow_parameters[shadow_param_indices_sorted[param_index_]];
-        p->framebuffer_index = -1;
         if(!p->resolution) break;
 
         // Find the smallest framebuffer that is not assigned
@@ -90,20 +84,40 @@ PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void)
         unsigned int chosen_framebuffer_height = 99999;
 
         for(unsigned int i = 0; i < 4; i++) {
-            if(!singleton_data.shadow_framebuffers->vk_framebuffer) continue;
+            if(VULKAN && !singleton_data.shadow_framebuffers->vk_framebuffer) continue;
+            if(OPENGL && !singleton_data.gl.shadow_framebuffers->id) continue;
             if(singleton_data.shadow_framebuffer_assigned[i]) continue;
 
-            if(singleton_data.shadow_images[i].image.width >= p->resolution &&
+            bool match = false;
+
+            if(VULKAN) {
+                match = singleton_data.shadow_images[i].image.width >= p->resolution &&
                 singleton_data.shadow_images[i].image.width < chosen_framebuffer_width &&
                 singleton_data.shadow_images[i].image.height >= p->resolution &&
-                singleton_data.shadow_images[i].image.height < chosen_framebuffer_height)
+                singleton_data.shadow_images[i].image.height < chosen_framebuffer_height;
+            }
+            else {
+                match = singleton_data.shadow_images[i].gltex2d.width >= p->resolution &&
+                singleton_data.shadow_images[i].gltex2d.width < chosen_framebuffer_width &&
+                singleton_data.shadow_images[i].gltex2d.height >= p->resolution &&
+                singleton_data.shadow_images[i].gltex2d.height < chosen_framebuffer_height;
+            }
+
+            if(match)
             {
                 if(chosen_framebuffer_index >= 0) singleton_data.shadow_framebuffer_assigned[chosen_framebuffer_index] = false;
 
                 chosen_framebuffer_index = (int)i;
                 singleton_data.shadow_framebuffer_assigned[i] = true;
-                chosen_framebuffer_width = singleton_data.shadow_images[i].image.width;
-                chosen_framebuffer_height = singleton_data.shadow_images[i].image.height;
+
+                if(VULKAN) {
+                    chosen_framebuffer_width = singleton_data.shadow_images[i].image.width;
+                    chosen_framebuffer_height = singleton_data.shadow_images[i].image.height;
+                }
+                else {
+                    chosen_framebuffer_width = singleton_data.shadow_images[i].gltex2d.width;
+                    chosen_framebuffer_height = singleton_data.shadow_images[i].gltex2d.height;
+                }
             }
         }
         p->framebuffer_index = chosen_framebuffer_index;
@@ -111,11 +125,19 @@ PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void)
 
     // Delete unassigned
     for(unsigned int i = 0; i < 4; i++) {
-        if(singleton_data.shadow_framebuffers[i].vk_framebuffer && !singleton_data.shadow_framebuffer_assigned[i]) {
-            pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_framebuffers[i]);
-            pigeon_vulkan_destroy_image_view(&singleton_data.shadow_images[i].image_view);
-            pigeon_vulkan_free_memory(&singleton_data.shadow_images[i].memory);
-            pigeon_vulkan_destroy_image(&singleton_data.shadow_images[i].image);
+        if(VULKAN) {
+            if(singleton_data.shadow_framebuffers[i].vk_framebuffer && !singleton_data.shadow_framebuffer_assigned[i]) {
+                pigeon_vulkan_destroy_framebuffer(&singleton_data.shadow_framebuffers[i]);
+                pigeon_vulkan_destroy_image_view(&singleton_data.shadow_images[i].image_view);
+                pigeon_vulkan_free_memory(&singleton_data.shadow_images[i].memory);
+                pigeon_vulkan_destroy_image(&singleton_data.shadow_images[i].image);
+            }
+        }
+        else {
+            if(singleton_data.gl.shadow_framebuffers[i].id && !singleton_data.shadow_framebuffer_assigned[i]) {
+                pigeon_opengl_destroy_framebuffer(&singleton_data.gl.shadow_framebuffers[i]);
+                pigeon_opengl_destroy_texture(&singleton_data.shadow_images[i].gltex2d);
+            }
         }
     }
 

@@ -57,8 +57,8 @@ PIGEON_ERR_RET pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer* frameb
 PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebuffer, 
     PigeonVulkanImageView * depth, PigeonVulkanImageView * colour, PigeonVulkanRenderPass* render_pass)
 {
-    assert(framebuffer && render_pass);
-    assert(depth || colour);
+    ASSERT_R1(framebuffer && render_pass);
+    ASSERT_R1(depth || colour);
 
     VkFramebufferCreateInfo framebuffer_create = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	framebuffer_create.renderPass = render_pass->vk_renderpass;
@@ -77,7 +77,7 @@ PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebu
         attachments[number_of_attachments++] = depth->vk_image_view;
 
         if(colour) {
-            assert(framebuffer_create.width == depth->width &&
+            ASSERT_R1(framebuffer_create.width == depth->width &&
             framebuffer_create.height == depth->height &&
             framebuffer_create.layers == depth->layers);
         }
@@ -97,11 +97,9 @@ PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebu
 
 void pigeon_vulkan_destroy_framebuffer(PigeonVulkanFramebuffer* framebuffer)
 {
+    assert(framebuffer);
 	if (framebuffer && framebuffer->vk_framebuffer) {
 		vkDestroyFramebuffer(vkdev, framebuffer->vk_framebuffer, NULL);
 		framebuffer->vk_framebuffer = NULL;
-	}
-	else {
-		assert(false);
 	}
 }

@@ -28,13 +28,14 @@ PIGEON_ERR_RET pigeon_vulkan_create_swapchain(void)
 
 static PIGEON_ERR_RET create_swapchain(void)
 {
-	// Aim for 2 images
+	const bool max_fps = false;
 
-	unsigned int image_count = 2;
-	if (singleton_data.surface_capabilities.maxImageCount == 1) {
-		image_count = 1;
+	unsigned int image_count = max_fps ? 3 : 2;
+
+	if (singleton_data.surface_capabilities.maxImageCount < image_count) {
+		image_count = singleton_data.surface_capabilities.maxImageCount;
 	}
-	if (singleton_data.surface_capabilities.minImageCount > 2) {
+	if (singleton_data.surface_capabilities.minImageCount > image_count) {
 		image_count = singleton_data.surface_capabilities.minImageCount;
 	}
 
@@ -80,8 +81,34 @@ static PIGEON_ERR_RET create_swapchain(void)
 
 	create_info.preTransform = singleton_data.surface_capabilities.currentTransform;
 	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	create_info.clipped = VK_TRUE;
+	create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+
+	uint32_t present_mode_count;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(singleton_data.physical_device, singleton_data.surface, &present_mode_count, NULL);
+	if(present_mode_count > 6) present_mode_count = 6;
+
+	VkPresentModeKHR present_modes[6];
+	vkGetPhysicalDeviceSurfacePresentModesKHR(singleton_data.physical_device, singleton_data.surface, &present_mode_count, present_modes);
+
+	if(max_fps && image_count >= 3) {
+		// mailbox prevents screen tearing while still running at the maximum frame rate
+		for(unsigned int i = 0; i < present_mode_count; i++) {
+			if(present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+				create_info.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+			}
+		}
+	}
+	else {
+		// Use relaxed fifo to reduce stuttering, if available
+		for(unsigned int i = 0; i < present_mode_count; i++) {
+			if(present_modes[i] == VK_PRESENT_MODE_FIFO_RELAXED_KHR) {
+				create_info.presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+			}
+		}		
+	}
+
 
 	ASSERT_LOG_R1(vkCreateSwapchainKHR(vkdev, &create_info, NULL, &singleton_data.swapchain_handle) == VK_SUCCESS, "Error creating swapchain");
 
@@ -158,9 +185,9 @@ void pigeon_vulkan_destroy_swapchain(void)
 }
 
 
-PigeonVulkanSwapchainInfo pigeon_vulkan_get_swapchain_info(void)
+PigeonWGISwapchainInfo pigeon_vulkan_get_swapchain_info(void)
 {
-	PigeonVulkanSwapchainInfo info = {
+	PigeonWGISwapchainInfo info = {
 		.image_count = singleton_data.swapchain_image_count,
 		.format = PIGEON_WGI_IMAGE_FORMAT_BGRA_U8_SRGB,
 		.width = singleton_data.swapchain_width,

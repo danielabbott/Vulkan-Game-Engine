@@ -5,6 +5,7 @@
 
 struct PigeonVulkanStagedBuffer;
 struct PigeonWGICommandBuffer;
+struct PigeonOpenGLVAO;
 
 typedef struct PigeonWGIMeshMeta
 {
@@ -40,13 +41,17 @@ typedef struct PigeonWGIMultiMesh
     bool big_indices;
     bool has_bones; // set by create_multimesh according to attribute_types
 
-    struct PigeonVulkanStagedBuffer * staged_buffer;
+    union {
+        struct PigeonVulkanStagedBuffer * staged_buffer;
+        struct PigeonOpenGLVAO * opengl_vao;
+    };
 } PigeonWGIMultiMesh;
 
 // mapping is set to a host-accessible write-only memory mapping
 PIGEON_ERR_RET pigeon_wgi_create_multimesh(PigeonWGIMultiMesh*,
     PigeonWGIVertexAttributeType attribute_types[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES],
-    unsigned int vertex_count, unsigned int index_count, bool big_indices, uint64_t* size, void ** mapping);
+    unsigned int vertex_count, unsigned int index_count, bool big_indices, uint64_t* size, 
+    void ** vertex_mapping, void ** index_mapping);
 PIGEON_ERR_RET pigeon_wgi_multimesh_unmap(PigeonWGIMultiMesh*);
 void pigeon_wgi_upload_multimesh(struct PigeonWGICommandBuffer*, PigeonWGIMultiMesh*);
 void pigeon_wgi_multimesh_transfer_done(PigeonWGIMultiMesh*); // Call this when the transfer is done on the *GPU*

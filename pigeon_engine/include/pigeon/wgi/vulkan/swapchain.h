@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../image_formats.h"
+#include "../swapchain.h"
 #include "image.h"
 #include "fence.h"
 #include "semaphore.h"
@@ -11,13 +12,7 @@ PIGEON_ERR_RET pigeon_vulkan_create_swapchain(void);
 void pigeon_vulkan_destroy_swapchain(void);
 
 
-typedef struct PigeonVulkanSwapchainInfo {
-	unsigned int image_count;
-	PigeonWGIImageFormat format; //PIGEON_WGI_IMAGE_FORMAT_BGRA_U8_SRGB
-	unsigned int width, height;
-} PigeonVulkanSwapchainInfo;
-
-PigeonVulkanSwapchainInfo pigeon_vulkan_get_swapchain_info(void);
+PigeonWGISwapchainInfo pigeon_vulkan_get_swapchain_info(void);
 PigeonVulkanImageView * pigeon_vulkan_get_swapchain_image_view(unsigned int i);
 
 // 0 = Success, 1 = Error, 2 = Swapchain must be recreated (not error), 3 = No image available yet (only for block=false)

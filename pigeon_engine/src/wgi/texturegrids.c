@@ -4,7 +4,6 @@
 #include <pigeon/assert.h>
 #include <string.h>
 
-// TODO replace 8 with GRID_SIZE and 4096 with IMAGE_WIDTH_HEIGHT
 // #define GRID_SIZE 8
 // #define IMAGE_WIDTH_HEIGHT (GRID_SIZE*512)
 

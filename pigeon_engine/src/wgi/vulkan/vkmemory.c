@@ -133,12 +133,11 @@ int pigeon_vulkan_allocate_memory_dedicated(PigeonVulkanMemoryAllocation* memory
 
 void pigeon_vulkan_free_memory(PigeonVulkanMemoryAllocation* memory)
 {
+	assert(memory);
+
 	if (memory && memory->vk_device_memory) {
 		vkFreeMemory(vkdev, memory->vk_device_memory, NULL);
 		memory->vk_device_memory = NULL;
-	}
-	else {
-		assert(false);
 	}
 }
 

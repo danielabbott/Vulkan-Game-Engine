@@ -65,7 +65,6 @@ typedef struct PigeonWGIArrayTexture {
     unsigned int mapping_offset;
 } PigeonWGIArrayTexture;
 
-// mapping is set to a host-accessible write-only memory mapping
 PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture*, 
     uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat,
     unsigned int mip_maps, // 0 = auto, 1 = no mipmapping
@@ -73,15 +72,21 @@ PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture*,
 
 uint32_t pigeon_wgi_get_array_texture_layer_size(PigeonWGIArrayTexture const*);
 
-// Returns pointer to memcpy (or zstd decompress) texture data to
-// Write pigeon_wgi_get_array_texture_tile_size() bytes
-// Width&height halve with each mip level, data size in bytes quarters
-// Adds transfer commands to command buffer
-void* pigeon_wgi_array_texture_upload(PigeonWGIArrayTexture*, 
-    unsigned int layer,
-    PigeonWGICommandBuffer*);
+// If this returns 1, use pigeon_wgi_array_texture_upload1
+// If this returns 2, use pigeon_wgi_array_texture_upload2
+int pigeon_wgi_array_texture_upload_method(void);
 
-// Call when finished calling pigeon_wgi_array_texture_upload
+// upload function copy (or the caller copies) pigeon_wgi_get_array_texture_layer_size() bytes
+
+// Call this once for each layer and memcpy image data (full mip chain) to returned pointer
+void* pigeon_wgi_array_texture_upload1(PigeonWGIArrayTexture*, 
+    unsigned int layer, PigeonWGICommandBuffer*);
+
+// Call this once for each layer, this does the memcpy
+PIGEON_ERR_RET pigeon_wgi_array_texture_upload2(PigeonWGIArrayTexture*, 
+    unsigned int layer, void *);
+
+// Call when finished calling pigeon_wgi_array_texture_upload1
 void pigeon_wgi_array_texture_transition(PigeonWGIArrayTexture* array_texture, PigeonWGICommandBuffer* cmd_buf);
 
 void pigeon_wgi_array_texture_unmap(PigeonWGIArrayTexture*);

@@ -36,9 +36,9 @@ PIGEON_ERR_RET pigeon_create_vulkan_context(bool prefer_dedicated_gpu)
 	return 0;
 }
 
-unsigned int pigeon_vulkan_get_uniform_buffer_min_alignment(void)
+unsigned int pigeon_vulkan_get_buffer_min_alignment(void)
 {
-	return singleton_data.uniform_buffer_min_alignment;
+	return singleton_data.buffer_min_alignment;
 }
 
 bool pigeon_vulkan_compact_hdr_framebuffer_available(void)

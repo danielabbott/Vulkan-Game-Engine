@@ -4,10 +4,12 @@
 #include <stdint.h>
 #include <pigeon/util.h>
 
-#define PIGEON_WGI_MAX_VERTEX_ATTRIBUTES 8
+#define PIGEON_WGI_MAX_VERTEX_ATTRIBUTES 6
 
 struct PigeonVulkanPipeline;
 struct PigeonVulkanShader;
+struct PigeonOpenGLShaderProgram;
+struct PigeonOpenGLShader;
 
 typedef enum {
 	PIGEON_WGI_CULL_MODE_NONE,
@@ -69,17 +71,58 @@ typedef enum {
 } PigeonWGIShaderType;
 
 typedef struct PigeonWGIShader {
-	struct PigeonVulkanShader * shader;
+	union {
+		struct PigeonVulkanShader * shader;
+		struct PigeonOpenGLShader * opengl_shader;
+	};
 } PigeonWGIShader;
 
-PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint32_t spv_size, PigeonWGIShaderType type);
+typedef enum {
+	PIGEON_WGI_RENDER_STAGE_DEPTH,
+	PIGEON_WGI_RENDER_STAGE_LIGHT,
+	PIGEON_WGI_RENDER_STAGE_RENDER,
+} PigeonWGIRenderStage;
+
+
+// If false, pass glsl source code to pigeon_wgi_create_shader2
+bool pigeon_wgi_accepts_spirv(void);
+
+PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint32_t size_bytes, 
+	PigeonWGIShaderType type);
+
+// if config is NULL then PigeonWGIRenderStage is ignored
+PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader*, const char * file_name, 
+	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, PigeonWGIRenderStage);
+
 void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 
 typedef struct PigeonWGIPipeline {
-	struct PigeonVulkanPipeline * pipeline_depth;
-	struct PigeonVulkanPipeline * pipeline_shadow_map;
-	struct PigeonVulkanPipeline * pipeline_light;
-	struct PigeonVulkanPipeline * pipeline;
+	union {
+		struct {
+			struct PigeonVulkanPipeline * pipeline_depth;
+			struct PigeonVulkanPipeline * pipeline_shadow_map;
+			struct PigeonVulkanPipeline * pipeline_light;
+			struct PigeonVulkanPipeline * pipeline;
+		};
+		struct {
+			struct PigeonOpenGLShaderProgram * program_depth;
+			struct PigeonOpenGLShaderProgram * program_light;
+			struct PigeonOpenGLShaderProgram * program;
+			
+			PigeonWGIPipelineConfig config_depth;
+			PigeonWGIPipelineConfig config_shadow;
+			PigeonWGIPipelineConfig config_light;
+			PigeonWGIPipelineConfig config;
+
+			int program_mvp_loc; // uniform location for mvp index
+			int program_mvp; // currently set value
+			int program_light_mvp_loc;
+			int program_light_mvp;
+			int program_depth_mvp_loc;
+			int program_depth_mvp;
+		} gl;
+	};
+
 	bool skinned;
 	bool transparent;
 } PigeonWGIPipeline;

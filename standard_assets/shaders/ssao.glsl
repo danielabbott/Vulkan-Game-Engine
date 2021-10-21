@@ -5,13 +5,13 @@
 #include "ubo.glsl"
 
 float relinearise_depth(float d) {
-	const float nearz = ubo.zfar;
-	const float farz = ubo.znear;
+	float nearz = ubo.zfar;
+	float farz = ubo.znear;
 	return farz*nearz / (-d*(farz - nearz) - farz);
 }
 
 float get_ssao(vec2 tex_coord, float random_value, mat2 rotation_matrix) {
-	if(SC_SSAO_SAMPLES == 0 || ubo.ssao_cutoff <= 0) return 0;
+	if(SC_SSAO_SAMPLES == 0 || ubo.ssao_cutoff <= 0) return 0.0;
 
 	float depth = relinearise_depth(texture(depth_image, vec2(tex_coord)).r);// 0 = near, 1 = far
 
@@ -27,10 +27,10 @@ float get_ssao(vec2 tex_coord, float random_value, mat2 rotation_matrix) {
 
 	for(int i = 0; i < SC_SSAO_SAMPLES; i++) {
 		vec2 p = vec2(ubo.one_pixel_x, ubo.one_pixel_y) * 20 * rotation_matrix
-			* length_random_mul * coordinate_offsets[(i + int(random_value*16)) % 16];
+			* length_random_mul * coordinate_offsets[(i + int(random_value*16.0)) % 16];
 
 		// Flip points that are in the wrong direction
-		if(dot(p, surface_direction) < 0) {
+		if(dot(p, surface_direction) < 0.0) {
 			p = -p;
 		}
 		// p *= sign(min(0, dot(p, surface_direction)))*2 + 1;
@@ -40,12 +40,12 @@ float get_ssao(vec2 tex_coord, float random_value, mat2 rotation_matrix) {
 		float delta = depth - neighbour_depth;
 
 		if(delta > 0.001 && delta < ubo.ssao_cutoff) {
-			occlusion += smoothstep(0,1,delta/ubo.ssao_cutoff);
+			occlusion += smoothstep(0.0,1.0,delta/ubo.ssao_cutoff);
 		}
-		// occlusion += min(1, sign(ubo.ssao_cutoff - delta)+1) * smoothstep(0,1,delta/ubo.ssao_cutoff);
+		// occlusion += min(1.0, sign(ubo.ssao_cutoff - delta)+1.0) * smoothstep(0.0,1.0,delta/ubo.ssao_cutoff);
 	}
 	occlusion /= float(SC_SSAO_SAMPLES);
-	occlusion = clamp(occlusion*2, 0.0, 1.0);
+	occlusion = clamp(occlusion*2.0, 0.0, 1.0);
 	
 
 

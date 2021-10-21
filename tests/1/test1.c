@@ -9,6 +9,7 @@
 #include <pigeon/misc.h>
 #include <pigeon/wgi/input.h>
 #include <pigeon/wgi/pipeline.h>
+#include <pigeon/wgi/swapchain.h>
 #include <string.h>
 #ifndef CGLM_FORCE_DEPTH_ZERO_TO_ONE
     #define CGLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -17,25 +18,26 @@
 #include <cglm/affine.h>
 #include <cglm/euler.h>
 
+#ifdef NDEBUG
+	#define SHADER_PATH_PREFIX "build/release/standard_assets/shaders/"
+#else
+	#define SHADER_PATH_PREFIX "build/debug/standard_assets/shaders/"
+#endif
+
 PigeonWGIVertexAttributeType static_mesh_attribs[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES] = {
 	PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED,
 	PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT,
 	PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL,
-	PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT,
-	0,
-	0,
-	0,
-	0};
+	PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT
+};
 
 PigeonWGIVertexAttributeType skinned_mesh_attribs[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES] = {
 	PIGEON_WGI_VERTEX_ATTRIBUTE_POSITION_NORMALISED,
 	PIGEON_WGI_VERTEX_ATTRIBUTE_BONE,
 	PIGEON_WGI_VERTEX_ATTRIBUTE_UV_FLOAT,
 	PIGEON_WGI_VERTEX_ATTRIBUTE_NORMAL,
-	PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT,
-	0,
-	0,
-	0};
+	PIGEON_WGI_VERTEX_ATTRIBUTE_TANGENT
+};
 
 #define AUDIO_ASSET_COUNT 1
 #define ASSET_PATH(x) ("build/test_assets/audio/" x ".asset")
@@ -90,7 +92,7 @@ ArrayTexture *array_texture_0 = NULL; // LINKED LIST
 typedef struct TextureLocation
 {
 	PigeonWGIArrayTexture *texture;
-	unsigned int texture_index;
+	unsigned int bind_point;
 	unsigned int layer;
 	unsigned int subresource_index;
 } TextureLocation;
@@ -149,6 +151,7 @@ static void key_callback(PigeonWGIKeyEvent e)
 	if (e.key == PIGEON_WGI_KEY_2 && !e.pressed)
 	{
 		debug_disable_bloom = !debug_disable_bloom;
+		pigeon_wgi_set_bloom_intensity(debug_disable_bloom ? 0 : 1);
 	}
 
 	if(e.key == PIGEON_WGI_KEY_0 && !e.pressed && AUDIO_ASSET_COUNT) {
@@ -182,7 +185,7 @@ static PIGEON_ERR_RET start(void)
 	cfg.bloom = true;
 	cfg.shadow_casting_lights = 1;
 	cfg.shadow_blur_passes = 2;
-	if (pigeon_wgi_init(window_parameters, true, cfg, 0.1f, 1000.0f))
+	if (pigeon_wgi_init(window_parameters, true, false, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -417,7 +420,7 @@ static PIGEON_ERR_RET populate_array_textures(void)
 		array_texture->t.layers++;
 
 		texture_locations[i].texture = &array_texture->t;
-		texture_locations[i].texture_index = texture_index;
+		texture_locations[i].bind_point = texture_index;
 		texture_locations[i].layer = array_texture->t.layers-1;
 		texture_locations[i].subresource_index = chosen_subresource;
 	}
@@ -438,8 +441,18 @@ static PIGEON_ERR_RET create_array_textures(PigeonWGICommandBuffer *cmd)
 		for (unsigned int i = 0; i < texture_assets_count; i++)
 		{
 			if(texture_locations[i].texture == &arr->t) {
-				void *dst = pigeon_wgi_array_texture_upload(&arr->t, layer++, cmd);
-				ASSERT_R1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].subresource_index));
+				if(pigeon_wgi_array_texture_upload_method() == 1) {
+					void *dst = pigeon_wgi_array_texture_upload1(&arr->t, layer++, cmd);
+					ASSERT_R1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].subresource_index));
+				}
+				else {
+					unsigned int subr = texture_locations[i].subresource_index;
+					ASSERT_R1(texture_assets[i].subresources[subr].decompressed_data_length ==
+						pigeon_wgi_get_array_texture_layer_size(&arr->t));
+					ASSERT_R1(!pigeon_decompress_asset(&texture_assets[i], NULL, subr));
+					ASSERT_R1(!pigeon_wgi_array_texture_upload2(&arr->t, layer++, 
+						texture_assets[i].subresources[subr].decompressed_data));
+				}
 			}
 		}
 
@@ -579,10 +592,11 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 		index_count += model_assets[i].mesh_meta.index_count ? model_assets[i].mesh_meta.index_count : model_assets[i].mesh_meta.vertex_count;
 	}
 
-	uint8_t *mapping;
+	uint8_t *mapping_vertices;
+	uint16_t *mapping_indices;
 	ASSERT_R1(!pigeon_wgi_create_multimesh(mm,
-										   model_assets[first_model_index].mesh_meta.attribute_types, vertex_count, index_count, big_indices,
-										   &size, (void **)&mapping));
+		model_assets[first_model_index].mesh_meta.attribute_types, vertex_count, index_count, big_indices,
+		&size, (void **)&mapping_vertices, (void **)&mapping_indices));
 
 	// Load vertex attributes
 
@@ -601,13 +615,15 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 
 			uint64_t sz = pigeon_wgi_get_vertex_attribute_type_size(attributes[j]) * model_assets[i].mesh_meta.vertex_count;
 			ASSERT_R1(sz == model_assets[i].subresources[j].decompressed_data_length);
-			ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
+			ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping_vertices[offset], j));
 			offset += sz;
 		}
 	}
+	assert(offset == mm->index_data_offset);
 
 	// Load indices
 
+	offset = 0;
 	for (unsigned int i = 0; i < MODEL_ASSET_COUNT; i++)
 	{
 		if (!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned)
@@ -617,8 +633,8 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 		{
 			if (model_assets[i].mesh_meta.big_indices == big_indices)
 			{
-				ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping[offset], j));
-				offset += big_indices ? 4 : 2 * model_assets[i].mesh_meta.index_count;
+				ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping_indices[offset], j));
+				offset += big_indices ? 2 : 1 * model_assets[i].mesh_meta.index_count;
 			}
 			else
 			{
@@ -633,12 +649,8 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 
 				for (unsigned int k = 0; k < model_assets[i].mesh_meta.index_count; k++)
 				{
-					uint16_t a = u16[k];
-
-					mapping[offset++] = (uint8_t)a;
-					mapping[offset++] = (uint8_t)(a >> 8);
-					mapping[offset++] = 0;
-					mapping[offset++] = 0;
+					mapping_indices[offset++] = u16[k];
+					mapping_indices[offset++] = 0;
 				}
 				free(u16);
 			}
@@ -648,17 +660,15 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 			// Flat shaded model- create indices
 			for (unsigned int k = 0; k < model_assets[i].mesh_meta.vertex_count; k++)
 			{
-				mapping[offset++] = (uint8_t)k;
-				mapping[offset++] = (uint8_t)(k >> 8);
+				mapping_indices[offset++] = (uint16_t)k;
 				if (big_indices)
 				{
-					mapping[offset++] = (uint8_t)(k >> 16);
-					mapping[offset++] = (uint8_t)(k >> 24);
+					mapping_indices[offset++] = (uint16_t)(k >> 16);
 				}
 			}
 		}
 	}
-	assert(offset == size);
+	assert(offset == (mm->big_indices ? 2 : 1) * mm->index_count);
 
 	ASSERT_R1(!pigeon_wgi_multimesh_unmap(mm));
 
@@ -680,20 +690,37 @@ static PIGEON_ERR_RET create_multimeshes(void)
 	return 0;
 }
 
-#ifdef NDEBUG
-#define SHADER_PATH(x) ("build/release/standard_assets/shaders/" x ".spv")
-#else
-#define SHADER_PATH(x) ("build/debug/standard_assets/shaders/" x ".spv")
-#endif
+static PIGEON_ERR_RET create_skybox_pipeline_glsl(void)
+{
+	PigeonWGIShader vs = {0}, fs = {0};
+
+	ASSERT_R1 (!pigeon_wgi_create_shader2(&vs, "skybox.vert", PIGEON_WGI_SHADER_TYPE_VERTEX, NULL, PIGEON_WGI_RENDER_STAGE_RENDER));
+
+	if (pigeon_wgi_create_shader2(&fs, "skybox.frag", PIGEON_WGI_SHADER_TYPE_FRAGMENT, NULL, PIGEON_WGI_RENDER_STAGE_RENDER))
+	{
+		pigeon_wgi_destroy_shader(&vs);
+		ASSERT_R1(false);
+	}
+
+	int err = pigeon_wgi_create_skybox_pipeline(&skybox_pipeline, &vs, &fs);
+
+	pigeon_wgi_destroy_shader(&vs);
+	pigeon_wgi_destroy_shader(&fs);
+
+	ASSERT_R1(!err);
+	return 0;
+}
 
 static PIGEON_ERR_RET create_skybox_pipeline(void)
 {
+	if(!pigeon_wgi_accepts_spirv()) return create_skybox_pipeline_glsl();
+
 	unsigned long vs_spv_len = 0, fs_spv_len = 0;
 
-	uint32_t *vs_spv = (uint32_t *)pigeon_load_file(SHADER_PATH("skybox.vert"), 0, &vs_spv_len);
+	uint32_t *vs_spv = (uint32_t *)pigeon_load_file(SHADER_PATH_PREFIX "skybox.vert.spv", 0, &vs_spv_len);
 	ASSERT_LOG_R1(vs_spv, "Error loading vertex shader");
 
-	uint32_t *fs_spv = (uint32_t *)pigeon_load_file(SHADER_PATH("skybox.frag"), 0, &fs_spv_len);
+	uint32_t *fs_spv = (uint32_t *)pigeon_load_file(SHADER_PATH_PREFIX "skybox.frag.spv", 0, &fs_spv_len);
 	if (!fs_spv)
 	{
 		free(vs_spv);
@@ -741,7 +768,8 @@ static void create_pipeline_cleanup(uint32_t *spv_data[6], PigeonWGIShader shade
 
 
 static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
-	const char * shader_paths[6], PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
+	const char * shader_paths[6][2], PigeonWGIRenderStage shader_stages[6], 
+	PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
 {
 
 	PigeonWGIShaderType shader_types[6] = {
@@ -765,10 +793,15 @@ static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
 		}
 
 	for(unsigned int i = 0; i < 6; i++) {
-		if(shader_paths[i]) {
-			spv_data[i] = (uint32_t *)pigeon_load_file(shader_paths[i], 0, &spv_lengths[i]);
-			CHECK(spv_data[i]);
-			CHECK(!pigeon_wgi_create_shader(&shaders[i], spv_data[i], (uint32_t)spv_lengths[i], shader_types[i]));
+		if(shader_paths[i][0]) {
+			if(pigeon_wgi_accepts_spirv()) {
+				spv_data[i] = (uint32_t *)pigeon_load_file(shader_paths[i][1], 0, &spv_lengths[i]);
+				CHECK(spv_data[i]);
+				CHECK(!pigeon_wgi_create_shader(&shaders[i], spv_data[i], (uint32_t)spv_lengths[i], shader_types[i]));
+			}
+			else {
+				CHECK(!pigeon_wgi_create_shader2(&shaders[i], shader_paths[i][0], shader_types[i], config, shader_stages[i]));
+			}
 		}	
 	}
 
@@ -794,58 +827,68 @@ static PIGEON_ERR_RET create_pipelines(void)
 	config.depth_test = true;
 	config.cull_mode = PIGEON_WGI_CULL_MODE_BACK;
 
-	const char *shader_paths[6] = {
-		SHADER_PATH("object.vert.depth"),
-		SHADER_PATH("object.vert.light"),
-		SHADER_PATH("object.vert"),
-		NULL,
-		SHADER_PATH("object_light.frag"),
-		SHADER_PATH("object.frag")};
+	#define FULL_PATH(x) SHADER_PATH_PREFIX x ".spv"
+	#define PATHS(x) {x, SHADER_PATH_PREFIX x ".spv"}
+
+	const char *shader_paths[6][2] = {
+		PATHS("object.vert.depth"),
+		PATHS("object.vert.light"),
+		PATHS("object.vert"),
+		{NULL, NULL},
+		PATHS("object_light.frag"),
+		PATHS("object.frag")};
+
+	PigeonWGIRenderStage shader_stages[6] = {
+		PIGEON_WGI_RENDER_STAGE_DEPTH,
+		PIGEON_WGI_RENDER_STAGE_LIGHT,
+		PIGEON_WGI_RENDER_STAGE_RENDER,
+		PIGEON_WGI_RENDER_STAGE_DEPTH,
+		PIGEON_WGI_RENDER_STAGE_LIGHT,
+		PIGEON_WGI_RENDER_STAGE_RENDER
+	};
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, &config, false, false));
+	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, shader_stages, &config, false, false));
 
-	const char *shader_paths_skinned[6] = {
-		SHADER_PATH("object.vert.skinned.depth"),
-		SHADER_PATH("object.vert.skinned.light"),
-		SHADER_PATH("object.vert.skinned"),
-		NULL,
-		SHADER_PATH("object_light.frag"),
-		SHADER_PATH("object.frag")};
+	const char *shader_paths_skinned[6][2] = {
+		PATHS("object.vert.skinned.depth"),
+		PATHS("object.vert.skinned.light"),
+		PATHS("object.vert.skinned"),
+		{NULL, NULL},
+		PATHS("object_light.frag"),
+		PATHS("object.frag")};
 
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, &config, true, false));
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, shader_stages, &config, true, false));
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
 	config.cull_mode = PIGEON_WGI_CULL_MODE_NONE;
-	shader_paths[0] = SHADER_PATH("object.vert.depth_alpha");
-	shader_paths[3] = SHADER_PATH("object_depth_alpha.frag");
+	shader_paths[0][0] = "object.vert.depth_alpha";
+	shader_paths[0][1] = FULL_PATH("object.vert.depth_alpha");
+	shader_paths[3][0] = "object_depth_alpha.frag";
+	shader_paths[3][1] = FULL_PATH("object_depth_alpha.frag");
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, &config, false, true));
+	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, shader_stages, &config, false, true));
 
-	shader_paths_skinned[0] = SHADER_PATH("object.vert.skinned.depth_alpha");
-	shader_paths_skinned[3] = SHADER_PATH("object_depth_alpha.frag");
+	shader_paths_skinned[0][0] = "object.vert.skinned.depth_alpha";
+	shader_paths_skinned[0][1] = FULL_PATH("object.vert.skinned.depth_alpha");
+	shader_paths_skinned[3][0] = "object_depth_alpha.frag";
+	shader_paths_skinned[3][1] = FULL_PATH("object_depth_alpha.frag");
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, &config, true, true));
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, shader_stages, &config, true, true));
 
 	return 0;
 
-#undef SHADER_PATH
 }
 
 static void destroy_pipelines(void)
 {
-	if (skybox_pipeline.pipeline)
-		pigeon_wgi_destroy_pipeline(&skybox_pipeline);
-	if (render_pipeline.pipeline)
-		pigeon_wgi_destroy_pipeline(&render_pipeline);
-	if (render_pipeline_skinned.pipeline)
-		pigeon_wgi_destroy_pipeline(&render_pipeline_skinned);
-	if (render_pipeline_skinned_transparent.pipeline)
-		pigeon_wgi_destroy_pipeline(&render_pipeline_skinned_transparent);
-	if (render_pipeline_transparent.pipeline)
-		pigeon_wgi_destroy_pipeline(&render_pipeline_transparent);
+	pigeon_wgi_destroy_pipeline(&skybox_pipeline);
+	pigeon_wgi_destroy_pipeline(&render_pipeline);
+	pigeon_wgi_destroy_pipeline(&render_pipeline_skinned);
+	pigeon_wgi_destroy_pipeline(&render_pipeline_skinned_transparent);
+	pigeon_wgi_destroy_pipeline(&render_pipeline_transparent);
 }
 
 static void set_camera_transform(vec2 rotation, vec3 position)
@@ -1046,6 +1089,7 @@ static PIGEON_ERR_RET game_loop(void)
 			pigeon_wgi_multimesh_transfer_done(&mesh);
 			pigeon_wgi_multimesh_transfer_done(&mesh_skinned);
 		}	
+
 		
 		ArrayTexture * arr = array_texture_0;
 		unsigned int array_texture_index = 0;
@@ -1061,7 +1105,7 @@ static PIGEON_ERR_RET game_loop(void)
 		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
 
 
-		ASSERT_R1(!pigeon_wgi_present_frame(debug_disable_bloom));
+		ASSERT_R1(!pigeon_wgi_present_frame());
 
 		frame_number++;
 	}
@@ -1192,14 +1236,14 @@ int main(void)
 
 		if(ti->texture_index != UINT32_MAX) {
 			TextureLocation * tl = &texture_locations[ti->texture_index];
-			mr_character[i]->diffuse_bind_point = tl->texture_index;
+			mr_character[i]->diffuse_bind_point = tl->bind_point;
 			mr_character[i]->diffuse_layer = tl->layer;
-			if(texture_assets[tl->texture_index].texture_meta.has_alpha)
+			if(texture_assets[ti->texture_index].texture_meta.has_alpha)
 				mr_character[i]->use_transparency = true;
 		}
 		if(ti->normal_index != UINT32_MAX) {
 			TextureLocation * tl = &texture_locations[ti->normal_index];
-			mr_character[i]->nmap_bind_point = tl->texture_index;
+			mr_character[i]->nmap_bind_point = tl->bind_point;
 			mr_character[i]->nmap_layer = tl->layer;			
 		}
 
@@ -1252,4 +1296,5 @@ int main(void)
 	pigeon_deinit();
 
 	return err;
+	return 0;
 }

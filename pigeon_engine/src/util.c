@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-size_t* pigeon_load_file(const char* file, unsigned int extra, unsigned long * file_size) {
+void* pigeon_load_file(const char* file, unsigned int extra, unsigned long * file_size) {
 	FILE* f = fopen(file, "rb");
 	if (!f) {
 		fprintf(stderr, "File not found: %s\n", file);
@@ -21,7 +21,7 @@ size_t* pigeon_load_file(const char* file, unsigned int extra, unsigned long * f
 
 	size_t fsize = (size_t)fsize_;
 
-	size_t* data = malloc(fsize + extra);
+	void* data = malloc(fsize + extra);
 	if (!data) {
 		fclose(f);
 		return NULL;

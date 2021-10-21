@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 // Returns malloc'd pointer. Call free on it when done
-size_t* pigeon_load_file(const char* file, unsigned int extra, unsigned long * file_size);
+void* pigeon_load_file(const char* file, unsigned int extra, unsigned long * file_size);
 
 
 static inline void free2(void**p)

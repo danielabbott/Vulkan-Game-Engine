@@ -4,6 +4,7 @@
 
 #include <pigeon/wgi/vulkan/swapchain.h>
 #include <pigeon/wgi/vulkan/vulkan.h>
+#include <pigeon/wgi/opengl/limits.h>
 #include <pigeon/wgi/wgi.h>
 #include <pigeon/wgi/pipeline.h>
 #include <pigeon/wgi/textures.h>
@@ -44,37 +45,71 @@ static PIGEON_ERR_RET set_render_cfg(PigeonWGIRenderConfig render_cfg)
 	return 0;
 }
 
+void pigeon_wgi_set_bloom_intensity(float i)
+{
+	singleton_data.bloom_intensity = i;
+}
+
 PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, 
-	bool prefer_dedicated_gpu,
+	bool prefer_dedicated_gpu, bool prefer_opengl,
 	PigeonWGIRenderConfig render_cfg, float znear, float zfar)
 {
 	pigeon_wgi_deinit();
+
 	ASSERT_R1(!set_render_cfg(render_cfg));
-	
+	singleton_data.bloom_intensity = 1;
 
 	pigeon_wgi_set_depth_range(znear, zfar);
 
 
-	ASSERT_R1(!pigeon_create_window(window_parameters));
-	ASSERT_R1(!pigeon_create_vulkan_context(prefer_dedicated_gpu));
+	if(pigeon_create_window(window_parameters, prefer_opengl)) {
+		ASSERT_R1(!pigeon_create_window(window_parameters, !prefer_opengl));
+		VULKAN = prefer_opengl;
+		OPENGL = !prefer_opengl;
+	}
+	else {
+		VULKAN = !prefer_opengl;
+		OPENGL = prefer_opengl;
+	}
+	
+	if(OPENGL) pigeon_opengl_get_limits();
+	
+	if(VULKAN) {
+		if(pigeon_create_vulkan_context(prefer_dedicated_gpu)) return 1;
+		if (pigeon_vulkan_create_swapchain()) return 1;
+		if (pigeon_wgi_create_render_passes()) return 1;
+	}
 
-	if (pigeon_vulkan_create_swapchain()) return 1;
+	
+	if (pigeon_wgi_bc1_optimal_available()) puts("BC1 supported");
+	if (pigeon_wgi_bc3_optimal_available()) puts("BC3 supported");
+	if (pigeon_wgi_bc5_optimal_available()) puts("BC5 supported");
+	if (pigeon_wgi_bc7_optimal_available()) puts("BC7 supported");
+	if (pigeon_wgi_etc1_optimal_available()) puts("ETC1 supported");
+	if (pigeon_wgi_etc2_optimal_available()) puts("ETC2 RGB supported");
+	if (pigeon_wgi_etc2_rgba_optimal_available()) puts("ETC2 RGBA supported");
 
-	if (pigeon_wgi_create_render_passes()) return 1;
+
 	if (pigeon_wgi_create_framebuffers()) return 1;
-	if (pigeon_wgi_create_descriptor_layouts()) return 1;
-	if (pigeon_wgi_create_samplers()) return 1;
-	if (pigeon_wgi_create_descriptor_pools()) return 1;
+
+	if(VULKAN) {
+		if (pigeon_wgi_create_descriptor_layouts()) return 1;
+		if (pigeon_wgi_create_samplers()) return 1;
+		if (pigeon_wgi_create_descriptor_pools()) return 1;
+	}
+
 	if (pigeon_wgi_create_default_textures()) return 1;
 
-	pigeon_wgi_set_global_descriptors();
+	if(VULKAN) pigeon_wgi_set_global_descriptors();
 
 	if (pigeon_wgi_create_standard_pipeline_objects()) return 1;
 
 
 	if (pigeon_wgi_create_per_frame_objects()) return 1;
 
-
+	if(OPENGL) {
+		if(pigeon_opengl_create_empty_vao(&singleton_data.gl.empty_vao)) return 1;
+	}
 
 
 	return 0;
@@ -82,22 +117,31 @@ PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters,
 
 void pigeon_wgi_wait_idle(void)
 {
-	pigeon_vulkan_wait_idle();
+	if(VULKAN) pigeon_vulkan_wait_idle();
 }
 
 
 PIGEON_ERR_RET pigeon_wgi_recreate_swapchain(void)
 {
+
+	if(OPENGL) {
+		PigeonWGISwapchainInfo sc_info = pigeon_wgi_get_swapchain_info();
+		if(sc_info.width < 16 || sc_info.height < 16)
+			return 2;
+	}
+
     pigeon_wgi_wait_idle();
     pigeon_wgi_destroy_per_frame_objects();
 	pigeon_wgi_destroy_framebuffers();
-    pigeon_vulkan_destroy_swapchain();
 
-    int err = pigeon_vulkan_create_swapchain();
-    if(err) return err;
+    if(VULKAN) {
+		pigeon_vulkan_destroy_swapchain();
+		int err = pigeon_vulkan_create_swapchain();	
+		if(err) return err;
+	} 
 
     ASSERT_R1(!pigeon_wgi_create_framebuffers());
-    pigeon_wgi_set_global_descriptors();
+    if(VULKAN) pigeon_wgi_set_global_descriptors();
     ASSERT_R1(!pigeon_wgi_create_per_frame_objects());
     return 0;
 }
@@ -106,20 +150,33 @@ void pigeon_wgi_deinit(void)
 {
 	pigeon_vulkan_wait_idle();
 
+	if(OPENGL) {
+		pigeon_opengl_destroy_vao(&singleton_data.gl.empty_vao);
+	}
+
 	memset(singleton_data.shadow_parameters, 0, sizeof singleton_data.shadow_parameters);
 	if(pigeon_wgi_assign_shadow_framebuffers()){}
 
 	pigeon_wgi_destroy_per_frame_objects();
 	pigeon_wgi_destroy_default_textures();
 	pigeon_wgi_destroy_standard_pipeline_objects();
-	pigeon_vulkan_destroy_swapchain();
-	pigeon_wgi_destroy_descriptor_pools();
-	pigeon_wgi_destroy_samplers();
-	pigeon_wgi_destroy_descriptor_layouts();
+	if(VULKAN) {
+		pigeon_vulkan_destroy_swapchain();
+		pigeon_wgi_destroy_descriptor_pools();
+		pigeon_wgi_destroy_samplers();
+		pigeon_wgi_destroy_descriptor_layouts();
+	}
 	pigeon_wgi_destroy_framebuffers();
-	pigeon_wgi_destroy_render_passes();
-	pigeon_destroy_vulkan_context();
+
+	
+	if(VULKAN) {
+		pigeon_wgi_destroy_render_passes();
+		pigeon_destroy_vulkan_context();
+	}
+
 	pigeon_wgi_destroy_window();
+
+
 	memset(&singleton_data, 0, sizeof singleton_data);
 }
 
@@ -145,29 +202,43 @@ void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matr
 
 bool pigeon_wgi_bc1_optimal_available(void)
 {
-	return pigeon_vulkan_bc1_optimal_available();
+	if(VULKAN) return pigeon_vulkan_bc1_optimal_available();
+	return pigeon_opengl_bc1_optimal_available();
 }
 bool pigeon_wgi_bc3_optimal_available(void)
 {
-	return pigeon_vulkan_bc3_optimal_available();
+	if(VULKAN) return pigeon_vulkan_bc3_optimal_available();
+	return pigeon_opengl_bc3_optimal_available();
 }
 bool pigeon_wgi_bc5_optimal_available(void)
 {
-	return pigeon_vulkan_bc5_optimal_available();
+	if(VULKAN) return pigeon_vulkan_bc5_optimal_available();
+	return pigeon_opengl_bc5_optimal_available();
 }
 bool pigeon_wgi_bc7_optimal_available(void)
 {
-	return pigeon_vulkan_bc7_optimal_available();
+	if(VULKAN) return pigeon_vulkan_bc7_optimal_available();
+	return pigeon_opengl_bc7_optimal_available();
 }
 bool pigeon_wgi_etc1_optimal_available(void)
 {
-	return pigeon_vulkan_etc1_optimal_available();
+	if(VULKAN) return pigeon_vulkan_etc1_optimal_available();
+	return pigeon_opengl_etc1_optimal_available();
 }
 bool pigeon_wgi_etc2_optimal_available(void)
 {
-	return pigeon_vulkan_etc2_optimal_available();
+	if(VULKAN) return pigeon_vulkan_etc2_optimal_available();
+	return pigeon_opengl_etc2_optimal_available();
 }
 bool pigeon_wgi_etc2_rgba_optimal_available(void)
 {
-	return pigeon_vulkan_etc2_rgba_optimal_available();
+	if(VULKAN) return pigeon_vulkan_etc2_rgba_optimal_available();
+	return pigeon_opengl_etc2_rgba_optimal_available();
+}
+
+
+PigeonWGISwapchainInfo pigeon_wgi_get_swapchain_info(void)
+{
+	if(OPENGL) return pigeon_opengl_get_swapchain_info();
+	else return pigeon_vulkan_get_swapchain_info();
 }

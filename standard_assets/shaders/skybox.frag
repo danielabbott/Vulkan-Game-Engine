@@ -1,12 +1,13 @@
-#version 450
+#version 460
 
-// layout(location = 0) in vec3 in_world_space_direction;
-layout(location = 0) in vec4 in_direction;
+#include "common.glsl"
 
-layout(location = 0) out vec4 out_colour;
+LOCATION(0) in vec4 pass_direction;
+
+LOCATION(0) out vec4 out_colour;
 
 void main() {    
-    vec3 world_space_direction = normalize(in_direction.xyz / in_direction.w);
+    vec3 world_space_direction = normalize(pass_direction.xyz / pass_direction.w);
 
     float up_down = dot(world_space_direction, vec3(0,1,0)); // -1 to 1, down to up, full sphere
 
@@ -24,17 +25,11 @@ void main() {
     );
 
     // 0 or 1, colour gradiates from colours_index to colours_index+1
-    const int colours_index = int(ceil(max(0, up_down) - gradient_change_point));
+    int colours_index = int(ceil(max(0, up_down) - gradient_change_point));
 
     vec3 colour = mix(colours[colours_index], colours[colours_index+1],
         smoothstep(ranges[colours_index].x, ranges[colours_index].y, up_down));
     colour *= 0.3;
-
-
-    // const int colours_index = int(ceil(up_down + ranges[0].x)); // Assumes cutoff is negative
-
-    // vec3 colour = mix(colours[colours_index], colours[colours_index+1], 
-    //     smoothstep(ranges[colours_index].x, ranges[colours_index].y, up_down));
 
     out_colour = vec4(colour, 1);
 }

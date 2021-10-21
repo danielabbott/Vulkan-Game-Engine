@@ -13,7 +13,7 @@ typedef struct SingletonData
 	VkSurfaceKHR surface;
 	VkPhysicalDeviceMemoryProperties memory_properties;
 	
-	unsigned int uniform_buffer_min_alignment;
+	unsigned int buffer_min_alignment;
 	bool depth_clamp_supported;
 	bool anisotropy_supported;
 	double timer_multiplier;

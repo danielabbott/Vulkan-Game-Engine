@@ -1,24 +1,38 @@
 #version 460
 
+#include "common.glsl"
+
+
+
+LOCATION(0) in vec3 pass_position_model_space;
+LOCATION(1) in vec2 pass_uv;
+LOCATION(2) flat in int pass_draw_index;
+LOCATION(3) in vec3 pass_normal;
+
+LOCATION(0) out vec4 out_shadow_values;
+
+BINDING(3) uniform sampler2D depth_image; // opengl binding 5
+
+#if __VERSION__ >= 460
 
 layout (constant_id = 0) const int SC_SSAO_SAMPLES = 8; // 0 to disable
 layout (constant_id = 1) const int SC_SHADOW_SAMPLES = 4;
 layout (constant_id = 2) const bool SC_FETCH_ALPHA = false;
 layout (constant_id = 3) const int SC_COLOUR_COMPONENTS = 2; // 1, 2, or 3
 
-layout(location = 0) in vec3 in_position_model_space;
-layout(location = 1) in vec2 in_uv;
-layout(location = 2) in flat uint in_draw_index;
-layout(location = 3) in vec3 in_normal;
 
-layout(location = 0) out vec4 out_shadow_values;
-
-
-layout(binding = 3) uniform sampler2D depth_image;
-
-layout(binding = 4) uniform sampler2DShadow shadow_maps[4];
-
+BINDING(4) uniform sampler2DShadow shadow_maps[4];
 layout(binding = 5) uniform sampler2DArray textures[59];
+
+#else
+
+uniform sampler2DShadow shadow_map0; // opengl binding 0
+uniform sampler2DShadow shadow_map1; // opengl binding 1
+uniform sampler2DShadow shadow_map2; // opengl binding 2
+uniform sampler2DShadow shadow_map3; // opengl binding 3
+uniform sampler2DArray diffuse_texture; // opengl binding 4
+
+#endif
 
 
 #include "ubo.glsl"
@@ -32,12 +46,22 @@ void main() {
 
     /* Transparency */
 
-    DrawObject data = draw_objects.obj[in_draw_index]; 
+#if __VERSION__ >= 460
+    #define data draw_objects.obj[pass_draw_index]
+#else
+    #define data draw_object.obj
+#endif
+
     float alpha = 1;
 
-    if(SC_FETCH_ALPHA && data.texture_sampler_index_plus1 >= 1) {
-        vec2 uv = in_uv * data.texture_uv_base_and_range.zw + data.texture_uv_base_and_range.xy;
-        alpha = texture(textures[data.texture_sampler_index_plus1-1], vec3(uv, data.texture_index)).a;
+    if(SC_FETCH_ALPHA && data.texture_sampler_index_plus1 >= 1.0) {        
+        alpha = texture( 
+#if __VERSION__ >= 460
+            textures[data.texture_sampler_index_plus1-1], 
+#else
+            diffuse_texture,
+#endif
+            vec3(pass_uv, data.texture_index)).a;
 
         if(alpha < 1.0 && data.under_colour.a == 2) {
             discard;
@@ -59,7 +83,7 @@ void main() {
     );
 
 
-    vec3 normal = in_normal;
+    vec3 normal = pass_normal;
 
     vec4 output_value; // 0 = full shadow, 1 = no shadow
 
@@ -75,10 +99,9 @@ void main() {
     /* Lights */
  
 
-    uint output_value_index = SC_SSAO_SAMPLES > 0 ? 1 : 0;
+    int output_value_index = SC_SSAO_SAMPLES > 0 ? 1 : 0;
 
-
-    for(uint i = 0; i < ubo.number_of_lights; i++) {
+    for(int i = 0; i < ubo.number_of_lights; i++) {
         Light l = ubo.lights[i];
         if(l.is_shadow_caster == 0.0) continue;
 
@@ -91,22 +114,37 @@ void main() {
             continue;
         }
         
-        vec4 shadow_xyzw = data.modelViewProj[i+1] * vec4(in_position_model_space, 1.0);
+        vec4 shadow_xyzw = data.modelViewProj[i+1] * vec4(pass_position_model_space, 1.0);
 
         vec2 abs_xy = abs(shadow_xyzw.xy);
         if(abs_xy.x < 1.0 && abs_xy.y < 1.0) {
             // shadow_xyzw.xyz /= shadow_xyzw.w; // Not needed for ortho matrix
             shadow_xyzw.xy = shadow_xyzw.xy*0.5 + vec2(0.5);
-            shadow_xyzw.z += 0.0001; // bias
+            shadow_xyzw.z += 0.0005; // bias
 
-            float shadow = 0;
+            #ifndef VULKAN
+            shadow_xyzw.y = 1-shadow_xyzw.y;
+            #endif
 
-            const vec2 shadow_texture_offset = vec2(l.light_intensity__and__shadow_pixel_offset.w);
-            const vec2 spread = vec2(2.3, 1.9);
+            float shadow = 0.0;
+
+            vec2 shadow_texture_offset = vec2(l.light_intensity_and_shadow_pixel_offset.w);
+            vec2 spread = vec2(2.3, 1.9);
             for(int j = 0; j < SC_SHADOW_SAMPLES; j++) {
-                vec2 o = rotation_matrix * coordinate_offsets[(i+j + int(random_value*16)) % 16] * spread * shadow_texture_offset;
+                vec2 o = rotation_matrix * coordinate_offsets[(i+j + int(random_value*16.0)) % 16] * spread * shadow_texture_offset;
 
-                shadow += texture(shadow_maps[i], vec3(shadow_xyzw.xy + o, shadow_xyzw.z)).r;
+#if __VERSION__ >= 460
+                shadow += texture(shadow_maps[i], vec3(shadow_xyzw.xy + o, shadow_xyzw.z));
+#else
+                if(i == 0)
+                    shadow += texture(shadow_map0, vec3(shadow_xyzw.xy + o, shadow_xyzw.z));
+                else if (i == 1)
+                    shadow += texture(shadow_map1, vec3(shadow_xyzw.xy + o, shadow_xyzw.z));
+                else if (i == 2)
+                    shadow += texture(shadow_map2, vec3(shadow_xyzw.xy + o, shadow_xyzw.z));
+                else
+                    shadow += texture(shadow_map3, vec3(shadow_xyzw.xy + o, shadow_xyzw.z));
+#endif
             }
             shadow /= float(SC_SHADOW_SAMPLES);  
 
@@ -124,12 +162,12 @@ void main() {
         out_shadow_values = output_value;
     }
     else if(SC_COLOUR_COMPONENTS == 3) {
-        out_shadow_values = vec4(output_value.rgb, 1);
+        out_shadow_values = vec4(output_value.rgb, 1.0);
     }
     else if(SC_COLOUR_COMPONENTS == 2) {
-        out_shadow_values = vec4(output_value.rg, 0, 1);
+        out_shadow_values = vec4(output_value.rg, 0.0, 1.0);
     }
     else {
-        out_shadow_values = vec4(output_value.r, 0, 0, 1);
+        out_shadow_values = vec4(output_value.r, 0.0, 0.0, 1.0);
     }
 }

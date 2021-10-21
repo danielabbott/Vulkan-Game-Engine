@@ -121,7 +121,11 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 
 	singleton_data.timer_multiplier = ((double)device_properties.limits.timestampPeriod / 1000.0) / 1000.0;
 
-	singleton_data.uniform_buffer_min_alignment = (unsigned)device_properties.limits.minUniformBufferOffsetAlignment;
+	singleton_data.buffer_min_alignment = (unsigned)device_properties.limits.minUniformBufferOffsetAlignment;
+	
+	if((unsigned)device_properties.limits.minStorageBufferOffsetAlignment > singleton_data.buffer_min_alignment) {
+		singleton_data.buffer_min_alignment = (unsigned)device_properties.limits.minStorageBufferOffsetAlignment;
+	}
 	
 	vkGetPhysicalDeviceMemoryProperties(physical_device, &singleton_data.memory_properties);
 
@@ -169,13 +173,6 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 	if (singleton_data.dedicated_allocation_supported) puts("Dedicated allocation supported");
 	if (singleton_data.b10g11r11_ufloat_pack32_optimal_available) puts("VK_FORMAT_B10G11R11_UFLOAT_PACK32 render+blend target supported");
 
-	if (singleton_data.bc1_optimal_available) puts("BC1 supported");
-	if (singleton_data.bc3_optimal_available) puts("BC3 supported");
-	if (singleton_data.bc5_optimal_available) puts("BC5 supported");
-	if (singleton_data.bc7_optimal_available) puts("BC7 supported");
-	if (singleton_data.etc1_optimal_available) puts("ETC1 supported");
-	if (singleton_data.etc2_optimal_available) puts("ETC2 RGB supported");
-	if (singleton_data.etc2_rgba_optimal_available) puts("ETC2 RGBA supported");
 
 	return true;
 }

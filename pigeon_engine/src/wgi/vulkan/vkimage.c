@@ -8,8 +8,8 @@
 VkFormat pigeon_get_vulkan_image_format(PigeonWGIImageFormat f)
 {
 	switch (f) {
-	case PIGEON_WGI_IMAGE_FORMAT_NONE:
-		return VK_FORMAT_UNDEFINED;
+		case PIGEON_WGI_IMAGE_FORMAT_NONE:
+			return VK_FORMAT_UNDEFINED;
 
 
 
@@ -64,7 +64,7 @@ int pigeon_vulkan_create_image(PigeonVulkanImage* image, PigeonWGIImageFormat fo
 	bool to_be_transfer_src, bool to_be_transfer_dst,
 	PigeonVulkanMemoryRequirements* memory_requirements)
 {
-	assert(image && format && width && height && layers && memory_requirements);
+	assert(image && format && width && height && layers && mip_levels && memory_requirements);
 
 	ASSERT_LOG_R1(width <= 16384 && height <= 16384 && layers <= 2048, "Image dimensions too large");
 
@@ -166,12 +166,11 @@ PIGEON_ERR_RET pigeon_vulkan_image_bind_memory_dedicated(PigeonVulkanImage* imag
 
 void pigeon_vulkan_destroy_image(PigeonVulkanImage* image)
 {
+	assert(image);
+
 	if (image && image->vk_image) {
 		vkDestroyImage(vkdev, image->vk_image, NULL);
 		image->vk_image = NULL;
-	}
-	else {
-		assert(false);
 	}
 }
 
@@ -211,12 +210,11 @@ PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_view
 
 void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView* image_view)
 {
+	assert(image_view);
+
 	if (image_view && image_view->vk_image_view) {
 		vkDestroyImageView(vkdev, image_view->vk_image_view, NULL);
 		image_view->vk_image_view = NULL;
-	}
-	else {
-		assert(false);
 	}
 }
 

@@ -9,6 +9,7 @@
 #include <easytab.h>
 #endif
 
+#include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -27,15 +28,49 @@ static PigeonWGIMouseButtonCallback mouse_callback = NULL;
 
 void pigeon_wgi_wait_events(void)
 {
-	glfwWaitEventsTimeout(5);
+	glfwWaitEventsTimeout(1);
 }
 
-PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters)
+static void glfw_error_callback(int code, const char * description)
+{
+    fprintf(stderr, "GLFW error: %u %s\n", code, description);
+}
+
+
+PIGEON_ERR_RET pigeon_opengl_init(void);
+
+PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters, bool use_opengl)
 {
 	ASSERT_LOG_R1(glfwInit() == GLFW_TRUE, "glfwInit() error");
-	ASSERT_LOG_R1(glfwVulkanSupported() == GLFW_TRUE, "Vulkan not supported error");
 
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwSetErrorCallback(glfw_error_callback);
+
+	if(!use_opengl && !glfwVulkanSupported()) {
+		puts("Vulkan not supported");
+		return 1;
+	}
+
+	if(use_opengl) {
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		glfwWindowHint(GLFW_STENCIL_BITS, 0);
+		glfwWindowHint(GLFW_DEPTH_BITS, 0);
+		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+		glfwWindowHint(GLFW_SAMPLES, 0);
+		glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
+
+		#ifdef DEBUG
+			glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
+		#endif
+	}
+	else {
+		// Vulkan
+
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	}
+
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 	if (window_parameters.window_mode == PIGEON_WINDOW_MODE_WINDOWED || 
@@ -71,7 +106,26 @@ PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters)
 		pigeon_wgi_glfw_window = glfwCreateWindow(mode->width, mode->height, window_parameters.title, monitor, NULL);
 	}
 
-	ASSERT_LOG_R1(pigeon_wgi_glfw_window, "glfwCreateWindow error");
+	if(!pigeon_wgi_glfw_window) {
+		printf("glfwCreateWindow error (%s)\n", use_opengl ? "OpenGL" : "Vulkan");
+		return 1;
+	}
+
+	if(use_opengl) {
+		glfwMakeContextCurrent(pigeon_wgi_glfw_window);
+		ASSERT_R1(gladLoadGLLoader((GLADloadproc) glfwGetProcAddress));
+   		glfwSwapInterval(1);
+
+		if(pigeon_opengl_init()) {
+			glfwDestroyWindow(pigeon_wgi_glfw_window);
+			glfwTerminate();
+			return 1;
+		}
+
+	}
+
+	if (glfwRawMouseMotionSupported())
+        glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
 	if(
 		#if defined(__linux__)
@@ -92,7 +146,22 @@ PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters)
 void pigeon_wgi_get_window_dimensions(unsigned int * width, unsigned int * height)
 {
 	assert(pigeon_wgi_glfw_window && width && height);
-	glfwGetFramebufferSize(pigeon_wgi_glfw_window, (int *)width, (int *)height);
+
+	if(glfwGetWindowAttrib(pigeon_wgi_glfw_window, GLFW_ICONIFIED) > 0) {
+		*width = *height = 0;
+	}
+	else glfwGetFramebufferSize(pigeon_wgi_glfw_window, (int *)width, (int *)height);
+}
+
+
+PigeonWGISwapchainInfo pigeon_opengl_get_swapchain_info(void)
+{
+	PigeonWGISwapchainInfo i = {0};
+	i.image_count = 3; // assume triple buffering
+
+	pigeon_wgi_get_window_dimensions(&i.width, &i.height);
+	
+	return i;
 }
 
 bool pigeon_wgi_close_requested(void)
@@ -287,4 +356,9 @@ void pigeon_wgi_set_cursor_type(PigeonWGICursorType type)
    			glfwSetInputMode(pigeon_wgi_glfw_window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
 			break;
 	}
+}
+
+void pigeon_wgi_swap_buffers(void)
+{
+	glfwSwapBuffers(pigeon_wgi_glfw_window);
 }

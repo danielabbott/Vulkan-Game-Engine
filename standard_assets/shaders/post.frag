@@ -1,33 +1,48 @@
-#version 450
+#version 460
+
+#include "common.glsl"
+
+LOCATION(0) out vec4 out_colour;
+
+BINDING(0) uniform sampler2D hdr_render;
+BINDING(1) uniform sampler2D bloom_texture;
+
+
+#if __VERSION__ >= 460
 
 layout (constant_id = 0) const bool SC_BLOOM = true;
 
-layout(location = 0) in vec2 in_tex_coord;
-
-layout(location = 0) out vec4 out_colour;
-
-layout(binding = 0) uniform sampler2D hdr_render;
-layout(binding = 1) uniform sampler2D bloom_texture;
-
-
 layout(push_constant) uniform PushConstantsObject
 {
-	vec2 viewport_dimensions;
 	vec2 one_pixel; // 1.0 / viewport_dimensions
 	float bloom_intensity;
 } push_constants;
 
+#define ONE_PIXEL push_constants.one_pixel
+#define BLOOM_INTENSITY push_constants.bloom_intensity
+
+#else
+
+uniform vec3 u_one_pixel_and_bloom_intensity;
+
+#define ONE_PIXEL u_one_pixel_and_bloom_intensity.xy
+#define BLOOM_INTENSITY u_one_pixel_and_bloom_intensity.z
+
+#endif
+
 
 void main() {
+	vec2 uv = gl_FragCoord.xy * ONE_PIXEL;
+	
 	vec3 bloom;
 	
 	if(SC_BLOOM) {
-		bloom = texture(bloom_texture, gl_FragCoord.xy / push_constants.viewport_dimensions).rgb;
+		bloom = texture(bloom_texture, uv).rgb;
 	}
 
     const vec3 luminance_multipliers = vec3(0.2126, 0.7152, 0.0722);
 
-	vec3 true_colour = texture(hdr_render, in_tex_coord).rgb;
+	vec3 true_colour = texture(hdr_render, uv).rgb;
 
 	vec3 colours[4];
 	float luminosities[4];
@@ -36,7 +51,7 @@ void main() {
 		int i = 0;
 		for(float y = -1; y <= 1; y+=2) {
 			for(float x = -1; x <= 1; x+=2, i++) {
-				colours[i] = texture(hdr_render, in_tex_coord + 0.5*push_constants.one_pixel * vec2(x,y)).rgb;
+				colours[i] = texture(hdr_render, uv + 0.5*ONE_PIXEL * vec2(x,y)).rgb;
 				luminosities[i] = dot(colours[i], luminance_multipliers);
 			}
 		}
@@ -68,7 +83,7 @@ void main() {
 	vec3 colour = is_high_contrast*blurred_colour + (1-is_high_contrast)*true_colour;
 
 	if(SC_BLOOM) {
-		colour += bloom * push_constants.bloom_intensity;
+		colour += bloom * BLOOM_INTENSITY;
 	}
 
 

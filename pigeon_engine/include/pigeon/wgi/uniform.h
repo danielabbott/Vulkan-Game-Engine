@@ -9,32 +9,33 @@
 #define PIGEON_WGI_ALPHA_CHANNEL_TRANSPARENCY 2.0f
 
 typedef struct PigeonWGIDrawObject {
-    vec4 position_min;
-    vec3 position_range;
-    float ssao_intensity;
     mat4 proj_view_model[5];
 
     mat4 model;
     mat4 normal_model_matrix;
-    mat4 view_model;
 
-    vec3 colour;
-    float rsvd;
-
-    // Textures with alpha channel interpolate between this colour and texture
-    vec3 under_colour;
-    float alpha_channel_usage;
-
-    vec4 texture_uv_base_and_range; // .xy = base, .zw = range
-    vec4 normal_map_uv_base_and_range;
+    vec4 position_min;
+    vec3 position_range;
+    float ssao_intensity;
     
     uint32_t texture_sampler_index_plus1; // into array of glsl samplers
     float texture_index; // into array texture
     
+    uint32_t first_bone_index;
+    int rsvd0;
+
+    vec3 colour;
+    float colour_alpha_unused;
+
+    // Textures with alpha channel interpolate between this colour and texture
+    vec3 under_colour;
+    float alpha_channel_usage;
+    
     uint32_t normal_map_sampler_index_plus1;
     float normal_map_index;
     
-    uint32_t first_bone_index;
+    int rsvd1;
+    int rsvd2;
 } PigeonWGIDrawObject;
 
 
