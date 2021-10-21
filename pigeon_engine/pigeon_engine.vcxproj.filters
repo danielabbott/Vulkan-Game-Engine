@@ -37,6 +37,15 @@
     <Filter Include="Header Files\WGI\Vulkan">
       <UniqueIdentifier>{d18c2008-d364-4184-b5f2-580f54296600}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\WGI\OpenGL">
+      <UniqueIdentifier>{356aa8d3-d8e8-484d-ab17-d222e2502be8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\WGI\OpenGL">
+      <UniqueIdentifier>{c9fb6a6c-9527-4f8b-b243-11ced4064933}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\deps">
+      <UniqueIdentifier>{0ddeceef-0d74-4bbc-bedf-9fe1bec22833}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\array_list.c">
@@ -152,6 +161,30 @@
     </ClCompile>
     <ClCompile Include="src\audio\audio.c">
       <Filter>Source Files\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\glbuffer.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\gldraw.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\glframebuffer.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\glinit.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\gllimit.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\glshader.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wgi\opengl\gltexture.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="..\deps\glad.c">
+      <Filter>Source Files\deps</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -295,6 +328,27 @@
     </ClInclude>
     <ClInclude Include="include\pigeon\audio\audio.h">
       <Filter>Header Files\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="src\wgi\opengl\gl.h">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\buffer.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\draw.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\framebuffer.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\limits.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\shader.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\texture.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
