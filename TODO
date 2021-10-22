@@ -1,0 +1,15 @@
+Fix smooth shadow glitches
+Unit tests
+Job System
+Refactoring
+Optimise vulkan (performance is slightly worse than OpenGL)
+Scene files
+GUI & editor
+Animation blending, procedural animation
+Cascaded shadow maps
+Multiplayer networking
+Better bloom
+BC7
+Asset packaging
+Mobile renderer
+

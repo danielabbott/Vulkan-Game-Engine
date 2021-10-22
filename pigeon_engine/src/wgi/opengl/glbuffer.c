@@ -241,7 +241,7 @@ PIGEON_ERR_RET pigeon_opengl_create_vao(PigeonOpenGLVAO* vao,
         unsigned int comps;
         GLenum gl_type;
         bool norm;
-        bool gl_int;
+        bool gl_int = false;
         get_vertex_attribute_format(vertex_attributes[i], &comps, &gl_type, &norm, &gl_int);
 
 

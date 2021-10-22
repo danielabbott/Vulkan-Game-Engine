@@ -2,6 +2,7 @@
 #include <pigeon/assert.h>
 #include <pigeon/util.h>
 
+#ifdef DEBUG
 static void debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
 	GLsizei length, const GLchar * message, const void * arg0)
 {
@@ -16,6 +17,7 @@ static void debug_callback(GLenum source, GLenum type, GLuint id, GLenum severit
 		assert(type != GL_DEBUG_TYPE_ERROR_ARB);
     }
 }
+#endif
 
 PIGEON_ERR_RET pigeon_opengl_init(void);
 PIGEON_ERR_RET pigeon_opengl_init(void)

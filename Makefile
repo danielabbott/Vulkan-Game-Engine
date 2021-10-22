@@ -11,14 +11,16 @@ CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
 -Wunused-macros -Wcast-align -Werror=incompatible-pointer-types \
--Wformat-security -Wundef -Wconversion -Werror=unused-result \
+-Wformat-security -Wundef -Werror=unused-result \
 -Werror=int-conversion \
 -Iconfig_parser -fstack-protector -I pigeon_engine/include -isystem deps
 
 
 ifeq ($(CC), clang)
 CFLAGS_COMMON += -Wshorten-64-to-32 -Wconditional-uninitialized -Wimplicit-int-conversion \
--Wimplicit-float-conversion -Wimplicit-int-float-conversion -Wno-newline-eof 
+-Wimplicit-float-conversion -Wimplicit-int-float-conversion -Wno-newline-eof -Wconversion
+else
+CFLAGS_COMMON += -Wno-sign-conversion
 endif
 
 
@@ -65,7 +67,9 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv \
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv \
-$(SOURCES_GLSL:%=$(BUILD_DIR)/%)
+$(SOURCES_GLSL:%=build/%) \
+$(SOURCES_VERT:%=build/%) \
+$(SOURCES_FRAG:%=build/%)
 
 
 
@@ -151,58 +155,51 @@ $(BUILD_DIR)/%.glsl: %.glsl
 
 $(BUILD_DIR)/%.spv: %
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) $(GLSLCFLAGS) $< -o $@
+
+build/standard_assets/shaders/%: standard_assets/shaders/%
+	@mkdir -p $(@D)
+	ln -sf ../../../$< $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.depth_alpha.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH_ALPHA $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.light.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_LIGHT $(GLSLCFLAGS) $< -o $@
 	
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DSKINNED $(GLSLCFLAGS) $< -o $@
 	
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_DEPTH_ALPHA -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv: standard_assets/shaders/object.vert
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DOBJECT_LIGHT -DSKINNED $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DCOLOUR_TYPE_R $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DCOLOUR_TYPE_RGB $(GLSLCFLAGS) $< -o $@
 
 $(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv: standard_assets/shaders/gaussian_light.frag
 	@mkdir -p $(@D)
-	ln -sf ../../../../$< $(patsubst %.spv,%,$@)
 	$(GLSLC) -DCOLOUR_TYPE_RGBA $(GLSLCFLAGS) $< -o $@
 
 
@@ -234,9 +231,10 @@ $(ASSET_FILES_AUDIO): build/%.asset: % $(AUDIO_ASSET_CONVERTER_DEPS) | $(BUILD_D
 	$(BUILD_DIR)/audio_asset_converter $< $@
 
 
-clean_spv:
+clean_shaders:
 	-rm build/debug/standard_assets/shaders/*.spv
 	-rm build/release/standard_assets/shaders/*.spv
+	-rm build/standard_assets/shaders/*
 
 clean_assets:
 	-rm -r build/standard_assets/*

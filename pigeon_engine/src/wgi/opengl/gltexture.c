@@ -314,7 +314,7 @@ PIGEON_ERR_RET pigeon_opengl_create_buffer_texture(PigeonOpenGLBufferTexture* te
 
 	while(glGetError()) {}
 
-	#define CLEANUP() pigeon_opengl_destroy_buffer_texture
+	#define CLEANUP() pigeon_opengl_destroy_buffer_texture(texture);
 	
 	glGenTextures(1, &texture->id);
 	ASSERT_R1_CLEANUP(texture->id);

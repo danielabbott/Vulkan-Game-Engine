@@ -76,10 +76,11 @@ void pigeon_wgi_destroy_render_passes(void)
 
 }
 
+#define SHADER_PATH_PREFIX "build/standard_assets/shaders/"
 #ifdef NDEBUG
-	#define SHADER_PATH_PREFIX "build/release/standard_assets/shaders/"
+	#define SPV_PATH_PREFIX "build/release/standard_assets/shaders/"
 #else
-	#define SHADER_PATH_PREFIX "build/debug/standard_assets/shaders/"
+	#define SPV_PATH_PREFIX "build/debug/standard_assets/shaders/"
 #endif
 
 static PIGEON_ERR_RET create_program_gl(PigeonOpenGLShaderProgram * shader, 
@@ -211,7 +212,7 @@ PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void)
 {
 	if(OPENGL) return create_standard_pipeline_objects_gl();
 
-#define SHADER_PATH(x) (SHADER_PATH_PREFIX x ".spv")
+#define SHADER_PATH(x) (SPV_PATH_PREFIX x ".spv")
 
 
 	if (create_pipeine(&singleton_data.pipeline_blur, SHADER_PATH("fullscreen.vert"), SHADER_PATH("gaussian_rgb.frag"),

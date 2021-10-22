@@ -783,7 +783,7 @@ static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
 
 	unsigned long spv_lengths[6] = {0};
 	uint32_t * spv_data[6] = {0};
-	PigeonWGIShader shaders[6] = {{0}};
+	PigeonWGIShader shaders[6] = {{{0}}};
 
 
 	#define CHECK(x) \
@@ -831,8 +831,8 @@ static PIGEON_ERR_RET create_pipelines(void)
 	#define PATHS(x) {x, SHADER_PATH_PREFIX x ".spv"}
 
 	const char *shader_paths[6][2] = {
-		PATHS("object.vert.depth"),
-		PATHS("object.vert.light"),
+		{"object.vert", FULL_PATH("object.vert.depth")},
+		{"object.vert", FULL_PATH("object.vert.light")},
 		PATHS("object.vert"),
 		{NULL, NULL},
 		PATHS("object_light.frag"),
@@ -851,9 +851,9 @@ static PIGEON_ERR_RET create_pipelines(void)
 	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, shader_stages, &config, false, false));
 
 	const char *shader_paths_skinned[6][2] = {
-		PATHS("object.vert.skinned.depth"),
-		PATHS("object.vert.skinned.light"),
-		PATHS("object.vert.skinned"),
+		{"object.vert", FULL_PATH("object.vert.skinned.depth")},
+		{"object.vert", FULL_PATH("object.vert.skinned.light")},
+		{"object.vert", FULL_PATH("object.vert.skinned")},
 		{NULL, NULL},
 		PATHS("object_light.frag"),
 		PATHS("object.frag")};
@@ -863,7 +863,6 @@ static PIGEON_ERR_RET create_pipelines(void)
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
 	config.cull_mode = PIGEON_WGI_CULL_MODE_NONE;
-	shader_paths[0][0] = "object.vert.depth_alpha";
 	shader_paths[0][1] = FULL_PATH("object.vert.depth_alpha");
 	shader_paths[3][0] = "object_depth_alpha.frag";
 	shader_paths[3][1] = FULL_PATH("object_depth_alpha.frag");
@@ -871,7 +870,6 @@ static PIGEON_ERR_RET create_pipelines(void)
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
 	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, shader_stages, &config, false, true));
 
-	shader_paths_skinned[0][0] = "object.vert.skinned.depth_alpha";
 	shader_paths_skinned[0][1] = FULL_PATH("object.vert.skinned.depth_alpha");
 	shader_paths_skinned[3][0] = "object_depth_alpha.frag";
 	shader_paths_skinned[3][1] = FULL_PATH("object_depth_alpha.frag");
