@@ -153,6 +153,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\deps\glad.c" />
     <ClCompile Include="src\array_list.c" />
     <ClCompile Include="src\asset.c" />
     <ClCompile Include="src\audio\audio.c" />
@@ -168,6 +169,13 @@
     <ClCompile Include="src\wgi\arraytexture.c" />
     <ClCompile Include="src\wgi\framebuffers.c" />
     <ClCompile Include="src\wgi\mesh.c" />
+    <ClCompile Include="src\wgi\opengl\glbuffer.c" />
+    <ClCompile Include="src\wgi\opengl\gldraw.c" />
+    <ClCompile Include="src\wgi\opengl\glframebuffer.c" />
+    <ClCompile Include="src\wgi\opengl\glinit.c" />
+    <ClCompile Include="src\wgi\opengl\gllimit.c" />
+    <ClCompile Include="src\wgi\opengl\glshader.c" />
+    <ClCompile Include="src\wgi\opengl\gltexture.c" />
     <ClCompile Include="src\wgi\pipeline.c" />
     <ClCompile Include="src\wgi\render.c" />
     <ClCompile Include="src\wgi\shadow.c" />
@@ -214,6 +222,12 @@
     <ClInclude Include="include\pigeon\wgi\keys.h" />
     <ClInclude Include="include\pigeon\wgi\material.h" />
     <ClInclude Include="include\pigeon\wgi\mesh.h" />
+    <ClInclude Include="include\pigeon\wgi\opengl\buffer.h" />
+    <ClInclude Include="include\pigeon\wgi\opengl\draw.h" />
+    <ClInclude Include="include\pigeon\wgi\opengl\framebuffer.h" />
+    <ClInclude Include="include\pigeon\wgi\opengl\limits.h" />
+    <ClInclude Include="include\pigeon\wgi\opengl\shader.h" />
+    <ClInclude Include="include\pigeon\wgi\opengl\texture.h" />
     <ClInclude Include="include\pigeon\wgi\pipeline.h" />
     <ClInclude Include="include\pigeon\wgi\rendergraph.h" />
     <ClInclude Include="include\pigeon\wgi\shadow.h" />
@@ -237,6 +251,7 @@
     <ClInclude Include="include\pigeon\wgi\window.h" />
     <ClInclude Include="src\bit_functions.h" />
     <ClInclude Include="src\scene\pointer_list.h" />
+    <ClInclude Include="src\wgi\opengl\gl.h" />
     <ClInclude Include="src\wgi\singleton.h" />
     <ClInclude Include="src\wgi\tex.h" />
     <ClInclude Include="src\wgi\vulkan\singleton.h" />
