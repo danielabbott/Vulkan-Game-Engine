@@ -153,7 +153,7 @@ void pigeon_wgi_get_window_dimensions(unsigned int * width, unsigned int * heigh
 	else glfwGetFramebufferSize(pigeon_wgi_glfw_window, (int *)width, (int *)height);
 }
 
-
+// TODO cache this, use glfw callback?
 PigeonWGISwapchainInfo pigeon_opengl_get_swapchain_info(void)
 {
 	PigeonWGISwapchainInfo i = {0};

@@ -6,6 +6,7 @@
 #include <pigeon/object_pool.h>
 #include <pigeon/wgi/wgi.h>
 #include <pigeon/asset.h>
+#include <pigeon/job_system/job.h>
 #include <pigeon/misc.h>
 #include <pigeon/assert.h>
 #ifndef CGLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -15,29 +16,12 @@
 #include <cglm/quat.h>
 #include <string.h>
 
-typedef struct DrawCall {
-    PigeonWGIPipeline * pipeline;
-    PigeonWGIMultiMesh * mesh;
-    unsigned int draw_object_index;
-    unsigned int draw_object_count;
-    unsigned int multidraw_count; // or 0 if using regular indexed rendering
-    unsigned int multidraw_index; 
-
-    // These fields are only used for non-multidraw
-
-    uint32_t start_vertex;
-    uint32_t instances;
-    uint32_t first;
-    uint32_t count;
-} DrawCall;
-
 extern PigeonTransform * pigeon_scene_root;
 
 // TODO don't have this, write straight to staging buffer. 
 //  ^ requires that data in each object is written sequentially
 static PigeonArrayList draw_objects;
 
-static PigeonArrayList draw_calls; // DrawCall[]
 static PigeonWGISceneUniformData scene_uniform_data = {0};
 extern PigeonObjectPool pigeon_pool_rs;
 extern PigeonObjectPool pigeon_pool_anim;
@@ -49,30 +33,38 @@ static unsigned int total_bones;
 static unsigned int total_lights;
 static PigeonTransform* camera;
 
+static PigeonWGIBoneMatrix* bone_matrices;
+
+static PigeonArrayList job_array_list;
+static PigeonJob* jobs;
+
 void pigeon_init_scene_module(void);
 void pigeon_init_scene_module(void)
 {
     pigeon_create_array_list(&draw_objects, sizeof(PigeonWGIDrawObject));
-    pigeon_create_array_list(&draw_calls, sizeof(DrawCall));
+    pigeon_create_array_list(&job_array_list, sizeof(PigeonJob));
 }
 
 void pigeon_deinit_scene_module(void);
 void pigeon_deinit_scene_module(void)
 {
     pigeon_destroy_array_list(&draw_objects);
-    pigeon_destroy_array_list(&draw_calls);
+    pigeon_destroy_array_list(&job_array_list);
 }
 
+static unsigned int render_state_index;
+
 // not parallelisable
-static void scene_graph_prepass_rs(void * rs_, void * arg0)
+static void scene_graph_prepass_rs(void * rs_)
 {
-    (void)arg0;
     PigeonRenderState * rs = rs_;
 
     rs->_start_draw_index = total_draws;
     rs->_start_multidraw_index = total_multidraw_draws;
+    rs->_index = render_state_index++;
 
     unsigned int draws = 0, multidraws = 0;
+    rs->count = 0;
 
     if(!rs->models) return;
 
@@ -86,14 +78,25 @@ static void scene_graph_prepass_rs(void * rs_, void * arg0)
             PigeonMaterialRenderer* mr = ((PigeonMaterialRenderer**)model->mr->elements)[j];
 
             if(mr->c.transforms) {
-                instances += mr->c.transforms->size;
+                for(unsigned int k = 0; k < mr->c.transforms->size; k++, instances++) {
+                    PigeonTransform* t = ((PigeonTransform**)mr->c.transforms->elements)[k];
+                    pigeon_scene_calculate_world_matrix(t);
+                }
             }
         }
 
-        if(instances) {
+        if(pigeon_wgi_multidraw_supported() && instances) {
+            // These are only used if there is only 1 multidraw for this render state
+            rs->start_vertex = model->model_asset->mesh_meta.multimesh_start_vertex;
+            rs->instances = instances;
+            rs->first = model->model_asset->mesh_meta.multimesh_start_index
+                    + model->model_asset->materials[model->material_index].first;
+            rs->count = model->model_asset->materials[model->material_index].count;
+            
             multidraws++;
-            draws += instances;
         }
+
+        draws += instances;
     }
 
     if(multidraws == 1) multidraws = 0;
@@ -106,9 +109,8 @@ static void scene_graph_prepass_rs(void * rs_, void * arg0)
 }
 
 // not parallelisable
-static void scene_graph_prepass_anim(void * anim_, void * arg0)
+static void scene_graph_prepass_anim(void * anim_)
 {
-    (void)arg0;
     PigeonAnimationState * anim = anim_;
 
     anim->_first_bone_index = total_bones;
@@ -117,10 +119,9 @@ static void scene_graph_prepass_anim(void * anim_, void * arg0)
 
 static void scene_graph_prepass(PigeonWGIShadowParameters shadows[4])
 {
-    total_draws = total_multidraw_draws = total_bones = 0;
-    // TODO job system: put each call to pigeon_object_pool_for_each in its own job
-    pigeon_object_pool_for_each(&pigeon_pool_rs, scene_graph_prepass_rs, NULL);
-    pigeon_object_pool_for_each(&pigeon_pool_anim, scene_graph_prepass_anim, NULL);
+    total_draws = total_multidraw_draws = total_bones = render_state_index = 0;
+    pigeon_object_pool_for_each(&pigeon_pool_rs, scene_graph_prepass_rs);
+    pigeon_object_pool_for_each(&pigeon_pool_anim, scene_graph_prepass_anim);
 
     // lights & shadow
 
@@ -131,8 +132,8 @@ static void scene_graph_prepass(PigeonWGIShadowParameters shadows[4])
 
         for(unsigned int j = 0; j < l->c.transforms->size && light_index < 4; j++, light_index++) {
             PigeonTransform * t = ((PigeonTransform**)l->c.transforms->elements)[j];
-
             pigeon_scene_calculate_world_matrix(t);
+
             if(l->shadow_resolution) {
                 memcpy(shadows[light_index].inv_view_matrix, t->world_transform_cache, 64);
                 shadows[light_index].resolution = l->shadow_resolution;
@@ -151,12 +152,13 @@ static void scene_graph_prepass(PigeonWGIShadowParameters shadows[4])
     
 }
 
-static void set_object_uniform(PigeonModelMaterial* model, PigeonMaterialRenderer* mr,
-    PigeonTransform* t, uint32_t draw_index)
+static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialRenderer const* mr,
+    PigeonTransform const* t, uint32_t draw_index)
 {
     assert(draw_index < draw_objects.size);
     PigeonWGIDrawObject * data = &((PigeonWGIDrawObject*)draw_objects.elements)[draw_index];
 
+    assert(t->world_transform_cached);
 
     
 	/* Mesh metadata */
@@ -168,7 +170,6 @@ static void set_object_uniform(PigeonModelMaterial* model, PigeonMaterialRendere
 
 	data->ssao_intensity = 1.35f;
 
-    pigeon_scene_calculate_world_matrix(t);
 
 	memcpy(data->model, t->world_transform_cache, 64);
 
@@ -246,10 +247,10 @@ static void mat4_to_mat3x4(const float * mat4, float * mat3x4)
 	mat3x4[11] = mat4[14];
 }
 
-static void set_object_bones(void* a_, void * arg0)
+static PIGEON_ERR_RET set_object_bones(uint64_t arg0, void* arg1)
 {
-    PigeonAnimationState* a = a_;
-    PigeonWGIBoneMatrix* bone_matrices = arg0;
+    (void)arg0;
+    PigeonAnimationState const* a = arg1;
 
     unsigned int current_bone_index = a->_first_bone_index;
 
@@ -271,12 +272,12 @@ static void set_object_bones(void* a_, void * arg0)
             bone_matrix->mat3x4[10] = 0;
             bone_matrix->mat3x4[11] = 0;
         }
-        return;
+        return 0;
     }
 
     if((unsigned)a->animation_index >= a->model_asset->animations_count) {
         assert(false);
-        return;
+        return 1;
     }
 
     PigeonWGIAnimationMeta* animation = &a->model_asset->animations[a->animation_index];
@@ -297,7 +298,7 @@ static void set_object_bones(void* a_, void * arg0)
     if(a->model_asset->mesh_meta.index_count > 0) subr_i++;
     subr_i += (unsigned) a->animation_index;
 
-    PigeonWGIBoneData * bone_data = a->model_asset->subresources[subr_i].decompressed_data;
+    PigeonWGIBoneData const* bone_data = a->model_asset->subresources[subr_i].decompressed_data;
 
     for(unsigned int i = 0; i < a->model_asset->bones_count; i++) {
         assert(current_bone_index < total_bones);
@@ -341,31 +342,18 @@ static void set_object_bones(void* a_, void * arg0)
         
         mat4_to_mat3x4(&m[0][0], bone_matrix->mat3x4);
     }
+    return 0;
 }
 
-static void per_rs(void * rs_, void * arg0)
+static PIGEON_ERR_RET set_uniform_data_per_rs_(uint64_t arg0, void * rs_)
 {
     (void)arg0;
-    PigeonRenderState * rs = rs_;
-
-    if(!rs->_draws) return;
-    assert(rs->models && rs->models->size);
+    PigeonRenderState const* rs = rs_;
 
     bool multidraw_supported = pigeon_wgi_multidraw_supported();
 
-    DrawCall* dc = NULL;
-
-    if(multidraw_supported) {
-        dc = pigeon_array_list_add(&draw_calls, 1);
-        dc->pipeline = rs->pipeline;
-        dc->mesh = rs->mesh;
-        dc->draw_object_index = rs->_start_draw_index;
-        dc->draw_object_count = rs->_draws;
-        dc->multidraw_index = rs->_multidraws == 0 ? UINT32_MAX : rs->_start_multidraw_index;
-        dc->multidraw_count = rs->_multidraws;
-
-        dc->count = 0;
-    }
+    if(!rs->_draws) return 0;
+    assert(rs->models && rs->models->size);
 
 
 
@@ -391,17 +379,9 @@ static void per_rs(void * rs_, void * arg0)
 
 
         if(multidraw_supported && instances) {
-            if(!rs->_multidraws) {
-                assert(!dc->count);
-
-                dc->start_vertex = model->model_asset->mesh_meta.multimesh_start_vertex;
-                dc->instances = instances;
-                dc->first = model->model_asset->mesh_meta.multimesh_start_index
-                        + model->model_asset->materials[model->material_index].first;
-                dc->count = model->model_asset->materials[model->material_index].count;
-            }
-            else {
+            if(rs->_multidraws) {
                 pigeon_wgi_multidraw_draw(
+                    multidraw_index++,
                     model->model_asset->mesh_meta.multimesh_start_vertex,
                     instances,
                     model->model_asset->mesh_meta.multimesh_start_index
@@ -409,24 +389,22 @@ static void per_rs(void * rs_, void * arg0)
                     model->model_asset->materials[model->material_index].count,
                     draw_index - instances
                 );
-                multidraw_index++;
             }
         }
     }
+
+    return 0;
 }
 
-static PIGEON_ERR_RET set_draw_data(bool debug_disable_ssao)
+// Must be job 0
+static PIGEON_ERR_RET set_per_scene_uniform_data(uint64_t arg0, void* arg1)
 {
-    ASSERT_R1(!pigeon_array_list_resize(&draw_objects, total_draws));
-    ASSERT_R1(!pigeon_array_list_resize(&draw_calls, 0));
-
-
-    // scene data
+    bool debug_disable_ssao = arg0 > 0;
+    (void)arg1;
 
 	unsigned int window_width, window_height;
 	pigeon_wgi_get_window_dimensions(&window_width, &window_height);
 
-    pigeon_scene_calculate_world_matrix(camera);
     glm_mat4_inv(camera->world_transform_cache, scene_uniform_data.view);
 
 	pigeon_wgi_perspective(scene_uniform_data.proj, 45, (float)window_width / (float)window_height);
@@ -455,7 +433,6 @@ static PIGEON_ERR_RET set_draw_data(bool debug_disable_ssao)
             PigeonTransform * t = ((PigeonTransform**)l->c.transforms->elements)[j];
             PigeonWGILight* ldata = &scene_uniform_data.lights[light_index];
                         
-            pigeon_scene_calculate_world_matrix(t);
             if(!l->shadow_resolution) {
                 vec4 dir = {0, 0, 1, 0};
                 glm_mat4_mulv(t->world_transform_cache, dir, dir);
@@ -469,29 +446,7 @@ static PIGEON_ERR_RET set_draw_data(bool debug_disable_ssao)
     assert(light_index == total_lights);
 
 
-    // object data
-    pigeon_object_pool_for_each(&pigeon_pool_rs, per_rs, NULL);
-
     return 0;
-}
-
-static void draw_call(PigeonWGICommandBuffer * command_buffer, DrawCall * dc)
-{
-    if(dc->multidraw_count == 0) {
-        pigeon_wgi_draw(command_buffer, dc->pipeline, dc->mesh, 
-            dc->start_vertex, dc->draw_object_index, dc->instances, dc->first, dc->count, -1, -1, 0, 0);
-    }
-    else {
-        pigeon_wgi_multidraw_submit(
-            command_buffer,
-            dc->pipeline,
-            dc->mesh,
-            dc->multidraw_index,
-            dc->multidraw_count,
-            dc->draw_object_index,
-            dc->draw_object_count
-        );
-    }
 }
 
 typedef enum {
@@ -507,7 +462,7 @@ typedef struct NonMultiDrawParameters {
 
 static void non_multi_draw_per_rs(void * rs_, void * arg0)
 {
-    PigeonRenderState * rs = rs_;
+    PigeonRenderState const* rs = rs_;
     NonMultiDrawParameters parameters = *(NonMultiDrawParameters*)arg0;
 
     if(!rs->_draws) return;
@@ -548,34 +503,58 @@ static void non_multi_draw_per_rs(void * rs_, void * arg0)
     }
 }
 
-static PIGEON_ERR_RET render_frame(PigeonWGICommandBuffer * command_buffer,
-    PigeonWGIPipeline* skybox_pipeline)
+static void multi_draw_per_rs(void * rs_, void * arg0)
 {
+    PigeonRenderState const* rs = rs_;
+    NonMultiDrawParameters parameters = *(NonMultiDrawParameters*)arg0;
+
+    if(!rs->_draws) return;
+
+    if(parameters.type == NON_MULTI_DRAW_OPAQUE && rs->pipeline->transparent) return;
+    if(parameters.type == NON_MULTI_DRAW_TRANSPARENT && !rs->pipeline->transparent) return;
+
+    if(rs->_multidraws == 0) {
+        if(rs->count) {
+            pigeon_wgi_draw(parameters.cmd, rs->pipeline, rs->mesh, 
+                rs->start_vertex, rs->_start_draw_index, rs->instances, rs->first, rs->count, -1, -1, 0, 0);
+        }
+    }
+    else {
+        pigeon_wgi_multidraw_submit(
+            parameters.cmd,
+            rs->pipeline,
+            rs->mesh,
+            rs->_start_multidraw_index,
+            rs->_multidraws,
+            rs->_start_draw_index,
+            rs->_draws
+        );
+    }
+}
+
+static PIGEON_ERR_RET render_frame(uint64_t arg0, void* arg1)
+{
+    PigeonWGICommandBuffer * command_buffer = (PigeonWGICommandBuffer *) arg0;
+    PigeonWGIPipeline * skybox_pipeline = arg1;
+
 	ASSERT_R1(!pigeon_wgi_start_command_buffer(command_buffer));
 
     if(pigeon_wgi_multidraw_supported()) {
+        NonMultiDrawParameters parameters = {0};
+        parameters.cmd = command_buffer;
+
         if(!skybox_pipeline) {
-            for(unsigned int i = 0; i < draw_calls.size; i++) {
-                DrawCall* dc = &((DrawCall*)draw_calls.elements)[i];
-                draw_call(command_buffer, dc);
-            }
+            parameters.type = NON_MULTI_DRAW_ALL;
+            pigeon_object_pool_for_each2(&pigeon_pool_rs, multi_draw_per_rs, &parameters);
         }
         else {
-            // opaque objects
-            for(unsigned int i = 0; i < draw_calls.size; i++) {
-                DrawCall* dc = &((DrawCall*)draw_calls.elements)[i];
-                if(dc->pipeline->transparent) continue;
-                draw_call(command_buffer, dc);
-            }
+            parameters.type = NON_MULTI_DRAW_OPAQUE;
+            pigeon_object_pool_for_each2(&pigeon_pool_rs, multi_draw_per_rs, &parameters);
 
             pigeon_wgi_draw_without_mesh(command_buffer, skybox_pipeline, 3);
 
-            // transparent objects
-            for(unsigned int i = 0; i < draw_calls.size; i++) {
-                DrawCall* dc = &((DrawCall*)draw_calls.elements)[i];
-                if(!dc->pipeline->transparent) continue;
-                draw_call(command_buffer, dc);
-            }
+            parameters.type = NON_MULTI_DRAW_TRANSPARENT;
+            pigeon_object_pool_for_each2(&pigeon_pool_rs, multi_draw_per_rs, &parameters);
         }
     }
     else {
@@ -584,16 +563,16 @@ static PIGEON_ERR_RET render_frame(PigeonWGICommandBuffer * command_buffer,
 
         if(!skybox_pipeline) {
             parameters.type = NON_MULTI_DRAW_ALL;
-            pigeon_object_pool_for_each(&pigeon_pool_rs, non_multi_draw_per_rs, &parameters);
+            pigeon_object_pool_for_each2(&pigeon_pool_rs, non_multi_draw_per_rs, &parameters);
         }
         else {
             parameters.type = NON_MULTI_DRAW_OPAQUE;
-            pigeon_object_pool_for_each(&pigeon_pool_rs, non_multi_draw_per_rs, &parameters);
+            pigeon_object_pool_for_each2(&pigeon_pool_rs, non_multi_draw_per_rs, &parameters);
 
             pigeon_wgi_draw_without_mesh(command_buffer, skybox_pipeline, 3);
 
             parameters.type = NON_MULTI_DRAW_TRANSPARENT;
-            pigeon_object_pool_for_each(&pigeon_pool_rs, non_multi_draw_per_rs, &parameters);
+            pigeon_object_pool_for_each2(&pigeon_pool_rs, non_multi_draw_per_rs, &parameters);
         }
     }
 
@@ -601,32 +580,169 @@ static PIGEON_ERR_RET render_frame(PigeonWGICommandBuffer * command_buffer,
 	return 0;
 }
 
+
+static unsigned int create_draw_data_job__index;
+static void create_draw_data_job_(void* e)
+{
+    PigeonRenderState* rs = e;
+
+    unsigned int i = create_draw_data_job__index++;
+    assert(i < job_array_list.size);
+    jobs[i].function = set_uniform_data_per_rs_;
+    jobs[i].arg1 = rs;
+}
+
+static unsigned int set_bone_matrices__index;
+static void set_bone_matrices_(void* e)
+{
+    PigeonAnimationState* a = e;
+
+    unsigned int i = set_bone_matrices__index++;
+    assert(i < job_array_list.size);
+    jobs[i].function = set_object_bones;
+    jobs[i].arg1 = a;
+}
+
+static PIGEON_ERR_RET pigeon_uniform_data_jobs(bool debug_disable_ssao)
+{
+    jobs[0].function = set_per_scene_uniform_data;
+    jobs[0].arg0 = debug_disable_ssao;
+
+    // object data
+
+    ASSERT_R1(!pigeon_array_list_resize(&draw_objects, total_draws));
+
+    create_draw_data_job__index = 1;
+    pigeon_object_pool_for_each(&pigeon_pool_rs, create_draw_data_job_);
+
+    set_bone_matrices__index = 1 + pigeon_pool_rs.allocated_obj_count;
+    pigeon_object_pool_for_each(&pigeon_pool_anim, set_bone_matrices_);
+    return 0;
+}
+
+static PIGEON_ERR_RET job_call_function(uint64_t arg0, void * arg1)
+{
+    (void)arg0;
+    return ((int (*)(void)) arg1)();
+}
+
 PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_ssao, PigeonWGIPipeline* skybox_pipeline)
 {
     camera = camera_;
 	PigeonWGIShadowParameters shadows[4] = {{0}};
 
+    // Get minimum size of uniform data
     scene_graph_prepass(shadows);
 
-    PigeonWGIBoneMatrix* bone_matrices;
+    pigeon_scene_calculate_world_matrix(camera);
+
+
+    // Create uniform buffers, get pointers
+
     ASSERT_R1(!pigeon_wgi_start_frame(total_draws, total_multidraw_draws, shadows, total_bones, &bone_matrices));
 
-    ASSERT_R1(!set_draw_data(debug_disable_ssao));
+    // Jobs
 
-    pigeon_object_pool_for_each(&pigeon_pool_anim, set_object_bones, bone_matrices);
-
-    ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_objects.elements, total_draws));
-
-
-    ASSERT_R1(!render_frame(pigeon_wgi_get_depth_command_buffer(), NULL));
-
+    unsigned int shadow_lights_count = 0;
     for(unsigned int i = 0; i < 4; i++) {
-        if(shadows[i].resolution)
-            ASSERT_R1(!render_frame(pigeon_wgi_get_shadow_command_buffer(i), NULL));
+        if(shadows[i].resolution) shadow_lights_count++;
     }
 
-    ASSERT_R1(!render_frame(pigeon_wgi_get_light_pass_command_buffer(), NULL));
-    ASSERT_R1(!render_frame(pigeon_wgi_get_render_command_buffer(), skybox_pipeline));
+    job_array_list.size = 0;
+    ASSERT_R1(!pigeon_array_list_resize(&job_array_list,
+        1 + 
+        pigeon_pool_anim.allocated_obj_count + 
+        pigeon_pool_rs.allocated_obj_count +
+        (pigeon_wgi_multithreading_supported() ? (1+shadow_lights_count) : 0)
+    ));
+    pigeon_array_list_zero(&job_array_list);
+
+    jobs = (PigeonJob *) job_array_list.elements;
+
+    // Fill uniform buffers
+    ASSERT_R1(!pigeon_uniform_data_jobs(debug_disable_ssao));
+
+    // Render
+
+    if(pigeon_wgi_multithreading_supported()) {
+        unsigned int i = 1 + 
+        pigeon_pool_anim.allocated_obj_count + 
+        pigeon_pool_rs.allocated_obj_count;
+        
+        jobs[i].function = render_frame;
+        jobs[i].arg0 = (uint64_t) pigeon_wgi_get_depth_command_buffer();  
+        jobs[i++].arg1 = NULL;      
+
+        
+        for(unsigned int j = 0; j < 4; j++) {
+            if(!shadows[j].resolution) continue;
+            jobs[i].function = render_frame;
+            jobs[i].arg0 = (uint64_t) pigeon_wgi_get_shadow_command_buffer(j);
+            jobs[i++].arg1 = NULL;
+        }
+
+        ASSERT_R1(!pigeon_dispatch_jobs(jobs, job_array_list.size));
+
+        ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_objects.elements, total_draws));
+
+
+        job_array_list.size = 3;
+        i = 0;
+
+        jobs[i].function = job_call_function;
+        jobs[i++].arg1 = pigeon_wgi_present_frame_rec_sub0;
+
+        jobs[i].function = render_frame;
+        jobs[i].arg0 = (uint64_t) pigeon_wgi_get_light_pass_command_buffer();
+        jobs[i++].arg1 = NULL;
+
+        jobs[i].function = render_frame;
+        jobs[i].arg0 = (uint64_t) pigeon_wgi_get_render_command_buffer();
+        jobs[i++].arg1 = skybox_pipeline;
+
+        ASSERT_R1(!pigeon_dispatch_jobs(jobs, 3));
+
+
+
+
+        assert(job_array_list.capacity >= 3);
+        job_array_list.size = 3;
+
+        jobs[0].function = job_call_function;
+        jobs[0].arg1 = (void *) pigeon_wgi_present_frame_rec1;
+
+        jobs[1].function = job_call_function;
+        jobs[1].arg1 = (void *) pigeon_wgi_present_frame_rec2;
+
+        jobs[2].function = job_call_function;
+        jobs[2].arg1 = (void *) pigeon_wgi_present_frame_rec3;
+
+        ASSERT_R1(!pigeon_dispatch_jobs(jobs, 3));
+
+		ASSERT_R1(!pigeon_wgi_present_frame_sub1());
+    }
+    else {
+        ASSERT_R1(!pigeon_dispatch_jobs(jobs, job_array_list.size));
+        
+
+        // Copy data
+        ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_objects.elements, total_draws));
+
+
+        // Render
+
+        ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_depth_command_buffer(), NULL));
+
+        for(unsigned int i = 0; i < 4; i++) {
+            if(shadows[i].resolution)
+                ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_shadow_command_buffer(i), NULL));
+        }
+
+        ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_light_pass_command_buffer(), NULL));
+        ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_render_command_buffer(), skybox_pipeline));
+
+		ASSERT_R1(!pigeon_wgi_present_frame_sub1());
+    }
 
     return 0;
 }

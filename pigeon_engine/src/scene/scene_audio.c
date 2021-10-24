@@ -52,9 +52,8 @@ void pigeon_audio_player_play(PigeonAudioPlayer* ap, PigeonAudioBufferID buffer)
     pigeon_audio_play(ap->_source_id, buffer);
 }
 
-static void do_update(void* ap_, void * arg0)
+static void do_update(void* ap_)
 {
-    (void)arg0;
     PigeonAudioPlayer * ap = ap_;
     if(!ap->c.transforms || !ap->c.transforms->size) return;
 
@@ -95,6 +94,6 @@ PIGEON_ERR_RET pigeon_update_scene_audio(PigeonTransform * camera)
 
     pigeon_audio_set_listener(pos, at, up, vel);
 
-    pigeon_object_pool_for_each(&pool, do_update, NULL);
+    pigeon_object_pool_for_each(&pool, do_update);
     return 0;
 }

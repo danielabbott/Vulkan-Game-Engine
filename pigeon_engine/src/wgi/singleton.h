@@ -56,7 +56,8 @@ typedef struct PerFrameData {
 
 	union {
 		struct {
-			PigeonVulkanCommandPool primary_command_pool;
+			// depth&shadow, light, render, post-processing
+			PigeonVulkanCommandPool primary_command_pools[4];
 
 			PigeonVulkanMemoryAllocation uniform_buffer_memory;
 			PigeonVulkanBuffer uniform_buffer;
@@ -67,14 +68,10 @@ typedef struct PerFrameData {
 			PigeonVulkanDescriptorPool render_descriptor_pool;
 
 			bool commands_in_progress;
-			PigeonVulkanFence pre_render_done_fence;
+			PigeonVulkanFence depth_and_shadows_done_fence;
 
-			PigeonVulkanSemaphore pre_processing_done_semaphore;
-			PigeonVulkanSemaphore render_done_semaphore;
-			PigeonVulkanSemaphore post_processing_done_semaphore;
+			PigeonVulkanSemaphore semaphores[4][2];
 
-			PigeonVulkanSemaphore render_done_semaphore2;
-			PigeonVulkanSemaphore post_processing_done_semaphore2;
 			PigeonVulkanSemaphore swapchain_acquire_semaphore;
 
 			PigeonVulkanTimerQueryPool timer_query_pool;
@@ -211,8 +208,6 @@ typedef struct SingletonData
 	unsigned int max_draws;
 	unsigned int max_multidraw_draws;
 	unsigned int total_bones;
-
-	unsigned int multidraw_draw_index; // reset to 0 each frame
 
 	unsigned int swapchain_image_index;
 	unsigned int previous_frame_index_mod;

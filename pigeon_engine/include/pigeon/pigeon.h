@@ -1,6 +1,6 @@
 #pragma once
 
-// #include "wgi/window.h"
+#include <pigeon/util.h>
 
-void pigeon_init(void);
+PIGEON_ERR_RET pigeon_init(void);
 void pigeon_deinit(void);

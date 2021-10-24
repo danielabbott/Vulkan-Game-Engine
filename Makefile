@@ -77,6 +77,7 @@ $(SOURCES_FRAG:%=build/%)
 SOURCES = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
 $(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/wgi/opengl/*.c) \
 $(wildcard pigeon_engine/src/scene/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
+$(wildcard pigeon_engine/src/job_system/*.c) \
 $(wildcard tests/1/*.c) config_parser/parser.c deps/glad.c
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 

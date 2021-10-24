@@ -22,4 +22,7 @@ void pigeon_array_list_remove_preserve_order2(PigeonArrayList*, void * element);
 
 PIGEON_ERR_RET pigeon_array_list_resize(PigeonArrayList*, unsigned int new_size);
 
+// memset elements array to 0 (up to size, not capacity)
+void pigeon_array_list_zero(PigeonArrayList*);
+
 void pigeon_destroy_array_list(PigeonArrayList*);

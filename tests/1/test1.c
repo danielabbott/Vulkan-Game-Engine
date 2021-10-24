@@ -172,7 +172,7 @@ static void mouse_callback(PigeonWGIMouseEvent e)
 
 static PIGEON_ERR_RET start(void)
 {
-	pigeon_init();
+	ASSERT_R1(!pigeon_init());
 
 	PigeonWindowParameters window_parameters = {
 		.width = 1280,
@@ -185,7 +185,7 @@ static PIGEON_ERR_RET start(void)
 	cfg.bloom = true;
 	cfg.shadow_casting_lights = 1;
 	cfg.shadow_blur_passes = 2;
-	if (pigeon_wgi_init(window_parameters, true, false, cfg, 0.1f, 1000.0f))
+	if (pigeon_wgi_init(window_parameters, true, true, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -901,11 +901,14 @@ static void set_camera_transform(vec2 rotation, vec3 position)
 	pigeon_invalidate_world_transform(t_camera);
 }
 
-static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT])
+static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT], double cpu_frame_time)
 {
 	static double values[PIGEON_WGI_TIMERS_COUNT];
 	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
 		values[i] += delayed_timer_values[i] - delayed_timer_values[0];
+
+	static double cpu_frame_time_sum = 0;
+	cpu_frame_time_sum += cpu_frame_time;
 
 	static unsigned int frame_counter;
 	frame_counter++;
@@ -928,8 +931,10 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
 	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
 	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
+	printf("CPU time: %f\n", cpu_frame_time_sum / 300.0);
 
 	frame_counter = 0;
+	cpu_frame_time_sum = 0;
 	memset(values, 0, sizeof values);
 
 }
@@ -1029,6 +1034,7 @@ static PIGEON_ERR_RET game_loop(void)
 	vec3 position = {0, 1.7f, 0};
 	vec3 position_prev = {0, 1.7f, 0};
 
+	double cpu_frame_time = 1/60.0;
 
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
@@ -1039,9 +1045,10 @@ static PIGEON_ERR_RET game_loop(void)
 
 		
 		if(delayed_timer_values[0] > 0.0 || delayed_timer_values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] > 0.0)
-			print_timer_stats(delayed_timer_values);
+			print_timer_stats(delayed_timer_values, cpu_frame_time);
 
 		float time_now = pigeon_wgi_get_time_seconds();
+		float start_frame_time = time_now;
 		float delta_time = time_now - last_frame_time;
 		last_frame_time = time_now;
 
@@ -1099,11 +1106,11 @@ static PIGEON_ERR_RET game_loop(void)
 		}
 
 
-		ASSERT_R1(!pigeon_draw_frame(t_camera, debug_disable_ssao, &skybox_pipeline));
 		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
+		ASSERT_R1(!pigeon_draw_frame(t_camera, debug_disable_ssao, &skybox_pipeline));
 
-
-		ASSERT_R1(!pigeon_wgi_present_frame());
+		cpu_frame_time = (pigeon_wgi_get_time_seconds() - start_frame_time) * 1000.0;
+		
 
 		frame_number++;
 	}

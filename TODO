@@ -1,6 +1,6 @@
 Fix smooth shadow glitches
 Unit tests
-Job System
+Better job system (dependency chains)
 Refactoring
 Optimise vulkan (performance is slightly worse than OpenGL)
 Scene files

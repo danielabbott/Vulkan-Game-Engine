@@ -33,4 +33,5 @@ void pigeon_destroy_object_pool(PigeonObjectPool*);
 // callback parameters:
 //  e: element in object pool
 //  x: custom parameter passed each time
-void pigeon_object_pool_for_each(PigeonObjectPool *, void (*)(void* e,void* x), void * x);
+void pigeon_object_pool_for_each(PigeonObjectPool *, void (*)(void* e));
+void pigeon_object_pool_for_each2(PigeonObjectPool *, void (*)(void* e,void* x), void * x);

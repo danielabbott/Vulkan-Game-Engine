@@ -63,12 +63,15 @@ struct PigeonWGICommandBuffer;
 
 typedef struct PigeonWGICommandBuffer PigeonWGICommandBuffer;
 
+// TODO use enum instead?
 // ! Discard the command buffer pointers after presenting the frame !
 PigeonWGICommandBuffer * pigeon_wgi_get_upload_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_depth_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light_index);
 PigeonWGICommandBuffer * pigeon_wgi_get_light_pass_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
+
+bool pigeon_wgi_multithreading_supported(void);
 
 PIGEON_ERR_RET pigeon_wgi_start_command_buffer(PigeonWGICommandBuffer *);
 void pigeon_wgi_draw_without_mesh(PigeonWGICommandBuffer*, PigeonWGIPipeline*, unsigned int vertices);
@@ -88,7 +91,7 @@ void pigeon_wgi_draw(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMulti
 
 bool pigeon_wgi_multidraw_supported(void);
 
-void pigeon_wgi_multidraw_draw(unsigned int start_vertex, uint32_t instances,
+void pigeon_wgi_multidraw_draw(unsigned int multidraw_draw_index, unsigned int start_vertex, uint32_t instances,
     uint32_t first, uint32_t count, uint32_t first_instance);
 
 void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, PigeonWGIMultiMesh*,
@@ -96,8 +99,16 @@ void pigeon_wgi_multidraw_submit(PigeonWGICommandBuffer*, PigeonWGIPipeline*, Pi
 
 PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 
+// These 4 do nothing when using OpenGL
+
+PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void); // upload&depth&shadow
+
+PIGEON_ERR_RET pigeon_wgi_present_frame_rec1(void); // light
+PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void); // render
+PIGEON_ERR_RET pigeon_wgi_present_frame_rec3(void); // post
+
 // Blocks when using OpenGL
-PIGEON_ERR_RET pigeon_wgi_present_frame(void);
+PIGEON_ERR_RET pigeon_wgi_present_frame_sub1(void); // everything else
 
 
 // Returns 2 (fail) if the window is minimised or smaller than 16x16 pixels

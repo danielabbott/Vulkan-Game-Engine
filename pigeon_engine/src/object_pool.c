@@ -151,7 +151,27 @@ void pigeon_object_pool_free(PigeonObjectPool* pool, void * object)
     }
 }
 
-void pigeon_object_pool_for_each(PigeonObjectPool * pool, void (*f)(void* e, void* x), void * x)
+void pigeon_object_pool_for_each(PigeonObjectPool * pool, void (*f)(void* e))
+{
+    for(unsigned int i = 0; i < pool->group_bitmaps.size; i++) {
+        uintptr_t group_addr = (uintptr_t)((GroupDataPointer *)pool->group_data_pointers.elements)[i];
+
+        for(unsigned int j = 0; j < PIGEON_GROUP_SIZE_DIV64; j++) {
+            uint64_t b = ((GroupBitmap*)pool->group_bitmaps.elements)[i].x[j];
+            if(!b) continue;
+
+            for(unsigned int k = 0; k < 64; k++) {
+                if(b & (1ull << k)) {
+                    void * element = (void *)(group_addr + pool->object_size*(j*64+k));
+                    f(element);
+                }
+            }
+        }
+    }
+
+}
+
+void pigeon_object_pool_for_each2(PigeonObjectPool * pool, void (*f)(void* e, void* x), void * x)
 {
     for(unsigned int i = 0; i < pool->group_bitmaps.size; i++) {
         uintptr_t group_addr = (uintptr_t)((GroupDataPointer *)pool->group_data_pointers.elements)[i];

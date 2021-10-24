@@ -16,9 +16,17 @@ typedef struct PigeonRenderState
     struct PigeonArrayList* models; // array of PigeonModelMaterial*
     struct PigeonArrayList* mr; // array of PigeonMaterialRenderer*
 
+    unsigned int _index;
     unsigned int _draws,_multidraws;
     unsigned int _start_draw_index;
     unsigned int _start_multidraw_index;
+
+    //  Valid when multidraw is supported by _multidraws is 1
+
+    uint32_t start_vertex;
+    uint32_t instances;
+    uint32_t first;
+    uint32_t count;
 } PigeonRenderState;
 
 typedef struct PigeonModelMaterial

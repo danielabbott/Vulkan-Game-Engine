@@ -65,6 +65,9 @@ void pigeon_vulkan_destroy_descriptor_layout(PigeonVulkanDescriptorLayout* layou
 int pigeon_vulkan_create_descriptor_pool(PigeonVulkanDescriptorPool*, 
 	unsigned int set_count, PigeonVulkanDescriptorLayout*);
 
+
+// TODO cache- don't rebind if not needed
+
 void pigeon_vulkan_set_descriptor_uniform_buffer(PigeonVulkanDescriptorPool*, 
 	unsigned int set, unsigned int binding, unsigned int array_index, PigeonVulkanBuffer*);
 void pigeon_vulkan_set_descriptor_uniform_buffer2(PigeonVulkanDescriptorPool*, 

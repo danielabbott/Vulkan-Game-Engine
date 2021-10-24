@@ -141,6 +141,14 @@ PIGEON_ERR_RET pigeon_array_list_resize(PigeonArrayList* al, unsigned int new_si
     return 0;
 }
 
+
+void pigeon_array_list_zero(PigeonArrayList* al)
+{
+    if(!al->size || !al->element_size || !al->elements) return;
+
+    memset(al->elements, 0, (size_t)al->element_size * (size_t)al->size);
+}
+
 void pigeon_destroy_array_list(PigeonArrayList* al)
 {
     assert(al);

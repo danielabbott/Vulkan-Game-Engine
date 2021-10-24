@@ -112,14 +112,14 @@ static void get_subpass(PigeonVulkanRenderPassConfig config, VkSubpassDescriptio
 	unsigned int i = 0;
 
 	if (config.colour_image != PIGEON_WGI_IMAGE_FORMAT_NONE && config.colour_image_is_swapchain) {
-		// Wait for swapchain
+		// Transition swapchain
 
-		subpass_dependencies[i].srcSubpass = 0;
-		subpass_dependencies[i].dstSubpass = VK_SUBPASS_EXTERNAL;
+		subpass_dependencies[i].srcSubpass = VK_SUBPASS_EXTERNAL;
+		subpass_dependencies[i].dstSubpass = 0;
 		subpass_dependencies[i].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependencies[i].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		subpass_dependencies[i].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-		subpass_dependencies[i].dstAccessMask = 0;
+		subpass_dependencies[i].srcAccessMask = 0;
+		subpass_dependencies[i].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subpass_dependencies[i].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		i++;
 	}
 

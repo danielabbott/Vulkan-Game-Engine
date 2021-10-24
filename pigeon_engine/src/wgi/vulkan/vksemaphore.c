@@ -15,11 +15,10 @@ PIGEON_ERR_RET pigeon_vulkan_create_semaphore(PigeonVulkanSemaphore* semaphore)
 
 void pigeon_vulkan_destroy_semaphore(PigeonVulkanSemaphore* semaphore)
 {
+	assert(semaphore);
+
 	if (semaphore && semaphore->vk_semaphore) {
 		vkDestroySemaphore(vkdev, semaphore->vk_semaphore, NULL);
 		semaphore->vk_semaphore = NULL;
-	}
-	else {
-		assert(false);
 	}
 }

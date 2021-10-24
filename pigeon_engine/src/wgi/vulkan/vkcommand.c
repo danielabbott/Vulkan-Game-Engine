@@ -263,7 +263,7 @@ void pigeon_vulkan_wait_for_depth_write(PigeonVulkanCommandPool* command_pool, u
 
 	vkCmdPipelineBarrier(
 		get_cmd_buf(command_pool, buffer_index),
-		VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // source stage
+		VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // source stage
 		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // destination stage
 		0,
 		0, NULL,
@@ -313,7 +313,7 @@ void pigeon_vulkan_wait_for_vertex_data_transfer(PigeonVulkanCommandPool* comman
 	vkCmdPipelineBarrier(
 		get_cmd_buf(command_pool, buffer_index),
 		VK_PIPELINE_STAGE_TRANSFER_BIT, // source stage
-		VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT, // destination stage
+		VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // destination stage
 		0,
 		1, &memory_barrier,
 		0, NULL,
@@ -711,8 +711,8 @@ PIGEON_ERR_RET pigeon_vulkan_end_submission(PigeonVulkanCommandPool* command_poo
 }
 
 int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, PigeonVulkanFence* fence,
-	PigeonVulkanSemaphore* wait_sempaphore, PigeonVulkanSemaphore* wait_sempaphore2,
-	PigeonVulkanSemaphore* signal_sempaphore, PigeonVulkanSemaphore* signal_sempaphore2)
+	PigeonVulkanSemaphore* wait_semaphore, PigeonVulkanSemaphore* wait_semaphore2,
+	PigeonVulkanSemaphore* signal_semaphore, PigeonVulkanSemaphore* signal_semaphore2)
 {
 	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
 	assert(buffer_index < command_pool->buffer_count);
@@ -731,30 +731,30 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 
 	VkSemaphore signal_semaphores[2];
 
-	if(signal_sempaphore) {
+	if(signal_semaphore) {
 		submit.signalSemaphoreCount++;
-		signal_semaphores[0] = signal_sempaphore->vk_semaphore;
+		signal_semaphores[0] = signal_semaphore->vk_semaphore;
 	}
-	if(signal_sempaphore2) {
-		signal_semaphores[submit.signalSemaphoreCount++] = signal_sempaphore2->vk_semaphore;
+	if(signal_semaphore2) {
+		signal_semaphores[submit.signalSemaphoreCount++] = signal_semaphore2->vk_semaphore;
 	}
 	
-	if(signal_sempaphore || signal_sempaphore2) submit.pSignalSemaphores = signal_semaphores;
+	if(signal_semaphore || signal_semaphore2) submit.pSignalSemaphores = signal_semaphores;
 
 
 	VkSemaphore wait_semaphores[2];
 	VkPipelineStageFlags stage[2] = {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
-	if(wait_sempaphore) {
+	if(wait_semaphore) {
 		submit.waitSemaphoreCount++;
-		wait_semaphores[0] = wait_sempaphore->vk_semaphore;
+		wait_semaphores[0] = wait_semaphore->vk_semaphore;
 	}
-	if(wait_sempaphore2) {
-		wait_semaphores[submit.waitSemaphoreCount++] = wait_sempaphore2->vk_semaphore;
+	if(wait_semaphore2) {
+		wait_semaphores[submit.waitSemaphoreCount++] = wait_semaphore2->vk_semaphore;
 	}
 	
-	if(wait_sempaphore || wait_sempaphore2) {
+	if(wait_semaphore || wait_semaphore2) {
 		submit.pWaitSemaphores = wait_semaphores;
 		submit.pWaitDstStageMask = stage;
 	}
@@ -768,10 +768,10 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 }
 
 int pigeon_vulkan_submit2(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
-	PigeonVulkanFence* fence, PigeonVulkanSemaphore* wait_sempaphore,
-	PigeonVulkanSemaphore* signal_sempaphore)
+	PigeonVulkanFence* fence, PigeonVulkanSemaphore* wait_semaphore,
+	PigeonVulkanSemaphore* signal_semaphore)
 {
-	return pigeon_vulkan_submit3(command_pool, buffer_index, fence, wait_sempaphore, NULL, signal_sempaphore, NULL);
+	return pigeon_vulkan_submit3(command_pool, buffer_index, fence, wait_semaphore, NULL, signal_semaphore, NULL);
 }
 
 PIGEON_ERR_RET pigeon_vulkan_submit(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, PigeonVulkanFence* fence)
@@ -791,15 +791,14 @@ PIGEON_ERR_RET pigeon_vulkan_reset_command_pool(PigeonVulkanCommandPool* command
 
 void pigeon_vulkan_destroy_command_pool(PigeonVulkanCommandPool* command_pool)
 {
+	assert(command_pool);
+
 	if (command_pool && command_pool->vk_command_pool) {
 		vkDestroyCommandPool(vkdev, command_pool->vk_command_pool, NULL);
 		command_pool->vk_command_pool = NULL;
 
 		if(command_pool->buffer_count > 1) free(command_pool->vk_command_buffers);
 		command_pool->vk_command_buffer = NULL;
-	}
-	else {
-		assert(false);
 	}
 }
 
