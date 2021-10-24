@@ -157,6 +157,10 @@
     <ClCompile Include="src\array_list.c" />
     <ClCompile Include="src\asset.c" />
     <ClCompile Include="src\audio\audio.c" />
+    <ClCompile Include="src\job_system\condition_var.c" />
+    <ClCompile Include="src\job_system\job.c" />
+    <ClCompile Include="src\job_system\mutex.c" />
+    <ClCompile Include="src\job_system\thread.c" />
     <ClCompile Include="src\object_pool.c" />
     <ClCompile Include="src\pigeon.c" />
     <ClCompile Include="src\scene\scene_audio.c" />
@@ -205,6 +209,8 @@
     <ClInclude Include="include\pigeon\assert.h" />
     <ClInclude Include="include\pigeon\asset.h" />
     <ClInclude Include="include\pigeon\audio\audio.h" />
+    <ClInclude Include="include\pigeon\job_system\job.h" />
+    <ClInclude Include="include\pigeon\job_system\threading.h" />
     <ClInclude Include="include\pigeon\misc.h" />
     <ClInclude Include="include\pigeon\object_pool.h" />
     <ClInclude Include="include\pigeon\pigeon.h" />

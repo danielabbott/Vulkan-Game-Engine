@@ -4,63 +4,37 @@ mkdir build\test_assets\textures
 mkdir build\test_assets\audio
 mkdir build\test_assets\models
 mkdir build\standard_assets\models
+mkdir build\standard_assets\shaders
 mkdir build\debug\standard_assets\shaders
 mkdir build\release\standard_assets\shaders
 
-copy standard_assets\shaders\downsample.frag build\release\standard_assets\shaders\downsample.frag
-copy standard_assets\shaders\gaussian_light.frag build\release\standard_assets\shaders\gaussian_light.frag
-copy standard_assets\shaders\gaussian_light.frag build\release\standard_assets\shaders\gaussian_light.1.frag
-copy standard_assets\shaders\gaussian_light.frag build\release\standard_assets\shaders\gaussian_light.3.frag
-copy standard_assets\shaders\gaussian_light.frag build\release\standard_assets\shaders\gaussian_light.4.frag
-copy standard_assets\shaders\gaussian_rgb.frag build\release\standard_assets\shaders\gaussian_rgb.frag
-copy standard_assets\shaders\object.frag build\release\standard_assets\shaders\object.frag
-copy standard_assets\shaders\object_depth_alpha.frag build\release\standard_assets\shaders\object_depth_alpha.frag
-copy standard_assets\shaders\object_light.frag build\release\standard_assets\shaders\object_light.frag
-copy standard_assets\shaders\post.frag build\release\standard_assets\shaders\post.frag
-copy standard_assets\shaders\skybox.frag build\release\standard_assets\shaders\skybox.frag
-copy standard_assets\shaders\fullscreen.vert build\release\standard_assets\shaders\fullscreen.vert
-copy standard_assets\shaders\post.vert build\release\standard_assets\shaders\post.vert
-copy standard_assets\shaders\skybox.vert build\release\standard_assets\shaders\skybox.vert
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.depth
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.depth_alpha
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.light
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.skinned
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.skinned.depth
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.skinned.depth_alpha
-copy standard_assets\shaders\object.vert build\release\standard_assets\shaders\object.vert.skinned.light
-copy standard_assets\shaders\common.glsl build\release\standard_assets\shaders\common.glsl
-copy standard_assets\shaders\ssao.glsl build\release\standard_assets\shaders\ssao.glsl
-copy standard_assets\shaders\random.glsl build\release\standard_assets\shaders\random.glsl
-copy standard_assets\shaders\ubo.glsl build\release\standard_assets\shaders\ubo.glsl
 
-REM TODO glsl source files are not debug/release specific
-copy standard_assets\shaders\downsample.frag build\debug\standard_assets\shaders\downsample.frag
-copy standard_assets\shaders\gaussian_light.frag build\debug\standard_assets\shaders\gaussian_light.frag
-copy standard_assets\shaders\gaussian_light.frag build\debug\standard_assets\shaders\gaussian_light.1.frag
-copy standard_assets\shaders\gaussian_light.frag build\debug\standard_assets\shaders\gaussian_light.3.frag
-copy standard_assets\shaders\gaussian_light.frag build\debug\standard_assets\shaders\gaussian_light.4.frag
-copy standard_assets\shaders\gaussian_rgb.frag build\debug\standard_assets\shaders\gaussian_rgb.frag
-copy standard_assets\shaders\object.frag build\debug\standard_assets\shaders\object.frag
-copy standard_assets\shaders\object_depth_alpha.frag build\debug\standard_assets\shaders\object_depth_alpha.frag
-copy standard_assets\shaders\object_light.frag build\debug\standard_assets\shaders\object_light.frag
-copy standard_assets\shaders\post.frag build\debug\standard_assets\shaders\post.frag
-copy standard_assets\shaders\skybox.frag build\debug\standard_assets\shaders\skybox.frag
-copy standard_assets\shaders\fullscreen.vert build\debug\standard_assets\shaders\fullscreen.vert
-copy standard_assets\shaders\post.vert build\debug\standard_assets\shaders\post.vert
-copy standard_assets\shaders\skybox.vert build\debug\standard_assets\shaders\skybox.vert
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.depth
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.depth_alpha
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.light
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.skinned
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.skinned.depth
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.skinned.depth_alpha
-copy standard_assets\shaders\object.vert build\debug\standard_assets\shaders\object.vert.skinned.light
-copy standard_assets\shaders\common.glsl build\debug\standard_assets\shaders\common.glsl
-copy standard_assets\shaders\ssao.glsl build\debug\standard_assets\shaders\ssao.glsl
-copy standard_assets\shaders\random.glsl build\debug\standard_assets\shaders\random.glsl
-copy standard_assets\shaders\ubo.glsl build\debug\standard_assets\shaders\ubo.glsl
+copy standard_assets\shaders\downsample.frag build\standard_assets\shaders\downsample.frag
+copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.frag
+copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.1.frag
+copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.3.frag
+copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.4.frag
+copy standard_assets\shaders\gaussian_rgb.frag build\standard_assets\shaders\gaussian_rgb.frag
+copy standard_assets\shaders\object.frag build\standard_assets\shaders\object.frag
+copy standard_assets\shaders\object_depth_alpha.frag build\standard_assets\shaders\object_depth_alpha.frag
+copy standard_assets\shaders\object_light.frag build\standard_assets\shaders\object_light.frag
+copy standard_assets\shaders\post.frag build\standard_assets\shaders\post.frag
+copy standard_assets\shaders\skybox.frag build\standard_assets\shaders\skybox.frag
+copy standard_assets\shaders\fullscreen.vert build\standard_assets\shaders\fullscreen.vert
+copy standard_assets\shaders\post.vert build\standard_assets\shaders\post.vert
+copy standard_assets\shaders\skybox.vert build\standard_assets\shaders\skybox.vert
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.depth
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.depth_alpha
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.light
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.skinned
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.skinned.depth
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.skinned.depth_alpha
+copy standard_assets\shaders\object.vert build\standard_assets\shaders\object.vert.skinned.light
+copy standard_assets\shaders\common.glsl build\standard_assets\shaders\common.glsl
+copy standard_assets\shaders\ssao.glsl build\standard_assets\shaders\ssao.glsl
+copy standard_assets\shaders\random.glsl build\standard_assets\shaders\random.glsl
+copy standard_assets\shaders\ubo.glsl build\standard_assets\shaders\ubo.glsl
 
 glslc -O -DNDEBUG standard_assets\shaders\downsample.frag -o build\release\standard_assets\shaders\downsample.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\gaussian_light.frag -o build\release\standard_assets\shaders\gaussian_light.frag.spv

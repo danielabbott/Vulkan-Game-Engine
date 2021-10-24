@@ -46,6 +46,12 @@
     <Filter Include="Source Files\deps">
       <UniqueIdentifier>{0ddeceef-0d74-4bbc-bedf-9fe1bec22833}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Job System">
+      <UniqueIdentifier>{22f6a3f7-1627-4231-b55d-423c5da54bbb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Job System">
+      <UniqueIdentifier>{5f990be0-b4a0-4d6f-8fda-b9cda2432175}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\array_list.c">
@@ -185,6 +191,18 @@
     </ClCompile>
     <ClCompile Include="..\deps\glad.c">
       <Filter>Source Files\deps</Filter>
+    </ClCompile>
+    <ClCompile Include="src\job_system\condition_var.c">
+      <Filter>Source Files\Job System</Filter>
+    </ClCompile>
+    <ClCompile Include="src\job_system\job.c">
+      <Filter>Source Files\Job System</Filter>
+    </ClCompile>
+    <ClCompile Include="src\job_system\mutex.c">
+      <Filter>Source Files\Job System</Filter>
+    </ClCompile>
+    <ClCompile Include="src\job_system\thread.c">
+      <Filter>Source Files\Job System</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -349,6 +367,12 @@
     </ClInclude>
     <ClInclude Include="include\pigeon\wgi\opengl\texture.h">
       <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\job_system\job.h">
+      <Filter>Header Files\Job System</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\job_system\threading.h">
+      <Filter>Header Files\Job System</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

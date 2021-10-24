@@ -29,14 +29,14 @@ static PigeonAtomicInt kill_all_threads;
 static PigeonAtomicInt start_executing[MAX_THREADS];
 static PigeonAtomicInt errors;
 
-int getcpu(unsigned int *cpu, unsigned int *node);
+//int getcpu(unsigned int *cpu, unsigned int *node);
 
 static void run_jobs(unsigned int this_thread_index)
 {
     for(unsigned int i = this_thread_index; i < jobs_count; i += threads_in_use) {
 
-        unsigned int cpu, node;
-        getcpu(&cpu, &node);
+        //unsigned int cpu, node;
+        //getcpu(&cpu, &node);
         // printf("do job %u on thread %u, cpu %u\n", i, this_thread_index, cpu);
         PigeonJob * j = &jobs_array[i];
         int err = j->function(j->arg0, j->arg1);

@@ -11,7 +11,7 @@ typedef struct CV
 	CRITICAL_SECTION mutex;
 } CV;
 
-ConditionVariable create_condition_variable()
+PigeonConditionVariable pigeon_create_condition_variable()
 {
 	CV * cv = malloc(sizeof(CV));
 	ASSERT_R0(cv);
@@ -19,10 +19,10 @@ ConditionVariable create_condition_variable()
 	InitializeCriticalSection(&cv->mutex);
 	InitializeConditionVariable(&cv->cond);
 
-	return (ConditionVariable)cv;
+	return (PigeonConditionVariable)cv;
 }
 
-void wait_on_condition_variable(ConditionVariable cv_)
+void pigeon_wait_on_condition_variable(PigeonConditionVariable cv_)
 {
     assert(cv_);
 	CV * cv = (CV *)cv_;
@@ -32,7 +32,7 @@ void wait_on_condition_variable(ConditionVariable cv_)
 	LeaveCriticalSection(&cv->mutex);
 }
 
-void notify_condition_variable(ConditionVariable cv_)
+void pigeon_notify_condition_variable(PigeonConditionVariable cv_)
 {
     assert(cv_);
 	CV * cv = (CV *)cv_;
@@ -42,7 +42,7 @@ void notify_condition_variable(ConditionVariable cv_)
 	LeaveCriticalSection(&cv->mutex);
 }
 
-void destroy_condition_variable(ConditionVariable cv_)
+void pigeon_destroy_condition_variable(PigeonConditionVariable cv_)
 {
     assert(cv_);
 	CV * cv = (CV *)cv_;
