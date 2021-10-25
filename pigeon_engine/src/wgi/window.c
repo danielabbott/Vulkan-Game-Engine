@@ -22,9 +22,10 @@
 #include <pigeon/wgi/wgi.h>
 #include "singleton.h"
 
-GLFWwindow* pigeon_wgi_glfw_window = NULL; // TODO put this in singleton data as struct GLFWwindow * window_handle
+GLFWwindow* pigeon_wgi_glfw_window = NULL;
 static PigeonWGIKeyCallback key_callback = NULL;
 static PigeonWGIMouseButtonCallback mouse_callback = NULL;
+static PigeonWGISwapchainInfo gl_sc_info;
 
 void pigeon_wgi_wait_events(void)
 {
@@ -36,12 +37,20 @@ static void glfw_error_callback(int code, const char * description)
     fprintf(stderr, "GLFW error: %u %s\n", code, description);
 }
 
+static void fb_resize(GLFWwindow* window, int width, int height)
+{
+	(void) window;
+
+	gl_sc_info.width = (unsigned) width;
+	gl_sc_info.height = (unsigned) height;
+}
 
 PIGEON_ERR_RET pigeon_opengl_init(void);
 
 PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters, bool use_opengl)
 {
 	ASSERT_LOG_R1(glfwInit() == GLFW_TRUE, "glfwInit() error");
+	gl_sc_info.image_count = 3;
 
 	glfwSetErrorCallback(glfw_error_callback);
 
@@ -110,6 +119,10 @@ PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters, bo
 		printf("glfwCreateWindow error (%s)\n", use_opengl ? "OpenGL" : "Vulkan");
 		return 1;
 	}
+	
+	unsigned int w,h;
+	pigeon_wgi_get_window_dimensions(&w, &h);
+
 
 	if(use_opengl) {
 		glfwMakeContextCurrent(pigeon_wgi_glfw_window);
@@ -121,6 +134,9 @@ PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters window_parameters, bo
 			glfwTerminate();
 			return 1;
 		}
+
+
+		glfwSetFramebufferSizeCallback(pigeon_wgi_glfw_window, fb_resize);
 
 	}
 
@@ -151,17 +167,14 @@ void pigeon_wgi_get_window_dimensions(unsigned int * width, unsigned int * heigh
 		*width = *height = 0;
 	}
 	else glfwGetFramebufferSize(pigeon_wgi_glfw_window, (int *)width, (int *)height);
+
+	gl_sc_info.width = *width;
+	gl_sc_info.height = *height;
 }
 
-// TODO cache this, use glfw callback?
 PigeonWGISwapchainInfo pigeon_opengl_get_swapchain_info(void)
 {
-	PigeonWGISwapchainInfo i = {0};
-	i.image_count = 3; // assume triple buffering
-
-	pigeon_wgi_get_window_dimensions(&i.width, &i.height);
-	
-	return i;
+	return gl_sc_info;
 }
 
 bool pigeon_wgi_close_requested(void)

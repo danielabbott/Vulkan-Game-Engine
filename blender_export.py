@@ -49,7 +49,14 @@ class ByteArrayWriter():
 
 def write_files(asset_text, data, filepath, use_zstd, zstd_path_override):
     data_file = open(filepath.replace('.asset', '.data'), 'wb')
-    asset_text += 'SUBREGIONS'
+
+    subr_count = 0
+    for data_to_write in data:
+        if len(data_to_write) > 0:
+            subr_count += 1
+
+    asset_text += 'SUBRESOURCE-COUNT ' + str(subr_count) + '\n'
+    asset_text += 'SUBRESOURCES'
 
     for data_to_write in data:
         using_zstd = False
@@ -184,23 +191,19 @@ def get_objects_and_vertices(flat_shading, export_tangents, bones, bone_name_to_
                 bone_weights = [0.0,0.0]
                 bone_indices = [-1,-1]
                 for vgroup in blender_vertex.groups:
-                    try:
-                        w = vgroup.weight
-                        bone_index = bone_name_to_index[blender_object.vertex_groups[vgroup.group].name]
+                    w = vgroup.weight
+                    bone_index = bone_name_to_index[blender_object.vertex_groups[vgroup.group].name]
 
-                        if w >= bone_weights[0]:
-                            bone_weights[1] = bone_weights[0]
-                            bone_indices[1] = bone_indices[0]
-                            bone_weights[0] = w
-                            bone_indices[0] = bone_index
+                    if w >= bone_weights[0]:
+                        bone_weights[1] = bone_weights[0]
+                        bone_indices[1] = bone_indices[0]
+                        bone_weights[0] = w
+                        bone_indices[0] = bone_index
 
-                        elif w > bone_weights[1]:
-                            bone_weights[1] = w
-                            bone_indices[1] = bone_index
+                    elif w > bone_weights[1]:
+                        bone_weights[1] = w
+                        bone_indices[1] = bone_index
 
-
-                    except:
-                        continue
 
                 weight_sum = bone_weights[0] + bone_weights[1]
                 weight_mul = 1.0 / weight_sum
@@ -512,8 +515,7 @@ def get_animation_data(loop_animations, bones):
                                 
                 obj = b.blender_object
                 pose_bone = obj.pose.bones[b.name]
-                # TODO maybe iterate through pose bones in the first place and use pbone.bone as blender_bone?
-
+                
                 edit_mode_transform = b.blender_bone.matrix_local
                 pose_mode_transform = pose_bone.matrix
                 
@@ -606,8 +608,6 @@ export_uv, export_tangents, loop_animations):
                 asset_text_file += 'NORMAL-MAP ' + m.normal_texture + '\n'
 
     if len(bones) > 0:
-        # TODO: Remove bones that do not influence any vertices
-
         asset_text_file += 'BONES-COUNT ' + str(len(bones)) + '\n'
         for bone in bones:
             asset_text_file += 'BONE ' + bone.name + '\n'

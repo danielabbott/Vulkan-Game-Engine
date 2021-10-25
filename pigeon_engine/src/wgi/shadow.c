@@ -161,8 +161,19 @@ PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void)
     return 0;
 }
 
-void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDrawObject * draw_objects, 
-    unsigned int draws_count)
+void pigeon_wgi_set_object_shadow_mvp_uniform(PigeonWGIDrawObject * data, mat4 model_matrix)
+{
+    for(unsigned int i = 0; i < 4; i++) {
+        PigeonWGIShadowParameters * p = &singleton_data.shadow_parameters[i];
+
+        if(p->resolution)
+            glm_mat4_mul(p->proj_view, model_matrix, data->proj_view_model[1+i]);
+        else
+            memset(data->proj_view_model[1+i], 0, 64);
+    }
+}
+
+void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data)
 {
     for(unsigned int i = 0; i < 4; i++) {
         PigeonWGIShadowParameters * p = &singleton_data.shadow_parameters[i];
@@ -179,12 +190,5 @@ void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDr
         data->lights[i].neg_direction[0] = dir[0];
         data->lights[i].neg_direction[1] = dir[1];
         data->lights[i].neg_direction[2] = dir[2];
-    }
-
-    for(unsigned int i = 0; i < draws_count; i++) {
-        for(unsigned int j = 0; j < 4; j++) {
-            glm_mat4_mul(data->lights[j].shadow_proj_view, draw_objects[i].model, 
-                draw_objects[i].proj_view_model[1+j]);
-        }
     }
 }

@@ -261,7 +261,7 @@ void pigeon_wgi_set_global_descriptors(void);
 PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void);
 
 PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void);
-void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data, PigeonWGIDrawObject *, unsigned int draw_count);
+void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data);
 
 int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
     PigeonWGIImageFormat format, unsigned int width, unsigned int height,

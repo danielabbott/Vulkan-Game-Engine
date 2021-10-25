@@ -425,7 +425,7 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 
 #define CLEANUP() pigeon_wgi_destroy_pipeline(pipeline);
 
-	ASSERT_R1_CLEANUP(pipeline->gl.program_depth && pipeline->gl.program_light && pipeline->gl.program);
+	ASSERT_R1(pipeline->gl.program_depth && pipeline->gl.program_light && pipeline->gl.program);
 
 
 	const char * with_bones[5] = {
@@ -443,16 +443,16 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 		"in_tangent",
 	};
 
-	ASSERT_R1_CLEANUP(!pigeon_opengl_create_shader_program(pipeline->gl.program, vs->opengl_shader, fs->opengl_shader,
+	ASSERT_R1(!pigeon_opengl_create_shader_program(pipeline->gl.program, vs->opengl_shader, fs->opengl_shader,
 		skinned ? 5 : 4, skinned ? with_bones : without_bones));
 
 
-	ASSERT_R1_CLEANUP(!pigeon_opengl_create_shader_program(pipeline->gl.program_light, 
+	ASSERT_R1(!pigeon_opengl_create_shader_program(pipeline->gl.program_light, 
 		vs_light->opengl_shader, fs_light->opengl_shader,
 		skinned ? 4 : 3, skinned ? with_bones : without_bones));
 
 
-	ASSERT_R1_CLEANUP(!pigeon_opengl_create_shader_program(pipeline->gl.program_depth, 
+	ASSERT_R1(!pigeon_opengl_create_shader_program(pipeline->gl.program_depth, 
 		vs_depth->opengl_shader, fs_depth ? fs_depth->opengl_shader : NULL,
 		(skinned ? 2 : 1) + (transparent ? 1 : 0),
 		skinned ? with_bones : without_bones));

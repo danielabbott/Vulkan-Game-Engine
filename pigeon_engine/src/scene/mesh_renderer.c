@@ -5,6 +5,7 @@
 #include <pigeon/asset.h>
 #include <pigeon/misc.h>
 #include <string.h>
+#include "scene.h"
 
 PigeonObjectPool pigeon_pool_rs;
 static PigeonObjectPool pigeon_pool_model;
@@ -12,7 +13,6 @@ PigeonObjectPool pigeon_pool_mr;
 PigeonObjectPool pigeon_pool_anim;
 extern PigeonObjectPool pigeon_pointer_list_pool;
 
-void pigeon_init_mesh_renderer_pool(void);
 void pigeon_init_mesh_renderer_pool(void)
 {
     pigeon_create_object_pool(&pigeon_pool_rs, sizeof(PigeonRenderState), true);
@@ -22,7 +22,6 @@ void pigeon_init_mesh_renderer_pool(void)
 }
 
 
-void pigeon_deinit_mesh_renderer_pool(void);
 void pigeon_deinit_mesh_renderer_pool(void)
 {
     pigeon_destroy_object_pool(&pigeon_pool_rs);

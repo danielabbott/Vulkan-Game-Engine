@@ -46,7 +46,7 @@ void pigeon_destroy_condition_variable(PigeonConditionVariable cv_)
 {
     assert(cv_);
 	CV * cv = (CV *)cv_;
-    // TODO deinit
+    DeleteCriticalSection(&cv->mutex);
 	free(cv);
 }
 

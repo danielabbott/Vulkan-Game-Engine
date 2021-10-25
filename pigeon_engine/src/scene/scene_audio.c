@@ -4,17 +4,16 @@
 #include <pigeon/assert.h>
 #include <pigeon/misc.h>
 #include <cglm/mat4.h>
+#include "scene.h"
 
 static PigeonObjectPool pool;
 
-void pigeon_init_audio_player_pool(void);
 void pigeon_init_audio_player_pool(void)
 {
     pigeon_create_object_pool(&pool, sizeof(PigeonAudioPlayer), true);
 }
 
 
-void pigeon_deinit_audio_player_pool(void);
 void pigeon_deinit_audio_player_pool(void)
 {
     pigeon_destroy_object_pool(&pool);

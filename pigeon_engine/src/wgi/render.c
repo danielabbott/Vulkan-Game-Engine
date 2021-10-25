@@ -95,7 +95,6 @@ PIGEON_ERR_RET pigeon_wgi_create_per_frame_objects()
                 &singleton_data.light_image.image_view, &singleton_data.bilinear_sampler);
 
 
-            // TODO do in bulk
             for(unsigned int j = 0; j < 59; j++) {
                 pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 5, j, 
                     &singleton_data.default_1px_white_texture_array_image_view, &singleton_data.texture_sampler);
@@ -190,8 +189,8 @@ void pigeon_wgi_destroy_per_frame_objects()
         }
     }
 
-    free2((void**)&singleton_data.per_frame_objects);
-    free2((void**)&singleton_data.post_framebuffers);
+    free_if(singleton_data.per_frame_objects);
+    free_if(singleton_data.post_framebuffers);
 
     singleton_data.per_frame_objects = NULL;
     singleton_data.post_framebuffers = NULL;
@@ -439,6 +438,12 @@ PIGEON_ERR_RET pigeon_wgi_next_frame_poll(double delayed_timer_values[PIGEON_WGI
     
 }
 
+unsigned int pigeon_wgi_get_draw_data_alignment(void)
+{
+    if(VULKAN) return 1;
+    else return pigeon_opengl_get_uniform_buffer_min_alignment();
+}
+
 unsigned int pigeon_wgi_get_bone_data_alignment(void)
 {
     if(VULKAN) return 1;
@@ -448,9 +453,10 @@ unsigned int pigeon_wgi_get_bone_data_alignment(void)
 PIGEON_ERR_RET pigeon_wgi_start_frame(unsigned int max_draws,
     uint32_t max_multidraw_draws,
     PigeonWGIShadowParameters shadows[4], unsigned int total_bones,
+    void ** draw_objects,
     PigeonWGIBoneMatrix ** bone_matrices)
 {
-
+    ASSERT_R1(draw_objects && bone_matrices);
     ASSERT_R1(max_draws <= 65536);
     ASSERT_R1(total_bones <= max_draws*256);
     ASSERT_R1(max_multidraw_draws <= max_draws);
@@ -501,6 +507,9 @@ PIGEON_ERR_RET pigeon_wgi_start_frame(unsigned int max_draws,
 
         uint8_t * dst = objects->uniform_buffer_memory.mapping;
         dst += round_up(sizeof(PigeonWGISceneUniformData), align);
+
+        *draw_objects = dst;
+
         dst += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
         dst += round_up(sizeof(PigeonVulkanDrawIndexedIndirectCommand) * singleton_data.max_multidraw_draws, align);
 
@@ -528,6 +537,9 @@ PIGEON_ERR_RET pigeon_wgi_start_frame(unsigned int max_draws,
 
         uint8_t * dst = objects->gl.uniform_buffer.mapping;
         dst += round_up(sizeof(PigeonWGISceneUniformData), align);
+
+        *draw_objects = dst;
+
         dst += round_up(sizeof(PigeonWGIDrawObject), align) * singleton_data.max_draws;
 
         *bone_matrices = (PigeonWGIBoneMatrix *) (void *) dst;
@@ -536,48 +548,28 @@ PIGEON_ERR_RET pigeon_wgi_start_frame(unsigned int max_draws,
     return 0;
 }
 
-PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data,
-    PigeonWGIDrawObject * draw_objects, unsigned int draws_count)
+PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data)
 {
-    if(draws_count) ASSERT_R1(draw_objects)
-
     uniform_data->znear = singleton_data.znear;
     uniform_data->zfar = singleton_data.zfar;
-    pigeon_wgi_set_shadow_uniforms(uniform_data, draw_objects, draws_count);
+    pigeon_wgi_set_shadow_uniforms(uniform_data);
 
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
-
-    assert(draws_count <= singleton_data.max_draws);
-
-
-
-    const unsigned int align = VULKAN ? pigeon_vulkan_get_buffer_min_alignment()
-        : pigeon_opengl_get_uniform_buffer_min_alignment();
 
     uint8_t * dst = VULKAN ? objects->uniform_buffer_memory.mapping : 
         objects->gl.uniform_buffer.mapping;
 
     memcpy(dst, uniform_data, sizeof(PigeonWGISceneUniformData));
-    dst += round_up(sizeof(PigeonWGISceneUniformData), align);
-
 
     if(VULKAN) {
-        memcpy(dst, draw_objects, draws_count * sizeof(PigeonWGIDrawObject));
-        dst += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
-        dst += round_up(sizeof(PigeonVulkanDrawIndexedIndirectCommand) * singleton_data.max_multidraw_draws, align);
-
         ASSERT_R1(!pigeon_vulkan_flush_memory(&objects->uniform_buffer_memory, 0, 0));
     }
     else {
-        unsigned int sz = round_up(sizeof(PigeonWGIDrawObject), align);
-        for(unsigned int i = 0; i < draws_count; i++) {
-            *(PigeonWGIDrawObject*)(uintptr_t)dst = draw_objects[i];
-            dst += sz;
-        }
-
-    
         pigeon_opengl_bind_uniform_buffer(&objects->gl.uniform_buffer);
         pigeon_opengl_unmap_buffer(&objects->gl.uniform_buffer);
+
+        pigeon_opengl_bind_uniform_buffer2(&objects->gl.uniform_buffer, 0, 0, 
+            sizeof(PigeonWGISceneUniformData));
     }
     
 
@@ -799,9 +791,6 @@ static void draw_setup_common_gl(PigeonWGICommandBuffer* command_buffer, PigeonW
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
 
     const unsigned int align = pigeon_opengl_get_uniform_buffer_min_alignment();
-
-    pigeon_opengl_bind_uniform_buffer2(&objects->gl.uniform_buffer, 0, 0, 
-        sizeof(PigeonWGISceneUniformData)); // TODO don't keep rebinding
 
     unsigned int o = round_up(sizeof(PigeonWGISceneUniformData), align) +
         draw_index * round_up(sizeof(PigeonWGIDrawObject), align);

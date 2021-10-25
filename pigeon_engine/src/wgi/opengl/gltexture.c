@@ -317,7 +317,7 @@ PIGEON_ERR_RET pigeon_opengl_create_buffer_texture(PigeonOpenGLBufferTexture* te
 	#define CLEANUP() pigeon_opengl_destroy_buffer_texture(texture);
 	
 	glGenTextures(1, &texture->id);
-	ASSERT_R1_CLEANUP(texture->id);
+	ASSERT_R1(texture->id);
 	pigeon_opengl_bind_texture_id(0, texture->id, GL_TEXTURE_BUFFER);
 
 	GLenum f = 0;
@@ -338,7 +338,8 @@ PIGEON_ERR_RET pigeon_opengl_create_buffer_texture(PigeonOpenGLBufferTexture* te
 
 	glTexBuffer(GL_TEXTURE_BUFFER, f, texture->buffer.id);
 
-	ASSERT_R1_CLEANUP(!glGetError());
+	ASSERT_R1(!glGetError());
+	#undef CLEANUP
 	return 0;
 }
 

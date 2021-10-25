@@ -9,7 +9,8 @@ enum {
     KEY_ASSET,
     KEY_TYPE,
     KEY_DECOMPRESSED_SIZE,
-    KEY_SUBREGIONS,
+    KEY_SUBRESOURCE_COUNT,
+    KEY_SUBRESOURCES,
 
     KEY_VERTEX_COUNT,
     KEY_BOUNDS_MINIMUM,
@@ -60,7 +61,8 @@ const char * keys[] = {
     "ASSET",
     "TYPE",
     "DECOMPRESSED-SIZE",
-    "SUBREGIONS",
+    "SUBRESOURCE-COUNT",
+    "SUBRESOURCES",
 
     "VERTEX-COUNT",
     "BOUNDS-MINIMUM",
@@ -146,8 +148,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
     ASSERT_R1(KEY__MAX*sizeof(*keys) == sizeof keys);
 
-    #define ERR() {pigeon_free_asset(asset); free(input_);  ASSERT_R1(false);}
-    #define ASSERT(x) if(!(x)) ERR()
+    #define CLEANUP() pigeon_free_asset(asset);
 
     bool got_indices_type = false;
     bool got_vertex_attributes = false;
@@ -167,7 +168,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
         key = parser_match_key_get_value(&input, keys, KEY__MAX, &value);
 
         #define CHECK_TYPE(a_type) if(asset->type != a_type){ \
-            fprintf(stderr, "%s not valid for asset type\n", keys[key]); ERR();}
+            fprintf(stderr, "%s not valid for asset type\n", keys[key]); ASSERT_R1(false);}
 
         if (key == KEY_TYPE) {
             if(word_matches(value, "MODEL")) {
@@ -186,12 +187,23 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             }
             else {
                 fprintf(stderr, "Unrecognised asset type: %s\n", value);
-                ERR();
+                ASSERT_R1(false);
             }
         }
-        else if (key == KEY_SUBREGIONS) {
+        else if (key == KEY_SUBRESOURCE_COUNT) {
+            long int c = strtol(value, NULL, 10);
+            if(c < 0 || c > 10000) {
+                fprintf(stderr, "Invalid SUBRESOURCE-COUNT: %li\n", c);
+                ASSERT_R1(false);
+            }
+
+            asset->subresource_count = (unsigned int) c;
+            asset->subresources = calloc((unsigned) c, sizeof *asset->subresources);
+            ASSERT_R1(asset->subresources);
+        }
+        else if (key == KEY_SUBRESOURCES) {
             uint32_t file_offset = 0;
-            for(unsigned int i = 0; i < PIGEON_ASSET_MAX_SUBRESOURCES && *value; i++) {
+            for(unsigned int i = 0; i < asset->subresource_count && *value; i++) {
                 if(word_matches(value, "ZSTD")) {
                     asset->subresources[i].type = PIGEON_ASSET_SUBRESOURCE_TYPE_ZSTD;
                 }
@@ -203,21 +215,19 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                 }
                 else {
                     fputs("Unknown subresource type\n", stderr);
-                    ERR();
+                    ASSERT_R1(false);
                 }
                 value += 4;
 
-                #define ERR2() \
-                    {fputs("Invalid COMPRESSION value(s)\n", stderr); \
-                    ERR();}
+                #define ERR() ASSERT_LOG_R1(false, "Invalid COMPRESSION value(s)");
 
                 while(*value == ' ' || *value == '\t') value++;
-                if(!*value) ERR2();
+                if(!*value) ERR();
 
                 asset->subresources[i].original_file_data_offset = file_offset;
 
                 long int sz_ = strtol(value, (char**)&value, 10);
-                if(sz_ <= 0 || sz_ > UINT32_MAX) ERR2();
+                if(sz_ <= 0 || sz_ > UINT32_MAX) ERR();
                 uint32_t sz = (uint32_t)sz_;
 
 
@@ -229,16 +239,17 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                 }
                 else {
                     asset->subresources[i].decompressed_data_length = sz;
-                    if(*value != '>') ERR2();
+                    if(*value != '>') ERR();
                     value++;
 
                     sz_ = strtol(value, NULL, 10);
-                    if(sz_ <= 0 || sz_ > UINT32_MAX) ERR2();
+                    if(sz_ <= 0 || sz_ > UINT32_MAX) ERR();
                     sz = (uint32_t)sz_;
 
                     asset->subresources[i].compressed_data_length = sz;
                 }
                 file_offset += sz;
+                #undef ERR
                 
                 
                 while(*value && *value != ' ' && *value != '\t') value++;
@@ -252,7 +263,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int c = strtol(value, NULL, 10);
             if(c < 0 || c > UINT32_MAX) {
                 fprintf(stderr, "Invalid VERTEX-COUNT: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->mesh_meta.vertex_count = (uint32_t)c;
         }
@@ -262,7 +273,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int c = strtol(value, NULL, 10);
             if(c < 0 || c > UINT32_MAX) {
                 fprintf(stderr, "Invalid INDICES-COUNT: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->mesh_meta.index_count = (uint32_t)c;
         }
@@ -278,7 +289,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             }
             else {
                 fputs("Expected U32 or U16 for INDICES-TYPE\n", stderr);
-                ERR();
+                ASSERT_R1(false);
             }
         }
         else if (key == KEY_VERTEX_ATTRIBUTES) {
@@ -304,7 +315,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                 else if(word_matches(value, "BONE")) type = PIGEON_WGI_VERTEX_ATTRIBUTE_BONE;
                 else {
                     fprintf(stderr, "Unrecognised vertex attribute\n");
-                    ERR();
+                    ASSERT_R1(false);
                 }
 
                 asset->mesh_meta.attribute_types[i] = type;
@@ -320,10 +331,10 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
             asset->mesh_meta.bounds_min[0] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->mesh_meta.bounds_min[1] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->mesh_meta.bounds_min[2] = strtof(value, (char**)&value);
         }
         else if (key == KEY_BOUNDS_RANGE) {
@@ -332,32 +343,25 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
             asset->mesh_meta.bounds_range[0] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->mesh_meta.bounds_range[1] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->mesh_meta.bounds_range[2] = strtof(value, NULL);
 
-            if(asset->mesh_meta.bounds_range[0] <= 0.0f ||
-                asset->mesh_meta.bounds_range[1] <= 0.0f ||
-                asset->mesh_meta.bounds_range[2] <= 0.0f)
-            {
-                fputs("Invalid vertex position range\n", stderr);
-                ERR();
-            }
+            ASSERT_LOG_R1(asset->mesh_meta.bounds_range[0] > 0.0f &&
+                asset->mesh_meta.bounds_range[1] > 0.0f &&
+                asset->mesh_meta.bounds_range[2] > 0.0f, "Invalid vertex position range");
         }
         else if (key == KEY_MATERIALS_COUNT) {
             CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL);
 
-            if(asset->materials_count) {
-                fputs("Multiple MATERIALS-COUNT\n", stderr);
-                ERR();
-            }
+            ASSERT_LOG_R1(!asset->materials_count, "Multiple MATERIALS-COUNT");
 
             long int c = strtol(value, NULL, 10);
             if(c < 0 || c > 999) {
                 fprintf(stderr, "Invalid MATERIALS-COUNT: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->materials_count = (unsigned int)c;
             asset->materials = calloc((unsigned)c, sizeof *asset->materials);
@@ -367,18 +371,12 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             ++material_index;
             #define MATERIAL_CHECKS() \
                 CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); \
-                if(!asset->materials_count) { \
-                    fputs("Missing MATERIALS-COUNT\n", stderr); \
-                    ERR(); \
-                } \
-                if((unsigned)material_index >= asset->materials_count) { \
-                    fputs("Too many materials\n", stderr); \
-                    ERR(); \
-                }
+                ASSERT_LOG_R1(asset->materials_count, "Missing MATERIALS-COUNT"); \
+                ASSERT_LOG_R1((unsigned)material_index < asset->materials_count, "Too many materials");
             MATERIAL_CHECKS();
 
             char * name = copy_string_to_whitespace_to_malloc(value);
-            if(!name) ERR();
+            ASSERT_R1(name);
             asset->materials[material_index].name = name;
         }
         else if (key == KEY_COLOUR || key == KEY_COLOR) {
@@ -386,10 +384,10 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
             asset->materials[material_index].colour[0] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->materials[material_index].colour[1] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->materials[material_index].colour[2] = strtof(value, NULL);
         }
         else if (key == KEY_FLAT_COLOUR || key == KEY_FLAT_COLOR) {
@@ -406,7 +404,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                     (f+asset->materials[material_index].count)  > asset->mesh_meta.vertex_count))
             {
                 fprintf(stderr, "Invalid first vertex/index: %li\n", f);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->materials[material_index].first = (uint32_t)f;
         }
@@ -421,7 +419,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                     (asset->materials[material_index].first+c) > asset->mesh_meta.vertex_count))
             {
                 fprintf(stderr, "Invalid number of vertices/indices: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->materials[material_index].count = (uint32_t)c;
         }
@@ -429,7 +427,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             MATERIAL_CHECKS();
 
             char * s = copy_string_to_whitespace_to_malloc(value);
-            if(!s) ERR();
+            ASSERT_R1(*s);
             asset->materials[material_index].texture = s;
         }
         else if (key == KEY_NORMAL_MAP) {
@@ -437,7 +435,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
 
             char * s = copy_string_to_whitespace_to_malloc(value);
-            if(!s) ERR();
+            ASSERT_R1(*s);
             asset->materials[material_index].normal_map_texture = s;
         }
         #undef MATERIAL_CHECKS
@@ -448,7 +446,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             if(c < 0 || c > 256)
             {
                 fprintf(stderr, "Invalid number of bones: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->bones_count = (unsigned)c;
             asset->bones = calloc((unsigned)c, sizeof *asset->bones);
@@ -458,14 +456,8 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             ++bone_index;
             #define BONE_CHECKS() \
                 CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); \
-                if(!asset->bones_count) { \
-                    fputs("Missing BONES-COUNT\n", stderr); \
-                    ERR(); \
-                } \
-                if((unsigned)bone_index >= asset->bones_count) { \
-                    fputs("Too many bones\n", stderr); \
-                    ERR(); \
-                }
+                ASSERT_LOG_R1(asset->bones_count, "Missing BONES-COUNT"); \
+                ASSERT_LOG_R1((unsigned)bone_index < asset->bones_count, "Too many bones");
             BONE_CHECKS();
 
             // char * name = copy_string_to_whitespace_to_malloc(value);
@@ -478,10 +470,10 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
             asset->bones[bone_index].head[0] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->bones[bone_index].head[1] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->bones[bone_index].head[2] = strtof(value, NULL);
         }
         else if (key == KEY_TAIL) {
@@ -489,10 +481,10 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
 
             asset->bones[bone_index].tail[0] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->bones[bone_index].tail[1] = strtof(value, (char**)&value);
             while(*value == ' ' || *value == '\t') value++;
-            if(!*value) ERR();
+            ASSERT_R1(*value);
             asset->bones[bone_index].tail[2] = strtof(value, NULL);
         }
         else if (key == KEY_PARENT) {
@@ -501,7 +493,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int p = strtol(value, NULL, 10);
             if(p >= asset->bones_count) {
                 fprintf(stderr, "Invalid bone parent index: %li\n", p);
-                ERR();
+                ASSERT_R1(false);
             }
             if(p < 0 || p == bone_index) p = -1;
 
@@ -515,7 +507,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             if(fps < 0.001f || fps > 1000.0f)
             {
                 fprintf(stderr, "Invalid frame-rate: %f\n", fps);
-                ERR();
+                ASSERT_R1(false);
             }
         }
         else if (key == KEY_ANIMATIONS_COUNT) {
@@ -525,7 +517,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             if(c < 0 || c > 9999)
             {
                 fprintf(stderr, "Invalid number of animations: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->animations_count = (unsigned)c;
             asset->animations = calloc((unsigned)c, sizeof *asset->animations);
@@ -535,18 +527,12 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             ++animation_index;
             #define ANIMATION_CHECKS() \
                 CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); \
-                if(!asset->animations_count) { \
-                    fputs("Missing ANIMATIONS-COUNT\n", stderr); \
-                    ERR(); \
-                } \
-                if((unsigned)animation_index >= asset->animations_count) { \
-                    fputs("Too many animations\n", stderr); \
-                    ERR(); \
-                }
+                ASSERT_LOG_R1(asset->animations_count, "Missing ANIMATIONS-COUNT"); \
+                ASSERT_LOG_R1((unsigned)animation_index < asset->animations_count, "Too many animations");
             ANIMATION_CHECKS();
 
             char * name = copy_string_to_whitespace_to_malloc(value);
-            if(!name) ERR();
+            ASSERT_R1(name);
             asset->animations[animation_index].name = name;
             asset->animations[animation_index].fps = fps;
         }
@@ -560,7 +546,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                 asset->animations[animation_index].loops = false;
             }
             else {
-                ERR();
+                ASSERT_R1(false);
             }
         }
         else if (key == KEY_FRAMES) {
@@ -570,7 +556,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             if(f <= 0 || f > 1000000)
             {
                 fprintf(stderr, "Invalid number of frames: %li\n", f);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->animations[animation_index].frame_count = (unsigned)f;
         }
@@ -583,7 +569,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int w = strtol(value, NULL, 10);
             if(w < 0 || w > 32768) {
                 fprintf(stderr, "Invalid WIDTH: %li\n", w);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->texture_meta.width = (uint32_t)w;
         }
@@ -592,7 +578,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int h = strtol(value, NULL, 10);
             if(h < 0 || h > 32768) {
                 fprintf(stderr, "Invalid HEIGHT: %li\n", h);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->texture_meta.height = (uint32_t)h;
         }
@@ -610,7 +596,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             }
             else {
                 fprintf(stderr, "Invalid IMAGE-FORMAT: %s\n", value);
-                ERR();
+                ASSERT_R1(false);
             }
         }
         else if (key == KEY_MIP_MAPS) {
@@ -654,7 +640,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int s = strtol(value, NULL, 10);
             if(s <= 0 || s > 192000) {
                 fprintf(stderr, "Invalid SAMPLE-RATE: %li\n", s);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->audio_meta.sample_rate = (unsigned int)s;
         }
@@ -663,7 +649,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
             long int c = strtol(value, NULL, 10);
             if(c != 1 && c != 2) {
                 fprintf(stderr, "Invalid CHANNELS: %li\n", c);
-                ERR();
+                ASSERT_R1(false);
             }
             asset->audio_meta.channels = (unsigned int)c;
         }
@@ -676,7 +662,7 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
                 while(*input && *input != ' ' && *input != '\t') input++;
                 *input = 0;
                 fprintf(stderr, "Unrecognised asset configuration key: %s\n", old_input_value);
-                ERR();
+                ASSERT_R1(false);
             }
             else {
                 // End of string
@@ -687,25 +673,16 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
     }
     free(input_);
 
-    if(asset->type == PIGEON_ASSET_TYPE_UNKNOWN) {
-        fputs("Asset type unspecified\n", stderr);
-        return 1;
-    }
+    ASSERT_LOG_R1(asset->type, "Asset type unspecified");
 
     if(asset->type == PIGEON_ASSET_TYPE_MODEL) {
-        ASSERT(!asset->animations_count || (unsigned)(animation_index+1) == asset->animations_count);
-        ASSERT(!asset->bones_count || (unsigned)(bone_index+1) == asset->bones_count);
-        ASSERT(!asset->materials_count || (unsigned)(material_index+1) == asset->materials_count);
+        ASSERT_R1(!asset->animations_count || (unsigned)(animation_index+1) == asset->animations_count);
+        ASSERT_R1(!asset->bones_count || (unsigned)(bone_index+1) == asset->bones_count);
+        ASSERT_R1(!asset->materials_count || (unsigned)(material_index+1) == asset->materials_count);
 
-        if(asset->mesh_meta.index_count && !got_indices_type) {
-            fputs("Missing INDICES-TYPE\n", stderr);
-            return 1;
-        }
+        ASSERT_LOG_R1(!asset->mesh_meta.index_count || got_indices_type, "Missing INDICES-TYPE");
+        ASSERT_LOG_R1(!asset->mesh_meta.vertex_count || got_vertex_attributes, "Missing VERTEX-ATTRIBUTES");
 
-        if(asset->mesh_meta.vertex_count && !got_vertex_attributes) {
-            fputs("Missing VERTEX-ATTRIBUTES\n", stderr);
-            return 1;
-        }
 
         uint64_t offset = 0;
         bool contains_normalised_position = false;
@@ -720,29 +697,18 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
         }
 
         if(contains_normalised_position) {
-            if(!got_bounds_range || !got_bounds_min) {
-                fputs("Normalised position attribute requires BOUNDS-MINIMUM and BOUNDS-RANGE\n", stderr);
-                return 1;
-            }
+            ASSERT_LOG_R1(got_bounds_range && got_bounds_min, 
+                "Normalised position attribute requires BOUNDS-MINIMUM and BOUNDS-RANGE");
         }
 
     }
     else if (asset->type == PIGEON_ASSET_TYPE_IMAGE) {
-        if(!asset->texture_meta.width) {
-            fputs("Missing WIDTH\n", stderr);
-            return 1;
-        }
-        if(!asset->texture_meta.height) {
-            fputs("Missing HEIGHT\n", stderr);
-            return 1;
-        }
-        if(!asset->texture_meta.format) {
-            fputs("Missing FORMAT\n", stderr);
-            return 1;
-        }
+        ASSERT_LOG_R1(asset->texture_meta.width, "Missing WIDTH");
+        ASSERT_LOG_R1(asset->texture_meta.height, "Missing HEIGHT");
+        ASSERT_LOG_R1(asset->texture_meta.format, "Missing FORMAT");
     }
 
-
+#undef CLEANUP
 
     return 0;
 }
@@ -757,7 +723,7 @@ PIGEON_ERR_RET pigeon_load_asset_data(PigeonAsset * asset, const char * data_fil
 
     ASSERT_R1(asset->original_data);
 
-    for(unsigned int i = 0; i < sizeof asset->subresources / sizeof *asset->subresources; i++) {
+    for(unsigned int i = 0; i < asset->subresource_count; i++) {
         switch(asset->subresources[i].type) {
             case PIGEON_ASSET_SUBRESOURCE_TYPE_UNCOMPRESSED:
                 asset->subresources[i].decompressed_data = &data[asset->subresources[i].original_file_data_offset];
@@ -835,61 +801,53 @@ void pigeon_free_asset(PigeonAsset * asset)
 {
     assert(asset);
 
-    if(asset->name) {
-        free(asset->name);
-        asset->name = NULL;
-    }
 
-    if(asset->original_data) {
-        free(asset->original_data);
-        asset->original_data = NULL;
-    }
+    free_if(asset->name);
+    free_if(asset->original_data);
 
-    for(unsigned int i = 0; i < sizeof asset->subresources / sizeof *asset->subresources; i++) {
-        if(asset->subresources[i].compressed_data_was_mallocd) {
-            free(asset->subresources[i].compressed_data);
-            asset->subresources[i].compressed_data = NULL;
+    if(asset->subresources) {
+        for(unsigned int i = 0; i < asset->subresource_count; i++) {
+            if(asset->subresources[i].compressed_data_was_mallocd) {
+                free2(asset->subresources[i].compressed_data);
+            }
+            if(asset->subresources[i].decompressed_data_was_mallocd) {
+                free2(asset->subresources[i].decompressed_data);
+            }
         }
-        if(asset->subresources[i].decompressed_data_was_mallocd) {
-            free(asset->subresources[i].decompressed_data);
-            asset->subresources[i].decompressed_data = NULL;
-        }
+        free2(asset->subresources);
     }
 
 
     if(asset->type == PIGEON_ASSET_TYPE_MODEL) {
         if(asset->materials_count && asset->materials) {
             for(unsigned int i = 0; i < asset->materials_count; i++) {
-                free2((void**)&asset->materials[i].name);
-                free2((void**)&asset->materials[i].texture);
-                free2((void**)&asset->materials[i].normal_map_texture);
+                free_if(asset->materials[i].name);
+                free_if(asset->materials[i].texture);
+                free_if(asset->materials[i].normal_map_texture);
             }
 
-            free(asset->materials);
+            free2(asset->materials);
         }
-        asset->materials = NULL;
         asset->materials_count = 0;
 
 
         if(asset->bones_count && asset->bones) {
             for(unsigned int i = 0; i < asset->bones_count; i++) {
-                free2((void**)&asset->bones[i].name);
+                free_if(asset->bones[i].name);
             }
 
-            free(asset->bones);
+            free2(asset->bones);
         }
-        asset->bones = NULL;
         asset->bones_count = 0;
 
 
         if(asset->animations_count && asset->animations) {
             for(unsigned int i = 0; i < asset->animations_count; i++) {
-                free2((void**)&asset->animations[i].name);
+                free_if(asset->animations[i].name);
             }
 
-            free(asset->animations);
+            free2(asset->animations);
         }
-        asset->animations = NULL;
         asset->animations_count = 0;
     }
 

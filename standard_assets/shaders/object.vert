@@ -202,18 +202,12 @@ void main() {
         int bone_index1 = int(in_bone.x & 0xffu);
         float bone_weight = float(in_bone.y) / 65535.0;
 
-        // vec4 b_i = bones.x[(first_bone_index + bone_index0)*3];
-        // vec4 b_j = bones.x[(first_bone_index + bone_index0)*3 + 1];
-        // vec4 b_k = bones.x[(first_bone_index + bone_index0)*3 + 2];
         vec4 b_i = get_bones_vec4(first_bone_index, bone_index0, 0);
         vec4 b_j = get_bones_vec4(first_bone_index, bone_index0, 1);
         vec4 b_k = get_bones_vec4(first_bone_index, bone_index0, 2);
 
         mat4 m0 = MATRIX_CONVERT(b_i, b_j, b_k);
 
-        // b_i = bones.x[(first_bone_index + bone_index1)*3];
-        // b_j = bones.x[(first_bone_index + bone_index1)*3 + 1];
-        // b_k = bones.x[(first_bone_index + bone_index1)*3 + 2];
         b_i = get_bones_vec4(first_bone_index, bone_index1, 0);
         b_j = get_bones_vec4(first_bone_index, bone_index1, 1);
         b_k = get_bones_vec4(first_bone_index, bone_index1, 2);
@@ -250,7 +244,6 @@ void main() {
 #endif
 
 #if (defined(OBJECT) || defined(OBJECT_LIGHT)) && !defined(SKINNED)
-// TODO multiply by scale reciprical instead of normalising
     pass_normal = normalize(nmat * in_normal.xyz);
 #endif
 

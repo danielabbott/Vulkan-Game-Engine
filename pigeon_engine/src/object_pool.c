@@ -36,10 +36,10 @@ PIGEON_ERR_RET pigeon_create_object_pool2(PigeonObjectPool* pool, unsigned int o
     unsigned int objects_per_group = PIGEON_GROUP_SIZE_DIV64*64;
     unsigned int groups_to_create = (capacity+objects_per_group-1) / objects_per_group;
 
-    ASSERT_R1_CLEANUP(pigeon_array_list_add(&pool->group_bitmaps, groups_to_create));
+    ASSERT_R1(pigeon_array_list_add(&pool->group_bitmaps, groups_to_create));
     memset(pool->group_bitmaps.elements, 0, groups_to_create * sizeof(GroupBitmap));
 
-    ASSERT_R1_CLEANUP(pigeon_array_list_add(&pool->group_data_pointers, groups_to_create));
+    ASSERT_R1(pigeon_array_list_add(&pool->group_data_pointers, groups_to_create));
     memset(pool->group_data_pointers.elements, 0, groups_to_create * sizeof(GroupDataPointer));
 
 
@@ -47,9 +47,11 @@ PIGEON_ERR_RET pigeon_create_object_pool2(PigeonObjectPool* pool, unsigned int o
     for(unsigned int i = 0; i < groups_to_create; i++) {
         GroupDataPointer* g = &((GroupDataPointer *)pool->group_data_pointers.elements)[i];
         void * d = malloc(object_size * objects_per_group);
-        ASSERT_R1_CLEANUP(d);
+        ASSERT_R1(d);
         *g = d;
     }
+
+    #undef CLEANUP
 
     return 0;
 }

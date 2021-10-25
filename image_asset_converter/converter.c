@@ -429,7 +429,9 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
         output_format == NormalMap ? "RG" : (output_format == RGB ? "RGB" : "RGBA")
     );
 
-    fputs("SUBREGIONS ", asset_file);
+    fprintf(asset_file, "SUBRESOURCE-COUNT %u\n", lossy_compress ? 2 : 1);
+
+    fputs("SUBRESOURCES ", asset_file);
     if(uncompressed_uses_zstd) {
         fprintf(asset_file, "ZSTD %u>%u", uncompressed_data_length, uncompressed_data_length_zstd_length);
     }

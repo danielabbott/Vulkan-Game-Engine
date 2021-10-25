@@ -25,7 +25,7 @@ typedef struct PigeonWGIDrawObject {
     int rsvd0;
 
     vec3 colour;
-    float colour_alpha_unused;
+    float rsvda;
 
     // Textures with alpha channel interpolate between this colour and texture
     vec3 under_colour;

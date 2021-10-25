@@ -8,15 +8,12 @@
 // Returns malloc'd pointer. Call free on it when done
 void* pigeon_load_file(const char* file, unsigned int extra, unsigned long * file_size);
 
+#define free_if(x) \
+    if((x)) { free(x); x = NULL; }
 
-static inline void free2(void**p)
-{
-    assert(p);
-    if(*p) {
-        free(*p);
-        *p = NULL;
-    }
-}
+#define free2(x) \
+    { assert((x)); free_if((x)); }
+
 
 static inline unsigned int round_up(unsigned int x, unsigned int round)
 {

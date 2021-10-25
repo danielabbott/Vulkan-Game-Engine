@@ -40,7 +40,7 @@ static int write_asset_file(void)
     FILE * f = fopen(output_asset_file_path, "w");
     if(!f) return 1;
 
-    if(fprintf(f, "TYPE AUDIO\nSAMPLE-RATE %u\nCHANNELS %u\nSUBREGIONS OGG %u", 
+    if(fprintf(f, "TYPE AUDIO\nSAMPLE-RATE %u\nCHANNELS %u\nSUBRESOURCE-COUNT 1\nSUBRESOURCES OGG %u", 
         info.sample_rate, info.channels, file_size) <= 0) return 1;
     fclose(f);
     return 0;

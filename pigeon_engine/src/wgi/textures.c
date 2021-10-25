@@ -207,8 +207,8 @@ static PIGEON_ERR_RET transition_default_images()
 		return 1;
 	}
 
-#define CLEANUP()	pigeon_vulkan_destroy_fence(&fence); \
-					pigeon_vulkan_destroy_command_pool(&command_pool);
+#define CLEANUP() { pigeon_vulkan_destroy_fence(&fence); \
+	pigeon_vulkan_destroy_command_pool(&command_pool); }
 
 	if (pigeon_vulkan_start_submission(&command_pool, 0)) {
 		CLEANUP();
@@ -292,8 +292,6 @@ void pigeon_wgi_destroy_default_textures(void)
 
 PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void)
 {
-	// TODO have 1 descriptor pool with multiple sets
-
 	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.light_blur1_descriptor_pool,
 		1, &singleton_data.two_texture_descriptor_layout)) return 1;
 	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.light_blur2_descriptor_pool,

@@ -185,7 +185,7 @@ static PIGEON_ERR_RET start(void)
 	cfg.bloom = true;
 	cfg.shadow_casting_lights = 1;
 	cfg.shadow_blur_passes = 2;
-	if (pigeon_wgi_init(window_parameters, true, true, cfg, 0.1f, 1000.0f))
+	if (pigeon_wgi_init(window_parameters, true, false, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -491,7 +491,7 @@ static PIGEON_ERR_RET load_animation_assets(void)
 		if (a->mesh_meta.index_count > 0)
 			i++;
 
-		for (; i < PIGEON_ASSET_MAX_SUBRESOURCES; i++)
+		for (; i < a->subresource_count; i++)
 		{
 			if (a->subresources[i].decompressed_data_length)
 			{

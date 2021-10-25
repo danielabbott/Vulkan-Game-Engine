@@ -223,18 +223,18 @@ PIGEON_ERR_RET pigeon_opengl_create_vao(PigeonOpenGLVAO* vao,
 
     pigeon_opengl_bind_vao_id(vao->id);
 
-    ASSERT_R1_CLEANUP(!pigeon_opengl_create_buffer(&vao->vertex_buffer, 
+    ASSERT_R1(!pigeon_opengl_create_buffer(&vao->vertex_buffer, 
         vertex_data_size, PIGEON_OPENGL_BUFFER_TYPE_VERTEX));
     
     *vertex_data = pigeon_opengl_map_buffer(&vao->vertex_buffer);
-    ASSERT_R1_CLEANUP(*vertex_data);
+    ASSERT_R1(*vertex_data);
     
 
-    ASSERT_R1_CLEANUP(!pigeon_opengl_create_buffer(&vao->index_buffer, 
+    ASSERT_R1(!pigeon_opengl_create_buffer(&vao->index_buffer, 
         index_data_size, PIGEON_OPENGL_BUFFER_TYPE_INDEX));
 
     *index_data = pigeon_opengl_map_buffer(&vao->index_buffer);
-    ASSERT_R1_CLEANUP(*index_data);
+    ASSERT_R1(*index_data);
 
 
     for(unsigned int i = 0; i < vertex_attribute_count; i++) {
@@ -252,7 +252,7 @@ PIGEON_ERR_RET pigeon_opengl_create_vao(PigeonOpenGLVAO* vao,
 
 
     
-    ASSERT_R1_CLEANUP(!glGetError());
+    ASSERT_R1(!glGetError());
     
     
     return 0;

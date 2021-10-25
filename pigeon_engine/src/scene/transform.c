@@ -10,20 +10,18 @@
 #include <cglm/affine.h>
 #include <cglm/quat.h>
 #include <string.h>
+#include "scene.h"
 
 PigeonTransform * pigeon_scene_root;
 
 static PigeonObjectPool pool;
 extern PigeonObjectPool pigeon_pointer_list_pool;
 
-void pigeon_init_transform_pool(void);
 void pigeon_init_transform_pool(void)
 {
     pigeon_create_object_pool(&pool, sizeof(PigeonTransform), true);
 }
 
-
-void pigeon_deinit_transform_pool(void);
 void pigeon_deinit_transform_pool(void)
 {
     pigeon_destroy_object_pool(&pool);

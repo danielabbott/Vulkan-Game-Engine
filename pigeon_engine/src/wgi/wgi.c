@@ -195,8 +195,33 @@ void pigeon_wgi_perspective(mat4 m, float fovy, float aspect)
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix)
 {
-	glm_mat4_inv((vec4*)model, normal_model_matrix);
-	glm_mat4_transpose(normal_model_matrix);
+	mat4 m;
+	glm_mat4_inv((vec4*)model, m);
+
+
+#if defined( __SSE__ ) || defined( __SSE2__ )
+	glm_mat4_transpose_to(m, normal_model_matrix);
+#else
+	// glm_mat4_transpose_to does not write in order (preferred for writing uniform data)
+	//	so it is reimplemented here
+	normal_model_matrix[0][0] = model[0][0];
+	normal_model_matrix[0][1] = model[1][0];
+	normal_model_matrix[0][2] = model[2][0];
+	normal_model_matrix[0][3] = model[3][0];
+	normal_model_matrix[1][0] = model[0][1];
+	normal_model_matrix[1][1] = model[1][1];
+	normal_model_matrix[1][2] = model[2][1];
+	normal_model_matrix[1][3] = model[3][1];
+	normal_model_matrix[2][0] = model[0][2];
+	normal_model_matrix[2][1] = model[1][2];
+	normal_model_matrix[2][2] = model[2][2];
+	normal_model_matrix[2][3] = model[3][2];
+	normal_model_matrix[3][0] = model[0][3];
+	normal_model_matrix[3][1] = model[1][3];
+	normal_model_matrix[3][2] = model[2][3];
+	normal_model_matrix[3][3] = model[3][3];
+#endif
+
 }
 
 

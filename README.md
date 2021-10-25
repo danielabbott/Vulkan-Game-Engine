@@ -26,3 +26,9 @@ To compile and run (Linux):
 make CC=clang DEBUG=1 -j`nproc` && build/debug/test1
 
 This compiles source files, converts assets, and builds build/release/test1
+
+
+
+For Windows, use BuildAssets.bat to generate assets and Visual Studio 2019 to compile. 
+N.B. The Windows build is often broken.
+

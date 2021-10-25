@@ -38,8 +38,14 @@ typedef enum {
     PIGEON_WGI_TIMERS_COUNT
 } PigeonWGITimer;
 
+// delayed_timer_values is set to the timer query results from 2 or more frames ago
 PIGEON_ERR_RET pigeon_wgi_next_frame_wait(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT]);
 PIGEON_ERR_RET pigeon_wgi_next_frame_poll(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT], bool* ready);
+
+// In bytes
+// 1 for Vulkan
+// 16, 64, 256, etc. for OpenGL
+unsigned int pigeon_wgi_get_draw_data_alignment(void);
 
 // Alignment (number of bones) of bone data for 1 armature in the bone uniform data
 // This is to align uniform blocks when using OpenGL
@@ -49,15 +55,18 @@ unsigned int pigeon_wgi_get_bone_data_alignment(void);
 // max_draws determines the minimum size of the draws ssbo
 // max_multidraw_draws = maximum number of draws within multidraw draws
 // Instancing counts as multiple draws
-// delayed_timer_values is set to the timer query results from 2 or more frames ago
 // index into shadows = index into lights array in per-frame uniform data
+// draw_objects and bone_matrices are set to point to a uniform data mapping
+// use pigeon_wgi_get_draw_data_alignment and pigeon_wgi_get_bone_data_alignment
 PIGEON_ERR_RET pigeon_wgi_start_frame(uint32_t max_draws,
     uint32_t max_multidraw_draws,
     PigeonWGIShadowParameters shadows[4], unsigned int total_bones,
+    void ** draw_objects,
     PigeonWGIBoneMatrix ** bone_matrices);
 
-PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data, 
-    PigeonWGIDrawObject *, unsigned int draws_count);
+void pigeon_wgi_set_object_shadow_mvp_uniform(PigeonWGIDrawObject * data, mat4 model_matrix);
+
+PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data);
 
 struct PigeonWGICommandBuffer;
 

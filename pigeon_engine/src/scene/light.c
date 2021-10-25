@@ -3,17 +3,16 @@
 #include <pigeon/array_list.h>
 #include <pigeon/assert.h>
 #include <stdlib.h>
+#include "scene.h"
 
 PigeonArrayList pigeon_lights; // array of PigeonLight*
 
-void pigeon_init_light_array_list(void);
 void pigeon_init_light_array_list(void)
 {
     pigeon_create_array_list(&pigeon_lights, sizeof(PigeonLight*));
 }
 
 
-void pigeon_deinit_light_array_list(void);
 void pigeon_deinit_light_array_list(void)
 {
     pigeon_destroy_array_list(&pigeon_lights);

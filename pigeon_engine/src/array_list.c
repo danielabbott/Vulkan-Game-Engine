@@ -152,7 +152,7 @@ void pigeon_array_list_zero(PigeonArrayList* al)
 void pigeon_destroy_array_list(PigeonArrayList* al)
 {
     assert(al);
-    free2(&al->elements);
+    free_if(al->elements);
     al->element_size = 0;
     al->size = 0;
     al->capacity = 0;

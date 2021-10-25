@@ -15,12 +15,9 @@
 #include <cglm/mat4.h>
 #include <cglm/quat.h>
 #include <string.h>
+#include "scene.h"
 
 extern PigeonTransform * pigeon_scene_root;
-
-// TODO don't have this, write straight to staging buffer. 
-//  ^ requires that data in each object is written sequentially
-static PigeonArrayList draw_objects;
 
 static PigeonWGISceneUniformData scene_uniform_data = {0};
 extern PigeonObjectPool pigeon_pool_rs;
@@ -33,23 +30,33 @@ static unsigned int total_bones;
 static unsigned int total_lights;
 static PigeonTransform* camera;
 
+static void* draw_objects;
 static PigeonWGIBoneMatrix* bone_matrices;
 
 static PigeonArrayList job_array_list;
 static PigeonJob* jobs;
 
+
 void pigeon_init_scene_module(void);
 void pigeon_init_scene_module(void)
 {
-    pigeon_create_array_list(&draw_objects, sizeof(PigeonWGIDrawObject));
+    pigeon_init_pointer_pool();
+    pigeon_init_transform_pool();
+    pigeon_init_mesh_renderer_pool();
+    pigeon_init_light_array_list();
+    pigeon_init_audio_player_pool();
     pigeon_create_array_list(&job_array_list, sizeof(PigeonJob));
 }
 
 void pigeon_deinit_scene_module(void);
 void pigeon_deinit_scene_module(void)
 {
-    pigeon_destroy_array_list(&draw_objects);
     pigeon_destroy_array_list(&job_array_list);
+    pigeon_deinit_pointer_pool();
+    pigeon_deinit_transform_pool();
+    pigeon_deinit_mesh_renderer_pool();
+    pigeon_deinit_light_array_list();
+    pigeon_deinit_audio_player_pool();
 }
 
 static unsigned int render_state_index;
@@ -155,38 +162,34 @@ static void scene_graph_prepass(PigeonWGIShadowParameters shadows[4])
 static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialRenderer const* mr,
     PigeonTransform const* t, uint32_t draw_index)
 {
-    assert(draw_index < draw_objects.size);
-    PigeonWGIDrawObject * data = &((PigeonWGIDrawObject*)draw_objects.elements)[draw_index];
+    assert(draw_index < total_draws);
+
+    PigeonWGIDrawObject * data = (PigeonWGIDrawObject*) ((uintptr_t)draw_objects + draw_index * 
+        round_up(sizeof(PigeonWGIDrawObject), pigeon_wgi_get_draw_data_alignment()));
 
     assert(t->world_transform_cached);
 
+    // ** variables must be written in order
+
+    /* Vertex meta & matrices */
+
+    const vec4* model_matrix = &t->world_transform_cache[0];
+
+	glm_mat4_mul(scene_uniform_data.proj_view, (vec4*)model_matrix, data->proj_view_model[0]);
+    pigeon_wgi_set_object_shadow_mvp_uniform(data, (vec4*)model_matrix);
+	memcpy(data->model, model_matrix, 64);
+	pigeon_wgi_get_normal_model_matrix(model_matrix, data->normal_model_matrix);
     
-	/* Mesh metadata */
 
 	memcpy(data->position_min, model->model_asset->mesh_meta.bounds_min, 3 * 4);
 	memcpy(data->position_range, model->model_asset->mesh_meta.bounds_range, 3 * 4);
 
-	/* Object data */
-
 	data->ssao_intensity = 1.35f;
 
 
-	memcpy(data->model, t->world_transform_cache, 64);
 
-	pigeon_wgi_get_normal_model_matrix(data->model, data->normal_model_matrix);
-
-	// glm_mat4_mul(scene_uniform_data.view, data->model, data->view_model);
-	glm_mat4_mul(scene_uniform_data.proj_view, data->model, data->proj_view_model[0]);
 
 	/* Material data */
-
-    memcpy(data->colour, mr->colour, 3 * 4);
-    memcpy(data->under_colour, mr->under_colour, 3 * 4);
-    data->alpha_channel_usage = mr->use_transparency ?
-        (mr->use_under_colour ? PIGEON_WGI_ALPHA_CHANNEL_TRANSPARENCY : 
-            PIGEON_WGI_ALPHA_CHANNEL_UNDER_COLOUR)
-        : PIGEON_WGI_ALPHA_CHANNEL_UNUSED;
-    
 
     if (mr->diffuse_bind_point != UINT32_MAX)
     {
@@ -196,7 +199,23 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
     else
     {
         data->texture_sampler_index_plus1 = 0;
+        data->texture_index = 0;
     }
+
+	data->first_bone_index = mr->animation_state ? mr->animation_state->_first_bone_index : UINT32_MAX;
+    data->rsvd0 = 0;
+
+    memcpy(data->colour, mr->colour, 3 * 4);
+    data->rsvda = 0;
+
+    memcpy(data->under_colour, mr->under_colour, 3 * 4);
+
+    data->alpha_channel_usage = mr->use_transparency ?
+        (mr->use_under_colour ? PIGEON_WGI_ALPHA_CHANNEL_TRANSPARENCY : 
+            PIGEON_WGI_ALPHA_CHANNEL_UNDER_COLOUR)
+        : PIGEON_WGI_ALPHA_CHANNEL_UNUSED;
+    
+
     if (mr->nmap_bind_point != UINT32_MAX)
     {
         data->normal_map_sampler_index_plus1 = mr->nmap_bind_point+1;
@@ -205,9 +224,12 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
     else
     {
         data->normal_map_sampler_index_plus1 = 0;
+        data->normal_map_index = 0;
     }
 
-	data->first_bone_index = mr->animation_state ? mr->animation_state->_first_bone_index : UINT32_MAX;
+    data->rsvd1 = 0;
+    data->rsvd2 = 0;
+
 }
 
 
@@ -610,8 +632,6 @@ static PIGEON_ERR_RET pigeon_uniform_data_jobs(bool debug_disable_ssao)
 
     // object data
 
-    ASSERT_R1(!pigeon_array_list_resize(&draw_objects, total_draws));
-
     create_draw_data_job__index = 1;
     pigeon_object_pool_for_each(&pigeon_pool_rs, create_draw_data_job_);
 
@@ -639,7 +659,8 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
 
     // Create uniform buffers, get pointers
 
-    ASSERT_R1(!pigeon_wgi_start_frame(total_draws, total_multidraw_draws, shadows, total_bones, &bone_matrices));
+    ASSERT_R1(!pigeon_wgi_start_frame(total_draws, total_multidraw_draws, shadows, total_bones,
+        &draw_objects, &bone_matrices));
 
     // Jobs
 
@@ -683,7 +704,7 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
 
         ASSERT_R1(!pigeon_dispatch_jobs(jobs, job_array_list.size));
 
-        ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_objects.elements, total_draws));
+        ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data));
 
 
         job_array_list.size = 3;
@@ -726,7 +747,7 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
         
 
         // Copy data
-        ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data, draw_objects.elements, total_draws));
+        ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data));
 
 
         // Render

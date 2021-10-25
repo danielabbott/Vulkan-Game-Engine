@@ -137,7 +137,7 @@ PIGEON_ERR_RET pigeon_dispatch_jobs(PigeonJob* jobs, unsigned int n)
 
     for(unsigned int i = 1; i < threads_in_use; i++) {
         pigeon_aquire_mutex(mutexes[i]);
-        pigeon_atomic_set_int(&start_executing[i], 1); // TODO just one of these
+        pigeon_atomic_set_int(&start_executing[i], 1);
         pigeon_notify_condition_variable(condition_variables[i]);
     }
 

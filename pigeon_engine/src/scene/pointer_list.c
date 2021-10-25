@@ -1,17 +1,16 @@
 #include "pointer_list.h"
 #include <pigeon/object_pool.h>
 #include <pigeon/assert.h>
+#include "scene.h"
 
 PigeonObjectPool pigeon_pointer_list_pool;
 
-void pigeon_init_pointer_pool(void);
 void pigeon_init_pointer_pool(void)
 {
     pigeon_create_object_pool(&pigeon_pointer_list_pool, sizeof(PigeonArrayList), false);
 }
 
 
-void pigeon_deinit_pointer_pool(void);
 void pigeon_deinit_pointer_pool(void)
 {
     pigeon_destroy_object_pool(&pigeon_pointer_list_pool);

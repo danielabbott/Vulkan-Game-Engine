@@ -41,9 +41,8 @@ typedef struct PigeonAsset {
 
     char * name;
 
-    // TODO malloc this, have no limit
-    #define PIGEON_ASSET_MAX_SUBRESOURCES 32
-    PigeonAssetSubresource subresources[PIGEON_ASSET_MAX_SUBRESOURCES];
+    unsigned int subresource_count;
+    PigeonAssetSubresource* subresources;
 
     // If not NULL, was malloc'd
     void * original_data;
