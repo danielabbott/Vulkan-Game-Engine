@@ -64,9 +64,9 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv \
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv \
+$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.1.spv \
+$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.3.spv \
+$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.4.spv \
 $(SOURCES_GLSL:%=build/%) \
 $(SOURCES_VERT:%=build/%) \
 $(SOURCES_FRAG:%=build/%)
@@ -191,15 +191,15 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv: standard_ass
 	@mkdir -p $(@D)
 	$(GLSLC) -DOBJECT_LIGHT -DSKINNED $(GLSLCFLAGS) $< -o $@
 
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.1.spv: standard_assets/shaders/gaussian_light.frag
+$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.1.spv: standard_assets/shaders/kawase_light.frag
 	@mkdir -p $(@D)
 	$(GLSLC) -DCOLOUR_TYPE_R $(GLSLCFLAGS) $< -o $@
 
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.3.spv: standard_assets/shaders/gaussian_light.frag
+$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.3.spv: standard_assets/shaders/kawase_light.frag
 	@mkdir -p $(@D)
 	$(GLSLC) -DCOLOUR_TYPE_RGB $(GLSLCFLAGS) $< -o $@
 
-$(BUILD_DIR)/standard_assets/shaders/gaussian_light.frag.4.spv: standard_assets/shaders/gaussian_light.frag
+$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.4.spv: standard_assets/shaders/kawase_light.frag
 	@mkdir -p $(@D)
 	$(GLSLC) -DCOLOUR_TYPE_RGBA $(GLSLCFLAGS) $< -o $@
 

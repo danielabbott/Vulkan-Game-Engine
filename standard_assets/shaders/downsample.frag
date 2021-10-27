@@ -9,7 +9,7 @@ BINDING(0) uniform sampler2D src_image;
 
 #if __VERSION__ >= 460
 
-// 2 = 4x downsample, 4 = 8x, 8 = 16x
+// 1 = 2x downsample, 2 = 4x downsample, 4 = 8x, 8 = 16x
 layout (constant_id = 0) const int SC_BLOOM_DOWNSAMPLE_SAMPLES = 8;
 
 
@@ -33,21 +33,30 @@ uniform vec3 u_offset_and_min;
 
 #endif
 
+const vec3 luminance_multipliers = vec3(0.299, 0.587, 0.114);
 
 void main() {
-	vec3 sum = vec3(0);
+	vec3 c = vec3(0);
 
 	vec2 offset = vec2(0, -OFFSET.y * (SC_BLOOM_DOWNSAMPLE_SAMPLES-1));
 	for(int y = 0; y < SC_BLOOM_DOWNSAMPLE_SAMPLES; y++) {
 		offset.x = -OFFSET.x * (SC_BLOOM_DOWNSAMPLE_SAMPLES-1);
 		for(int x = 0; x < SC_BLOOM_DOWNSAMPLE_SAMPLES; x++) {
-			sum += max(vec3(0), texture(src_image, pass_tex_coord + offset).rgb - vec3(MIN));
+			c += texture(src_image, pass_tex_coord + offset).rgb;
 
 			offset.x += OFFSET.x*2;
 		}
 
 		offset.y += OFFSET.y*2;
 	}
+
+	c /= (SC_BLOOM_DOWNSAMPLE_SAMPLES*SC_BLOOM_DOWNSAMPLE_SAMPLES);
 	
-	out_colour = vec4(sum / (SC_BLOOM_DOWNSAMPLE_SAMPLES*SC_BLOOM_DOWNSAMPLE_SAMPLES), 0);
+	float intensity = dot(c, luminance_multipliers);
+
+	if(intensity >= MIN)
+		out_colour = vec4(c, 0);
+	else
+		out_colour = vec4(0.0);
+
 }

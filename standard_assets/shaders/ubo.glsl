@@ -1,14 +1,16 @@
 #ifndef _UBO_GLSL_
 #define _UBO_GLSL_
 
+#define LIGHT_TYPE_DIRECTIONAL 0.0
+#define LIGHT_TYPE_POINT 1.0 // does not support shadows
+
 struct Light {
+    vec4 world_pos_and_type;
     vec4 neg_direction_and_is_shadow_caster; // a == 0 -> no shadows
     vec4 light_intensity_and_shadow_pixel_offset; // shadow_pixel_offset = 0.5 / resolution
     mat4 shadow_proj_view;
 };
 
-#define neg_direction neg_direction_and_is_shadow_caster.xyz
-#define is_shadow_caster neg_direction_and_is_shadow_caster.w
 
 
 #if __VERSION__ >= 460
@@ -50,7 +52,7 @@ struct DrawObject {
     int first_bone_index;
     int rsvd0;
 
-    vec4 colour;
+    vec4 colour; // colour components should be in [0,1], alpha = luminosity
     vec4 under_colour;
 
     int normal_map_sampler_index_plus1;

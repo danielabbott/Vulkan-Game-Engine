@@ -103,9 +103,9 @@ void main() {
 
     for(int i = 0; i < ubo.number_of_lights; i++) {
         Light l = ubo.lights[i];
-        if(l.is_shadow_caster == 0.0) continue;
+        if(l.neg_direction_and_is_shadow_caster.w == 0.0) continue;
 
-        float intensity = max(dot(normal, normalize(l.neg_direction)), 0.0);
+        float intensity = max(dot(normal, normalize(l.neg_direction_and_is_shadow_caster.xyz)), 0.0);
 
         if(intensity <= 0.0) {
             output_value[output_value_index] = 0;

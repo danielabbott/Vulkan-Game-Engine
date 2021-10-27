@@ -10,11 +10,11 @@ mkdir build\release\standard_assets\shaders
 
 
 copy standard_assets\shaders\downsample.frag build\standard_assets\shaders\downsample.frag
-copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.frag
-copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.1.frag
-copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.3.frag
-copy standard_assets\shaders\gaussian_light.frag build\standard_assets\shaders\gaussian_light.4.frag
-copy standard_assets\shaders\gaussian_rgb.frag build\standard_assets\shaders\gaussian_rgb.frag
+copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kawase_light.frag
+copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kawase_light.1.frag
+copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kawase_light.3.frag
+copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kawase_light.4.frag
+copy standard_assets\shaders\kawase_rgb.frag build\standard_assets\shaders\kawase_rgb.frag
 copy standard_assets\shaders\object.frag build\standard_assets\shaders\object.frag
 copy standard_assets\shaders\object_depth_alpha.frag build\standard_assets\shaders\object_depth_alpha.frag
 copy standard_assets\shaders\object_light.frag build\standard_assets\shaders\object_light.frag
@@ -37,13 +37,13 @@ copy standard_assets\shaders\random.glsl build\standard_assets\shaders\random.gl
 copy standard_assets\shaders\ubo.glsl build\standard_assets\shaders\ubo.glsl
 
 glslc -O -DNDEBUG standard_assets\shaders\downsample.frag -o build\release\standard_assets\shaders\downsample.frag.spv
-glslc -O -DNDEBUG standard_assets\shaders\gaussian_light.frag -o build\release\standard_assets\shaders\gaussian_light.frag.spv
+glslc -O -DNDEBUG standard_assets\shaders\kawase_light.frag -o build\release\standard_assets\shaders\kawase_light.frag.spv
 
-glslc -O -DNDEBUG -DCOLOUR_TYPE_R standard_assets\shaders\gaussian_light.frag -o build\release\standard_assets\shaders\gaussian_light.1.frag.spv
-glslc -O -DNDEBUG -DCOLOUR_TYPE_RGB standard_assets\shaders\gaussian_light.frag -o build\release\standard_assets\shaders\gaussian_light.3.frag.spv
-glslc -O -DNDEBUG -DCOLOUR_TYPE_RGBA standard_assets\shaders\gaussian_light.frag -o build\release\standard_assets\shaders\gaussian_light.4.frag.spv
+glslc -O -DNDEBUG -DCOLOUR_TYPE_R standard_assets\shaders\kawase_light.frag -o build\release\standard_assets\shaders\kawase_light.1.frag.spv
+glslc -O -DNDEBUG -DCOLOUR_TYPE_RGB standard_assets\shaders\kawase_light.frag -o build\release\standard_assets\shaders\kawase_light.3.frag.spv
+glslc -O -DNDEBUG -DCOLOUR_TYPE_RGBA standard_assets\shaders\kawase_light.frag -o build\release\standard_assets\shaders\kawase_light.4.frag.spv
 
-glslc -O -DNDEBUG standard_assets\shaders\gaussian_rgb.frag -o build\release\standard_assets\shaders\gaussian_rgb.frag.spv
+glslc -O -DNDEBUG standard_assets\shaders\kawase_rgb.frag -o build\release\standard_assets\shaders\kawase_rgb.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\object.frag -o build\release\standard_assets\shaders\object.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\object_depth_alpha.frag -o build\release\standard_assets\shaders\object_depth_alpha.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\object_light.frag -o build\release\standard_assets\shaders\object_light.frag.spv
@@ -67,13 +67,13 @@ glslc -O -DNDEBUG -DSKINNED -DOBJECT_LIGHT standard_assets\shaders\object.vert -
 
 
 glslc -O0 -DDEBUG standard_assets\shaders\downsample.frag -o build\debug\standard_assets\shaders\downsample.frag.spv
-glslc -O0 -DDEBUG standard_assets\shaders\gaussian_light.frag -o build\debug\standard_assets\shaders\gaussian_light.frag.spv
+glslc -O0 -DDEBUG standard_assets\shaders\kawase_light.frag -o build\debug\standard_assets\shaders\kawase_light.frag.spv
 
-glslc -O0 -DDEBUG -DCOLOUR_TYPE_R standard_assets\shaders\gaussian_light.frag -o build\debug\standard_assets\shaders\gaussian_light.1.frag.spv
-glslc -O0 -DDEBUG -DCOLOUR_TYPE_RGB standard_assets\shaders\gaussian_light.frag -o build\debug\standard_assets\shaders\gaussian_light.3.frag.spv
-glslc -O0 -DDEBUG -DCOLOUR_TYPE_RGBA standard_assets\shaders\gaussian_light.frag -o build\debug\standard_assets\shaders\gaussian_light.4.frag.spv
+glslc -O0 -DDEBUG -DCOLOUR_TYPE_R standard_assets\shaders\kawase_light.frag -o build\debug\standard_assets\shaders\kawase_light.1.frag.spv
+glslc -O0 -DDEBUG -DCOLOUR_TYPE_RGB standard_assets\shaders\kawase_light.frag -o build\debug\standard_assets\shaders\kawase_light.3.frag.spv
+glslc -O0 -DDEBUG -DCOLOUR_TYPE_RGBA standard_assets\shaders\kawase_light.frag -o build\debug\standard_assets\shaders\kawase_light.4.frag.spv
 
-glslc -O0 -DDEBUG standard_assets\shaders\gaussian_rgb.frag -o build\debug\standard_assets\shaders\gaussian_rgb.frag.spv
+glslc -O0 -DDEBUG standard_assets\shaders\kawase_rgb.frag -o build\debug\standard_assets\shaders\kawase_rgb.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\object.frag -o build\debug\standard_assets\shaders\object.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\object_depth_alpha.frag -o build\debug\standard_assets\shaders\object_depth_alpha.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\object_light.frag -o build\debug\standard_assets\shaders\object_light.frag.spv

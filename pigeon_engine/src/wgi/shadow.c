@@ -190,5 +190,13 @@ void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data)
         data->lights[i].neg_direction[0] = dir[0];
         data->lights[i].neg_direction[1] = dir[1];
         data->lights[i].neg_direction[2] = dir[2];
+
+        vec4 position = {0, 0, 0, 1};
+        glm_mat4_mulv(p->inv_view_matrix, position, position);
+
+        data->lights[i].world_position[0] = position[0];
+        data->lights[i].world_position[1] = position[1];
+        data->lights[i].world_position[2] = position[2];
+        data->lights[i].light_type = 0;
     }
 }

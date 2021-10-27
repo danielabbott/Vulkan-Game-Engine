@@ -32,8 +32,8 @@ typedef enum {
 
 	// Compressed formats (all srgb except ETC1). Not guaranteed to be supported
 
-    PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB, // RGB (dxt1, poor quality, GL_EXT_texture_compression_s3tc)
-    PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB, // RGBA (dxt3, poor quality, GL_EXT_texture_compression_s3tc)
+    PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB, // RGB (dxt1, poor quality, GL_EXT_texture_compression_s3tc+EXT_texture_sRGB)
+    PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB, // RGBA (dxt3, poor quality, GL_EXT_texture_compression_s3tc+EXT_texture_sRGB)
     PIGEON_WGI_IMAGE_FORMAT_BC5, // RG (ARB_texture_compression_rgtc)
     PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB, // RGB(A) (good quality, ARB_texture_compression_bptc)
 

@@ -114,6 +114,7 @@ PigeonRenderState *rs_skinned_opaque;
 PigeonRenderState *rs_skinned_transparent;
 
 PigeonTransform *t_floor;
+PigeonTransform *t_wall;
 PigeonTransform *t_character;
 PigeonTransform *t_spinning_cube;
 PigeonTransform *t_light;
@@ -125,13 +126,14 @@ PigeonModelMaterial *model_cube;
 PigeonModelMaterial **model_character;
 PigeonModelMaterial *model_sphere;
 
-PigeonMaterialRenderer *mr_floor;
+PigeonMaterialRenderer *mr_white_cuboid;
 PigeonMaterialRenderer *mr_spinning_cube;
 PigeonMaterialRenderer *mr_sphere;
 PigeonMaterialRenderer **mr_character;
 
 PigeonAnimationState *as_character;
 PigeonLight * light;
+PigeonLight * light2;
 PigeonAudioPlayer * audio_pigeon;
 
 bool mouse_grabbed;
@@ -184,7 +186,7 @@ static PIGEON_ERR_RET start(void)
 	cfg.ssao = true;
 	cfg.bloom = true;
 	cfg.shadow_casting_lights = 1;
-	cfg.shadow_blur_passes = 2;
+	cfg.shadow_blur_passes = 1;
 	if (pigeon_wgi_init(window_parameters, true, false, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
@@ -925,11 +927,10 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
 	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
 	printf("\tLight Pass: %f\n", values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
-	printf("\tLight Blur: %f\n", values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE]);
-	printf("\tBloom Downsample: %f\n", values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
-	printf("\tBloom Gaussian Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE] - values[PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE]);
-	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE]);
+	printf("\tLight Blur: %f\n", values[PIGEON_WGI_TIMER_LIGHT_BLUR_DONE] - values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_LIGHT_BLUR_DONE]);
+	printf("\tBloom Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
+	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE]);
 	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
 	printf("CPU time: %f\n", cpu_frame_time_sum / 300.0);
 
@@ -1127,6 +1128,7 @@ int main(void)
 	ASSERT_R1(!populate_array_textures());
 
 	t_floor = pigeon_create_transform(NULL);
+	t_wall = pigeon_create_transform(NULL);
 	t_character = pigeon_create_transform(NULL);
 	t_spinning_cube = pigeon_create_transform(NULL);
 	t_light = pigeon_create_transform(NULL);
@@ -1141,13 +1143,20 @@ int main(void)
 	t_floor->scale[2] = 10000;
 	t_floor->translation[1] = -0.05f;
 
+	t_wall->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
+	t_wall->scale[0] = 3;
+	t_wall->scale[1] = 10;
+	t_wall->scale[2] = 0.3f;
+	t_wall->translation[0] = 3;
+	t_wall->translation[2] = -5;
+
 	t_sphere->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
-	t_sphere->scale[0] = 1;
-	t_sphere->scale[1] = 1;
-	t_sphere->scale[2] = 1;
-	t_sphere->translation[0] = 2;
-	t_sphere->translation[1] = 0.5;
-	t_sphere->translation[2] = -1;
+	t_sphere->scale[0] = 0.1f;
+	t_sphere->scale[1] = 0.1f;
+	t_sphere->scale[2] = 0.1f;
+	t_sphere->translation[0] = 3;
+	t_sphere->translation[1] = 1;
+	t_sphere->translation[2] = -4;
 
 	t_character->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
 	t_character->scale[0] = 1;
@@ -1161,7 +1170,7 @@ int main(void)
 	t_light->scale[2] = 1;
 	t_light->translation[0] = 0;
 	t_light->translation[1] = 10;
-	t_light->translation[2] = -3;
+	t_light->translation[2] = -4;
 	t_light->rotation[0] = 0.819152f;
 	t_light->rotation[3] = -0.5735764f;
 
@@ -1173,13 +1182,24 @@ int main(void)
 
 	light = pigeon_create_light();
 	ASSERT_R1(light);
-	light->intensity[0] = light->intensity[1] = light->intensity[2] = 7;
+	light->intensity[0] = light->intensity[1] = light->intensity[2] = 5.0f;
 	light->shadow_resolution = 2048;
 	light->shadow_near = 6;
 	light->shadow_far = 13;
 	light->shadow_size_x = 5;
 	light->shadow_size_y = 5;
 	ASSERT_R1(!pigeon_join_transform_and_component(t_light, &light->c));
+
+	pigeon_wgi_set_brightness(0.6f);
+
+
+	light2 = pigeon_create_light();
+	ASSERT_R1(light2);
+	light2->type = PIGEON_LIGHT_TYPE_POINT;
+	light2->intensity[0] = 0.15f * 0.3f;
+	light2->intensity[1] = 0.5f * 0.3f;
+	light2->intensity[2] = 2.1f * 0.3f;
+	ASSERT_R1(!pigeon_join_transform_and_component(t_sphere, &light2->c));
 
 
 	rs_static_opaque = pigeon_create_render_state(&mesh, &render_pipeline);
@@ -1202,10 +1222,10 @@ int main(void)
 	ASSERT_R1(!pigeon_join_rs_model(rs_static_opaque, model_cube));
 	ASSERT_R1(!pigeon_join_rs_model(rs_static_opaque, model_sphere));
 
-	mr_floor = pigeon_create_material_renderer(model_cube);
+	mr_white_cuboid = pigeon_create_material_renderer(model_cube);
 	mr_spinning_cube = pigeon_create_material_renderer(model_cube);
 	mr_sphere = pigeon_create_material_renderer(model_sphere);
-	ASSERT_R1(mr_floor && mr_spinning_cube && mr_sphere);
+	ASSERT_R1(mr_white_cuboid && mr_spinning_cube && mr_sphere);
 
 	mr_spinning_cube->colour[0] = 1.1f;
 	mr_spinning_cube->colour[1] = 0.5f;
@@ -1214,6 +1234,8 @@ int main(void)
 	mr_sphere->colour[0] = 0.15f;
 	mr_sphere->colour[1] = 0.5f;
 	mr_sphere->colour[2] = 2.1f;
+	mr_sphere->luminosity = 12;
+	
 
 	mr_character = malloc(sizeof *mr_character * model_assets[1].materials_count);
 	ASSERT_R1(mr_character);
@@ -1263,7 +1285,8 @@ int main(void)
 		ASSERT_R1(!pigeon_join_transform_and_component(t_character, &mr_character[i]->c));
 	}
 
-	ASSERT_R1(!pigeon_join_transform_and_component(t_floor, &mr_floor->c));
+	ASSERT_R1(!pigeon_join_transform_and_component(t_floor, &mr_white_cuboid->c));
+	ASSERT_R1(!pigeon_join_transform_and_component(t_wall, &mr_white_cuboid->c));
 	ASSERT_R1(!pigeon_join_transform_and_component(t_spinning_cube, &mr_spinning_cube->c));
 	ASSERT_R1(!pigeon_join_transform_and_component(t_sphere, &mr_sphere->c));
 
@@ -1277,7 +1300,7 @@ int main(void)
 	pigeon_destroy_animation_state(as_character);
 	pigeon_destroy_audio_player(audio_pigeon);
 
-	pigeon_destroy_material_renderer(mr_floor);
+	pigeon_destroy_material_renderer(mr_white_cuboid);
 	pigeon_destroy_material_renderer(mr_spinning_cube);
 	
 	for(unsigned int i = 0; i < model_assets[1].materials_count; i++) {

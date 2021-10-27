@@ -8,6 +8,7 @@ LOCATION(1) in vec2 pass_uv;
 LOCATION(2) flat in int pass_draw_index;
 LOCATION(3) in vec3 pass_position_model_space;
 LOCATION(4) in mat3 pass_tangent_to_world;
+LOCATION(7) in vec3 pass_position_world_space;
 
 LOCATION(0) out vec4 out_colour;
 
@@ -73,10 +74,27 @@ void main() {
 
     int shadow_values_index = SC_SSAO_ENABLED ? 1 : 0;
     for(int i = 0; i < ubo.number_of_lights; i++) {
-        Light l = ubo.lights[i];
-        float intensity = max(dot(normal, normalize(l.neg_direction)), 0.0);
+        // Light l = ubo.lights[i];
+        #define l ubo.lights[i]
 
-        if(l.is_shadow_caster != 0.0) {
+
+        float intensity;
+
+        if(l.world_pos_and_type.w == LIGHT_TYPE_DIRECTIONAL) {
+            intensity = max(dot(normal, normalize(l.neg_direction_and_is_shadow_caster.xyz)), 0.0);
+        }
+        else {
+            // point
+            vec3 to_light = l.world_pos_and_type.xyz - pass_position_world_space;
+            intensity = max(dot(normal, normalize(to_light)), 0.0);
+            float dist_to_light = length(to_light);
+            intensity /= max(0.01, dist_to_light*dist_to_light);
+        }
+
+
+        // TODO specular
+
+        if(l.neg_direction_and_is_shadow_caster.w != 0.0) {
             if(SC_TRANSPARENT) {
                 vec4 shadow_xyzw = data.modelViewProj[i+1] * vec4(pass_position_model_space, 1.0);
                 shadow_xyzw.xy = shadow_xyzw.xy*0.5 + vec2(0.5);
@@ -105,15 +123,16 @@ void main() {
         }
 
         colour += intensity*l.light_intensity_and_shadow_pixel_offset.rgb;
+        #undef l
     }
 
     if(SC_SSAO_ENABLED && !SC_TRANSPARENT) {
-        colour *= shadow_values.r*shadow_values.r;
+        colour *= shadow_values.r;
     }
 
     /* Texture */
 
-    colour *= data.colour.rgb;
+    vec3 colour_without_light = data.colour.rgb;
 
     float alpha = 1;
 
@@ -125,22 +144,28 @@ void main() {
             diffuse_texture,
 #endif
             vec3(pass_uv, data.texture_index));
+
+
         tex_val.rgb *= 1.2;
 
         if(SC_TRANSPARENT) {
-            colour *= tex_val.rgb;
+            colour_without_light *= tex_val.rgb;
             alpha = tex_val.a;
         }
         else {
             if(data.under_colour.a == 1) {
-                colour *= mix(data.under_colour.rgb, tex_val.rgb, tex_val.a);
+                colour_without_light *= mix(data.under_colour.rgb, tex_val.rgb, tex_val.a);
             }
             else {
-                colour *= tex_val.rgb;
+                colour_without_light *= tex_val.rgb;
             }
         }
         
     }
+
+
+    colour *= colour_without_light;
+    colour += colour_without_light * data.colour.a; // luminosity
 
 
     float fog = 1-smoothstep(0.00005, 0.001, gl_FragCoord.z);

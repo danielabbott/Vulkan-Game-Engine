@@ -552,6 +552,8 @@ PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_d
 {
     uniform_data->znear = singleton_data.znear;
     uniform_data->zfar = singleton_data.zfar;
+    memcpy(uniform_data->ambient, singleton_data.ambient, 3*4);
+    
     pigeon_wgi_set_shadow_uniforms(uniform_data);
 
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
@@ -1016,43 +1018,91 @@ PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer * command_bu
         }
         else if(command_buffer == &objects->render_command_buffer) {
             pigeon_opengl_set_draw_state(&singleton_data.gl.full_screen_tri_cfg);
+
             if(singleton_data.render_cfg.bloom) {
-                pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom1_framebuffer);
-                pigeon_opengl_bind_texture(0, &singleton_data.render_image.gltex2d);
-                pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_bloom_downsample);
 
-                pigeon_opengl_set_uniform_vec3(&singleton_data.gl.shader_bloom_downsample, 
-                    singleton_data.gl.shader_bloom_downsample_u_offset_and_min,
-                    1 / (float)sc_info.width, 1 / (float)sc_info.height,
-                    5 // minimum light
-                );
+                // downsample x2 & 1 pass kawase blur
 
-                pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
+                unsigned int src_w = sc_info.width;
+                unsigned int src_h = sc_info.height;
+                unsigned int dst_w = src_w / 2;
+                unsigned int dst_h = src_h / 2;
 
-                pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom2_framebuffer);
-                pigeon_opengl_bind_texture(0, &singleton_data.bloom1_image.gltex2d);
+                for(unsigned int i = 0; i < 3; i++) {
+                    float downsample_pushc[3] = {
+                        1 / (float)src_w, 1 / (float)src_h,
+                        (2.0f + (float)i*0.5f) / singleton_data.brightness // minimum light
+                    };
+
+                    pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom_framebuffers[i][0]);
+                    pigeon_opengl_bind_texture(0, 
+                        i == 0 ? &singleton_data.render_image.gltex2d : &singleton_data.bloom_images[i-1][1].gltex2d);
+                    pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_bloom_downsample);
+
+                    pigeon_opengl_set_uniform_vec3(&singleton_data.gl.shader_bloom_downsample, 
+                        singleton_data.gl.shader_bloom_downsample_u_offset_and_min,
+                        downsample_pushc[0], downsample_pushc[1], downsample_pushc[2]
+                    );
+
+                    pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
+
+                    src_w /= 2;
+                    src_h /= 2;
+
+                    pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom_framebuffers[i][1]);  
+                    pigeon_opengl_bind_texture(0, &singleton_data.bloom_images[i][0].gltex2d);
+                    pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_blur);
+                    pigeon_opengl_set_uniform_vec2(&singleton_data.gl.shader_blur, 
+                        singleton_data.gl.shader_blur_SAMPLE_DISTANCE,
+                        0.5f / (float) src_w, 0.5f / (float) src_h
+                    );
+                    pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
+
+                    dst_w /= 2;
+                    dst_h /= 2;
+                }
+
+                // Extra kawase blur
+
+
+                dst_w *= 2;
+                dst_h *= 2;
+
+                pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom_framebuffers[2][0]);  
+                pigeon_opengl_bind_texture(0, &singleton_data.bloom_images[2][1].gltex2d);
                 pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_blur);
                 pigeon_opengl_set_uniform_vec2(&singleton_data.gl.shader_blur, 
-                    singleton_data.gl.shader_blur_ONE_PIXEL,
-                    0, 8 / (float)sc_info.height
+                    singleton_data.gl.shader_blur_SAMPLE_DISTANCE,
+                    1.5f / (float) src_w, 1.5f / (float) src_h
                 );
                 pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
 
-                pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom1_framebuffer);
-                pigeon_opengl_bind_texture(0, &singleton_data.bloom2_image.gltex2d);
-                pigeon_opengl_set_uniform_vec2(&singleton_data.gl.shader_blur, 
-                    singleton_data.gl.shader_blur_ONE_PIXEL,
-                    8 / (float)sc_info.width, 0
-                );
-                pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
 
-                pigeon_opengl_bind_texture(1, &singleton_data.bloom1_image.gltex2d);
+
+                // upsample, kawase, merge
+
+                for(unsigned int i = 0; i < 2; i++) {
+                    src_w = singleton_data.bloom_images[1-i][1].gltex2d.width;
+                    src_h = singleton_data.bloom_images[1-i][1].gltex2d.height;
+
+                    pigeon_opengl_bind_framebuffer(&singleton_data.gl.bloom_framebuffers[1-i][0]);
+                    pigeon_opengl_bind_texture(0, &singleton_data.bloom_images[1-i][1].gltex2d);
+                    pigeon_opengl_bind_texture(1, &singleton_data.bloom_images[(1-i)+1][0].gltex2d);
+                    pigeon_opengl_set_uniform_vec2(&singleton_data.gl.shader_kawase_merge, 
+                        singleton_data.gl.shader_kawase_merge_SAMPLE_DISTANCE,
+                        1.5f / (float)src_w, 1.5f / (float)src_h
+                    );
+                    pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
+                }
+
+
+
             }
 
             pigeon_opengl_bind_framebuffer(NULL);
             pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_post);
             pigeon_opengl_bind_texture(0, &singleton_data.render_image.gltex2d);
-            pigeon_opengl_bind_texture(1, &singleton_data.bloom1_image.gltex2d);
+            pigeon_opengl_bind_texture(1, &singleton_data.bloom_images[0][0].gltex2d);
 
 
             pigeon_opengl_set_uniform_vec3(&singleton_data.gl.shader_post, 
@@ -1111,8 +1161,8 @@ static void do_light_blur(PerFrameData * objects, PigeonWGISwapchainInfo sc_info
         pigeon_vulkan_end_render_pass(p, 0);
         pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_blur_image.image);
 
-        blur_pushc[0] += 1.0f / (float)sc_info.width;
-        blur_pushc[1] += 1.0f / (float)sc_info.height;
+        blur_pushc[0] += 1.0f / (float)w;
+        blur_pushc[1] += 1.0f / (float)h;
 
 
         pigeon_vulkan_set_viewport_size(p, 0, w, h);
@@ -1124,12 +1174,12 @@ static void do_light_blur(PerFrameData * objects, PigeonWGISwapchainInfo sc_info
         pigeon_vulkan_end_render_pass(p, 0);
         pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.light_image.image);
 
-        blur_pushc[0] += 1.0f / (float)sc_info.width;
-        blur_pushc[1] += 1.0f / (float)sc_info.height;
+        blur_pushc[0] += 1.0f / (float)w;
+        blur_pushc[1] += 1.0f / (float)h;
     }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_LIGHT_BLUR_DONE);
     }
 }
 
@@ -1284,62 +1334,92 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec3(void)
 
     if(singleton_data.render_cfg.bloom) {
    
-        // Generate bloom image from HDR (downsample)
+        // downsample x2 & 1 pass kawase blur
 
-        float downsample_pushc[3] = {
-            1 / (float)sc_info.width, 1 / (float)sc_info.height,
-            5 // minimum light
-        };
+        unsigned int src_w = sc_info.width;
+        unsigned int src_h = sc_info.height;
+        unsigned int dst_w = src_w / 2;
+        unsigned int dst_h = src_h / 2;
 
         pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.render_image.image);
-        pigeon_vulkan_set_viewport_size(p, 0, sc_info.width/8, sc_info.height/8);
+
+        for(unsigned int i = 0; i < 3; i++) {
+            float downsample_pushc[3] = {
+                1 / (float)src_w, 1 / (float)src_h,
+                (2.0f + (float)i*0.5f) / singleton_data.brightness // minimum light
+            };
+            
+
+            pigeon_vulkan_set_viewport_size(p, 0, dst_w, dst_h);
+            pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_bloom_blur, 
+                &singleton_data.bloom_framebuffers[i][0], dst_w, dst_h, false);
+            pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_downsample_x2);
+            pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_downsample_x2, 
+                i == 0 ? &singleton_data.bloom_downsample_descriptor_pool : &singleton_data.bloom_descriptor_pools[i-1][1], 0);
+            pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_downsample_x2, sizeof downsample_pushc, downsample_pushc);
+            pigeon_vulkan_end_render_pass(p, 0);
+            pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom_images[i][0].image);
+
+            src_w /= 2;
+            src_h /= 2;
+            
+            float blur_pushc[2] = {0.5f / (float) src_w, 0.5f / (float) src_h};
+
+            pigeon_vulkan_set_viewport_size(p, 0, dst_w, dst_h);
+            pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_bloom_blur, 
+                &singleton_data.bloom_framebuffers[i][1], dst_w, dst_h, false);
+            pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_blur);
+            pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_blur, &singleton_data.bloom_descriptor_pools[i][0], 0);
+            pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_blur, sizeof blur_pushc, blur_pushc);
+            pigeon_vulkan_end_render_pass(p, 0);
+            pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom_images[i][1].image);
+
+            dst_w /= 2;
+            dst_h /= 2;
+        }
+
+        // Extra kawase blur
+        
+        dst_w *= 2;
+        dst_h *= 2;
+            
+        float blur_pushc[2] = {1.5f / (float) src_w, 1.5f / (float) src_h};
+
+        pigeon_vulkan_set_viewport_size(p, 0, dst_w, dst_h);
         pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_bloom_blur, 
-            &singleton_data.bloom1_framebuffer, sc_info.width/8, sc_info.height/8, false);
-        pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_bloom_downsample);
-        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_bloom_downsample, &singleton_data.bloom_downsample_descriptor_pool, 0);
-        pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_bloom_downsample, sizeof downsample_pushc, downsample_pushc);
-        pigeon_vulkan_end_render_pass(p, 0);
-        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom1_image.image);
-
-    }
-
-    if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE);
-    }
-    
-    if(singleton_data.render_cfg.bloom) {
-
-        // Gaussian blur bloom image
-
-        float blur_pushc[2] = {0, 8 / (float)sc_info.height};
-
-        pigeon_vulkan_set_viewport_size(p, 0, sc_info.width/8, sc_info.height/8);
-        pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_bloom_blur, 
-            &singleton_data.bloom2_framebuffer, sc_info.width/8, sc_info.height/8, false);
+            &singleton_data.bloom_framebuffers[2][0], dst_w, dst_h, false);
         pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_blur);
-        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_blur, &singleton_data.bloom1_descriptor_pool, 0);
+        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_blur, &singleton_data.bloom_descriptor_pools[2][1], 0);
         pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_blur, sizeof blur_pushc, blur_pushc);
         pigeon_vulkan_end_render_pass(p, 0);
-        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom2_image.image);
+        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom_images[2][0].image);
 
 
-        float blur_pushc2[2] = {8 / (float)sc_info.width, 0};
+        // upsample, kawase, merge
 
+        for(unsigned int i = 0; i < 2; i++) {
+            dst_w = src_w = singleton_data.bloom_images[1-i][0].image.width;
+            dst_h = src_h = singleton_data.bloom_images[1-i][0].image.height;
 
-        pigeon_vulkan_set_viewport_size(p, 0, sc_info.width/8, sc_info.height/8);
-        pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_bloom_blur, 
-            &singleton_data.bloom1_framebuffer, sc_info.width/8, sc_info.height/8, false);
-        pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_blur);
-        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_blur, &singleton_data.bloom2_descriptor_pool, 0);
-        pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_blur, sizeof blur_pushc2, blur_pushc2);
-        pigeon_vulkan_end_render_pass(p, 0);
-        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom1_image.image); 
+            blur_pushc[0] = 1.5f / (float)src_w;
+            blur_pushc[1] = 1.5f / (float)src_h;
 
+            pigeon_vulkan_set_viewport_size(p, 0, dst_w, dst_h);
+            pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_bloom_blur, 
+                &singleton_data.bloom_framebuffers[1-i][0], dst_w, dst_h, false);
+            pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_kawase_merge);
+            pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_kawase_merge, 
+                i ? &singleton_data.bloom_blur_merge_descriptor_pool1:
+                    &singleton_data.bloom_blur_merge_descriptor_pool0, 0);
+            pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_kawase_merge, sizeof blur_pushc, blur_pushc);
+            pigeon_vulkan_end_render_pass(p, 0);
+            pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.bloom_images[1-i][0].image); 
+        }
     }
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_BLUR_DONE);
     }
 
 

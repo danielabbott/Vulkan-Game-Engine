@@ -1,6 +1,7 @@
 #include "singleton.h"
 #include <pigeon/wgi/vulkan/descriptor.h>
 #include <pigeon/assert.h>
+#include <pigeon/misc.h>
 #include <stdlib.h>
 
 int pigeon_vulkan_create_descriptor_layout(PigeonVulkanDescriptorLayout * layout,
@@ -244,13 +245,12 @@ void pigeon_vulkan_set_descriptor_texture(PigeonVulkanDescriptorPool* pool,
 
 void pigeon_vulkan_destroy_descriptor_pool(PigeonVulkanDescriptorPool* pool)
 {
+	assert(pool);
+
 	if (pool && pool->vk_descriptor_pool) {
 		vkDestroyDescriptorPool(vkdev, pool->vk_descriptor_pool, NULL);
 		pool->vk_descriptor_pool = NULL;
 
-		if(pool->number_of_sets > 1) free(pool->vk_descriptor_sets);
-	}
-	else {
-		assert(false);
+		if(pool->number_of_sets > 1) free2(pool->vk_descriptor_sets);
 	}
 }

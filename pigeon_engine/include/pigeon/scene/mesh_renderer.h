@@ -65,6 +65,7 @@ typedef struct PigeonMaterialRenderer
     uint32_t nmap_bind_point; // index into sampler2DArray[] or UINT32_MAX
     uint32_t nmap_layer; // array texture layer
     float colour[3];
+    float luminosity;
     float under_colour[3];
     bool use_transparency;
     bool use_under_colour;

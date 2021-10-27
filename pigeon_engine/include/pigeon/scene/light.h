@@ -1,10 +1,16 @@
 #include <pigeon/scene/component.h>
 #include <stdbool.h>
 
+typedef enum {
+    PIGEON_LIGHT_TYPE_DIRECTIONAL,
+    PIGEON_LIGHT_TYPE_POINT
+} PigeonLightType;
+
 // PIGEON_COMPONENT_TYPE_LIGHT
 typedef struct PigeonLight
 {  
     PigeonComponent c;
+    PigeonLightType type;
 
     float intensity[3];
 

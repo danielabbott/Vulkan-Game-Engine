@@ -132,6 +132,7 @@ LOCATION(1) out vec2 pass_uv;
 LOCATION(2) flat out int pass_draw_index;
 LOCATION(3) out vec3 pass_position_model_space;
 LOCATION(4) out mat3 pass_tangent_to_world;
+LOCATION(7) out vec3 pass_position_world_space;
 
 #endif
 
@@ -247,7 +248,7 @@ void main() {
     pass_normal = normalize(nmat * in_normal.xyz);
 #endif
 
-    // tangent
+    // tangent & model-space position
 #ifdef OBJECT
     vec3 normal_world_space = normalize(nmat * in_normal.xyz);
     vec3 tangent_world_space = normalize(nmat * in_tangent.xyz);
@@ -257,6 +258,7 @@ void main() {
         vec3(normal_world_space) 
     );
 
+    pass_position_world_space = (data.model * vec4(p, 1.0)).xyz;
 #endif
 
 }

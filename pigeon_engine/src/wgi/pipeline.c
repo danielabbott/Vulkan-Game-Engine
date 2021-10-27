@@ -111,37 +111,51 @@ static PIGEON_ERR_RET create_program_gl(PigeonOpenGLShaderProgram * shader,
 static PIGEON_ERR_RET create_standard_pipeline_objects_gl(void)
 {
 	if (create_program_gl(&singleton_data.gl.shader_blur,
-		"fullscreen.vert", "gaussian_rgb.frag",
+		"fullscreen.vert", "kawase_rgb.frag",
 		NULL, 0, NULL)) ASSERT_R1(false);
+
+	singleton_data.gl.shader_blur_SAMPLE_DISTANCE = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_blur, "SAMPLE_DISTANCE");
 
 	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_blur, "src_image", 0);
 
-	const char * gaussian_light_frag_path = NULL;
-	char gaussian_prefix[] = "#define COLOUR_TYPE_RGBA";
+
+
+	if (create_program_gl(&singleton_data.gl.shader_kawase_merge,
+		"fullscreen.vert", "kawase_merge.frag",
+		NULL, 0, NULL)) ASSERT_R1(false);
+
+	singleton_data.gl.shader_kawase_merge_SAMPLE_DISTANCE = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_kawase_merge, "SAMPLE_DISTANCE");
+
+	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_kawase_merge, "src_image_big", 0);
+	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_kawase_merge, "src_image_small", 1);
+
+
+
+	const char * kawase_light_frag_path = NULL;
+	char kawase_prefix[] = "#define COLOUR_TYPE_RGBA";
 
 	if(singleton_data.light_image_components == 1) {
-		gaussian_light_frag_path = "gaussian_light.frag.1";
-		gaussian_prefix[21] = 0;
+		kawase_light_frag_path = "kawase_light.frag.1";
+		kawase_prefix[21] = 0;
 	}
 	else if(singleton_data.light_image_components == 2) {
-		gaussian_light_frag_path = "gaussian_light.frag";
-		gaussian_prefix[0] = 0;
+		kawase_light_frag_path = "kawase_light.frag";
+		kawase_prefix[0] = 0;
 	}
 	else if(singleton_data.light_image_components == 3) {
-		gaussian_light_frag_path = "gaussian_light.frag.3";
-		gaussian_prefix[23] = 0;
+		kawase_light_frag_path = "kawase_light.frag.3";
+		kawase_prefix[23] = 0;
 	}
 	else if(singleton_data.light_image_components == 4) {
-		gaussian_light_frag_path = "gaussian_light.frag.4";
+		kawase_light_frag_path = "kawase_light.frag.4";
 	}
 
 
-	if (gaussian_light_frag_path && 
+	if (kawase_light_frag_path && 
 		create_program_gl(&singleton_data.gl.shader_light_blur, "fullscreen.vert", 
-		gaussian_light_frag_path, gaussian_prefix, 0, NULL)) ASSERT_R1(false);
-
-	singleton_data.gl.shader_blur_ONE_PIXEL = 
-		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_blur, "ONE_PIXEL");
+		kawase_light_frag_path, kawase_prefix, 0, NULL)) ASSERT_R1(false);
 
 	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_light_blur, "src_image", 0);
 	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_light_blur, "depth_buffer", 1);
@@ -215,40 +229,53 @@ PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void)
 #define SHADER_PATH(x) (SPV_PATH_PREFIX x ".spv")
 
 
-	if (create_pipeine(&singleton_data.pipeline_blur, SHADER_PATH("fullscreen.vert"), SHADER_PATH("gaussian_rgb.frag"),
-		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 16, 0, NULL)) ASSERT_R1(false);
+	if (create_pipeine(&singleton_data.pipeline_blur, SHADER_PATH("fullscreen.vert"), SHADER_PATH("kawase_rgb.frag"),
+		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 8, 0, NULL)) ASSERT_R1(false);
 
-	const char * gaussian_light_frag_path = NULL;
+	if (create_pipeine(&singleton_data.pipeline_kawase_merge, SHADER_PATH("fullscreen.vert"), SHADER_PATH("kawase_merge.frag"),
+		&singleton_data.rp_bloom_blur, &singleton_data.two_texture_descriptor_layout, 8, 0, NULL)) ASSERT_R1(false);
+
+	const char * kawase_light_frag_path = NULL;
 	if(singleton_data.light_image_components == 1) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.1");
+		kawase_light_frag_path = SHADER_PATH("kawase_light.frag.1");
 	}
 	else if(singleton_data.light_image_components == 2) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag");
+		kawase_light_frag_path = SHADER_PATH("kawase_light.frag");
 	}
 	else if(singleton_data.light_image_components == 3) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.3");
+		kawase_light_frag_path = SHADER_PATH("kawase_light.frag.3");
 	}
 	else if(singleton_data.light_image_components == 4) {
-		gaussian_light_frag_path = SHADER_PATH("gaussian_light.frag.4");
+		kawase_light_frag_path = SHADER_PATH("kawase_light.frag.4");
 	}
 
-	if (gaussian_light_frag_path && 
-		create_pipeine(&singleton_data.pipeline_light_blur, SHADER_PATH("fullscreen.vert"), gaussian_light_frag_path,
+	if (kawase_light_frag_path && 
+		create_pipeine(&singleton_data.pipeline_light_blur, SHADER_PATH("fullscreen.vert"), kawase_light_frag_path,
 		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 24, 0, NULL)) ASSERT_R1(false);
 
 	
 
-	uint32_t sc_bloom_samples = 4;
+	uint32_t sc_downsample_size = 2;
 
-	if (create_pipeine(&singleton_data.pipeline_bloom_downsample,
+	// if (create_pipeine(&singleton_data.pipeline_downsample_x4,
+	// 	SHADER_PATH("fullscreen.vert"), SHADER_PATH("downsample.frag"),
+	// 	&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_downsample_size)) return 1;
+	
+	sc_downsample_size = 1;
+	if (create_pipeine(&singleton_data.pipeline_downsample_x2,
 		SHADER_PATH("fullscreen.vert"), SHADER_PATH("downsample.frag"),
-		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_bloom_samples)) return 1;
+		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_downsample_size)) return 1;
+	
+	// sc_downsample_size = 4;
+	// if (create_pipeine(&singleton_data.pipeline_downsample_x8,
+	// 	SHADER_PATH("fullscreen.vert"), SHADER_PATH("downsample.frag"),
+	// 	&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_downsample_size)) return 1;
 	
 		
 	uint32_t sc_use_bloom = singleton_data.render_cfg.bloom ? 1 : 0;
 
 	if (create_pipeine(&singleton_data.pipeline_post, SHADER_PATH("post.vert"), SHADER_PATH("post.frag"),
-		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 20, 1, &sc_use_bloom)) return 1;
+		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 12, 1, &sc_use_bloom)) return 1;
 
 #undef SHADER_PATH
 	return 0;
@@ -258,12 +285,16 @@ void pigeon_wgi_destroy_standard_pipeline_objects()
 {
 	if(VULKAN) {
 		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_blur);
-		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_bloom_downsample);
+		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_kawase_merge);
+		// pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample_x8);
+		// pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample_x4);
+		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample_x2);
 		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_light_blur);
 		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_post);
 	}
 	else {
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_blur);
+		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_kawase_merge);
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_bloom_downsample);
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_light_blur);
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_post);

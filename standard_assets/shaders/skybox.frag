@@ -12,9 +12,9 @@ void main() {
     float up_down = dot(world_space_direction, vec3(0,1,0)); // -1 to 1, down to up, full sphere
 
     const vec3 colours[3] = vec3[](
-        vec3(5, 5, 5),
-        vec3(0.5, 4, 10),
-        vec3(0, 0.3, 10)
+        vec3(5, 5, 5)*0.2,
+        vec3(0.5, 4, 10)*0.2,
+        vec3(0, 0.3, 10)*0.2
     );
 
     const float gradient_change_point = 0.2;
@@ -29,7 +29,7 @@ void main() {
 
     vec3 colour = mix(colours[colours_index], colours[colours_index+1],
         smoothstep(ranges[colours_index].x, ranges[colours_index].y, up_down));
-    colour *= 0.3;
+
 
     out_colour = vec4(colour, 1);
 }

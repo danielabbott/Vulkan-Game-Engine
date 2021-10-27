@@ -20,9 +20,9 @@ int pigeon_vulkan_create_sampler(PigeonVulkanSampler* sampler, bool linear_filte
 
     if(multi_mip_map_sample) {
         sampler_create.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_create.maxLod = VK_LOD_CLAMP_NONE;
     }
     
-    sampler_create.maxLod = VK_LOD_CLAMP_NONE;
 
     if (singleton_data.anisotropy_supported && anisiotropic_filtering) {
         sampler_create.anisotropyEnable = VK_TRUE;

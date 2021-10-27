@@ -57,20 +57,20 @@ GLenum pigeon_get_opengl_image_format(PigeonWGIImageFormat f)
 		case PIGEON_WGI_IMAGE_FORMAT_A2B10G10R10_LINEAR:
 			return GL_UNSIGNED_INT_2_10_10_10_REV;
 		case PIGEON_WGI_IMAGE_FORMAT_BC1_SRGB:
-			return GL_COMPRESSED_RGB_S3TC_DXT1_EXT; // GL_EXT_texture_compression_s3tc
+			return GL_COMPRESSED_SRGB_S3TC_DXT1_EXT; // GL_EXT_texture_compression_s3tc,EXT_texture_sRGB
 		case PIGEON_WGI_IMAGE_FORMAT_BC3_SRGB:
-			return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT; // GL_EXT_texture_compression_s3tc
+			return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT; // GL_EXT_texture_compression_s3tc,EXT_texture_sRGB
 		case PIGEON_WGI_IMAGE_FORMAT_BC5:
 			return GL_COMPRESSED_RG_RGTC2; // GL_ARB_texture_compression_rgtc
 		case PIGEON_WGI_IMAGE_FORMAT_BC7_SRGB:
 			return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB; // GL_ARB_texture_compression_bptc
 		case PIGEON_WGI_IMAGE_FORMAT_ETC1_LINEAR:
 			 // Backwards compatible with OpenGLES 2
-			return GL_COMPRESSED_RGB8_ETC2; // GL_ARB_ES3_compatibility
+			return GL_COMPRESSED_SRGB8_ETC2; // GL_ARB_ES3_compatibility
 		case PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB:
-			return GL_COMPRESSED_RGB8_ETC2; // GL_ARB_ES3_compatibility
+			return GL_COMPRESSED_SRGB8_ETC2; // GL_ARB_ES3_compatibility
 		case PIGEON_WGI_IMAGE_FORMAT_ETC2_SRGB_ALPHA_SRGB:
-			return GL_COMPRESSED_RGBA8_ETC2_EAC; // GL_ARB_ES3_compatibility
+			return GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC; // GL_ARB_ES3_compatibility
 	}
 	assert(false);
 	return 0;
@@ -373,12 +373,12 @@ void pigeon_opengl_destroy_buffer_texture(PigeonOpenGLBufferTexture* texture)
 
 bool pigeon_opengl_bc1_optimal_available(void)
 {
-	return GLAD_GL_EXT_texture_compression_s3tc;
+	return GLAD_GL_EXT_texture_compression_s3tc && GLAD_GL_EXT_texture_sRGB;
 }
 
 bool pigeon_opengl_bc3_optimal_available(void)
 {
-	return GLAD_GL_EXT_texture_compression_s3tc;
+	return GLAD_GL_EXT_texture_compression_s3tc && GLAD_GL_EXT_texture_sRGB;
 }
 
 bool pigeon_opengl_bc5_optimal_available(void)

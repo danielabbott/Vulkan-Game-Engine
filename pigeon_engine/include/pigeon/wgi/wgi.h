@@ -21,6 +21,8 @@ PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, bool pr
 
 void pigeon_wgi_set_depth_range(float znear, float zfar);
 void pigeon_wgi_set_bloom_intensity(float i);
+void pigeon_wgi_set_brightness(float b);
+void pigeon_wgi_set_ambient(float r, float g, float b);
 
 bool pigeon_wgi_close_requested(void);
 
@@ -30,10 +32,9 @@ typedef enum {
     PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE,
     PIGEON_WGI_TIMER_SHADOW_MAPS_DONE,
     PIGEON_WGI_TIMER_LIGHT_PASS_DONE,
-    PIGEON_WGI_TIMER_LIGHT_GAUSSIAN_BLUR_DONE,
+    PIGEON_WGI_TIMER_LIGHT_BLUR_DONE,
     PIGEON_WGI_TIMER_RENDER_DONE,
-    PIGEON_WGI_TIMER_BLOOM_DOWNSAMPLE_DONE,
-    PIGEON_WGI_TIMER_BLOOM_GAUSSIAN_BLUR_DONE,
+    PIGEON_WGI_TIMER_BLOOM_BLUR_DONE,
     PIGEON_WGI_TIMER_POST_PROCESS_DONE,
     PIGEON_WGI_TIMERS_COUNT
 } PigeonWGITimer;

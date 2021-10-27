@@ -40,9 +40,10 @@ void main() {
 		bloom = texture(bloom_texture, uv).rgb;
 	}
 
-    const vec3 luminance_multipliers = vec3(0.2126, 0.7152, 0.0722);
+    const vec3 luminance_multipliers = vec3(0.299, 0.587, 0.114);
 
 	vec3 true_colour = texture(hdr_render, uv).rgb;
+	float luminance_centre = dot(true_colour, luminance_multipliers);
 
 	vec3 colours[4];
 	float luminosities[4];
@@ -69,18 +70,18 @@ void main() {
 
 	float is_high_contrast = 0;
 	for(int i = 0; i < 4; i++) {
-		const float sensitivity = 0.2; // lower = more blur
-		// if(abs(luminosities[i] - luminance_average) > sensitivity) {
+		const float sensitivity = 0.15; // lower = more blur
+		// if(abs(luminosities[i] - luminance_centre) > sensitivity) {
 		// 	is_high_contrast = 1;
 		// }
-		is_high_contrast += max(sign(abs(luminosities[i] - luminance_average) - sensitivity), 0.0);
+		is_high_contrast += max(sign(abs(luminosities[i] - luminance_centre) - sensitivity), 0.0);
 	}
 	// make is_high_contrast 0 or 1
 	is_high_contrast = sign(is_high_contrast);
 
 
 	// Use blurred colour if contrast is high, otherwise use true value
-	vec3 colour = is_high_contrast*blurred_colour + (1-is_high_contrast)*true_colour;
+	vec3 colour = mix(true_colour, blurred_colour, is_high_contrast);
 
 	if(SC_BLOOM) {
 		colour += bloom * BLOOM_INTENSITY;
@@ -89,11 +90,8 @@ void main() {
 
 
 	float luminance = dot(luminance_multipliers, colour);
-	
-	const float brightness = 0.0;
-	const float contrast = 1.2;
-	float new_luminance = luminance * contrast + brightness;
-	new_luminance /= new_luminance + 1.0;
+
+	float new_luminance = luminance / (luminance + 1.0);
 
 
 	colour *= new_luminance / luminance;

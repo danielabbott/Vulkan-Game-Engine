@@ -142,12 +142,17 @@ static void scene_graph_prepass(PigeonWGIShadowParameters shadows[4])
             pigeon_scene_calculate_world_matrix(t);
 
             if(l->shadow_resolution) {
-                memcpy(shadows[light_index].inv_view_matrix, t->world_transform_cache, 64);
-                shadows[light_index].resolution = l->shadow_resolution;
-                shadows[light_index].near_plane = l->shadow_near;
-                shadows[light_index].far_plane = l->shadow_far;
-                shadows[light_index].sizeX = l->shadow_size_x;
-                shadows[light_index].sizeY = l->shadow_size_y;
+                if(l->type == PIGEON_LIGHT_TYPE_DIRECTIONAL) {                
+                    memcpy(shadows[light_index].inv_view_matrix, t->world_transform_cache, 64);
+                    shadows[light_index].resolution = l->shadow_resolution;
+                    shadows[light_index].near_plane = l->shadow_near;
+                    shadows[light_index].far_plane = l->shadow_far;
+                    shadows[light_index].sizeX = l->shadow_size_x;
+                    shadows[light_index].sizeY = l->shadow_size_y;
+                }
+                else {
+                    l->shadow_resolution = 0;
+                }
             }
             else {
                 shadows[light_index].resolution = 0;            
@@ -206,7 +211,7 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
     data->rsvd0 = 0;
 
     memcpy(data->colour, mr->colour, 3 * 4);
-    data->rsvda = 0;
+    data->luminosity = mr->luminosity;
 
     memcpy(data->under_colour, mr->under_colour, 3 * 4);
 
@@ -418,11 +423,8 @@ static PIGEON_ERR_RET set_uniform_data_per_rs_(uint64_t arg0, void * rs_)
     return 0;
 }
 
-// Must be job 0
-static PIGEON_ERR_RET set_per_scene_uniform_data(uint64_t arg0, void* arg1)
+static void set_per_scene_uniform_data(bool debug_disable_ssao)
 {
-    bool debug_disable_ssao = arg0 > 0;
-    (void)arg1;
 
 	unsigned int window_width, window_height;
 	pigeon_wgi_get_window_dimensions(&window_width, &window_height);
@@ -437,9 +439,6 @@ static PIGEON_ERR_RET set_per_scene_uniform_data(uint64_t arg0, void* arg1)
 	scene_uniform_data.one_pixel_x = 1.0f / (float)window_width;
 	scene_uniform_data.one_pixel_y = 1.0f / (float)window_height;
 	scene_uniform_data.time = pigeon_wgi_get_time_seconds();
-	scene_uniform_data.ambient[0] = 0.3f;
-	scene_uniform_data.ambient[1] = 0.3f;
-	scene_uniform_data.ambient[2] = 0.3f;
 	scene_uniform_data.ssao_cutoff = debug_disable_ssao ? -1 : 0.02f;
 
     // lights
@@ -456,19 +455,24 @@ static PIGEON_ERR_RET set_per_scene_uniform_data(uint64_t arg0, void* arg1)
             PigeonWGILight* ldata = &scene_uniform_data.lights[light_index];
                         
             if(!l->shadow_resolution) {
+                ldata->light_type = l->type == PIGEON_LIGHT_TYPE_POINT ? 1 : 0;
+
+                vec4 position = {0, 0, 0, 1};
+                glm_mat4_mulv(t->world_transform_cache, position, position);
+                memcpy(ldata->world_position, position, 3*4); 
+
                 vec4 dir = {0, 0, 1, 0};
                 glm_mat4_mulv(t->world_transform_cache, dir, dir);
-                memcpy(ldata->neg_direction, dir, 3*4);                
-            }
+                memcpy(ldata->neg_direction, dir, 3*4);   
 
-            ldata->is_shadow_caster = false;
-            memcpy(ldata->intensity, l->intensity, 3*4);
+                ldata->is_shadow_caster = false;         
+            }
+            memcpy(ldata->intensity, l->intensity, 3*4);    
+
         }
     }
     assert(light_index == total_lights);
 
-
-    return 0;
 }
 
 typedef enum {
@@ -625,17 +629,14 @@ static void set_bone_matrices_(void* e)
     jobs[i].arg1 = a;
 }
 
-static PIGEON_ERR_RET pigeon_uniform_data_jobs(bool debug_disable_ssao)
+static PIGEON_ERR_RET pigeon_uniform_data_jobs()
 {
-    jobs[0].function = set_per_scene_uniform_data;
-    jobs[0].arg0 = debug_disable_ssao;
-
     // object data
 
-    create_draw_data_job__index = 1;
+    create_draw_data_job__index = 0;
     pigeon_object_pool_for_each(&pigeon_pool_rs, create_draw_data_job_);
 
-    set_bone_matrices__index = 1 + pigeon_pool_rs.allocated_obj_count;
+    set_bone_matrices__index = 0 + pigeon_pool_rs.allocated_obj_count;
     pigeon_object_pool_for_each(&pigeon_pool_anim, set_bone_matrices_);
     return 0;
 }
@@ -662,6 +663,9 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
     ASSERT_R1(!pigeon_wgi_start_frame(total_draws, total_multidraw_draws, shadows, total_bones,
         &draw_objects, &bone_matrices));
 
+    
+    set_per_scene_uniform_data(debug_disable_ssao);
+
     // Jobs
 
     unsigned int shadow_lights_count = 0;
@@ -671,7 +675,6 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
 
     job_array_list.size = 0;
     ASSERT_R1(!pigeon_array_list_resize(&job_array_list,
-        1 + 
         pigeon_pool_anim.allocated_obj_count + 
         pigeon_pool_rs.allocated_obj_count +
         (pigeon_wgi_multithreading_supported() ? (1+shadow_lights_count) : 0)
@@ -681,14 +684,12 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
     jobs = (PigeonJob *) job_array_list.elements;
 
     // Fill uniform buffers
-    ASSERT_R1(!pigeon_uniform_data_jobs(debug_disable_ssao));
+    ASSERT_R1(!pigeon_uniform_data_jobs());
 
     // Render
 
     if(pigeon_wgi_multithreading_supported()) {
-        unsigned int i = 1 + 
-        pigeon_pool_anim.allocated_obj_count + 
-        pigeon_pool_rs.allocated_obj_count;
+        unsigned int i = pigeon_pool_anim.allocated_obj_count + pigeon_pool_rs.allocated_obj_count;
         
         jobs[i].function = render_frame;
         jobs[i].arg0 = (uint64_t) pigeon_wgi_get_depth_command_buffer();  

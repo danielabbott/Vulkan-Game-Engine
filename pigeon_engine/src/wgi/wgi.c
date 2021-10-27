@@ -50,6 +50,17 @@ void pigeon_wgi_set_bloom_intensity(float i)
 	singleton_data.bloom_intensity = i;
 }
 
+void pigeon_wgi_set_brightness(float b)
+{
+	singleton_data.brightness = b;
+}
+void pigeon_wgi_set_ambient(float r, float g, float b)
+{
+	singleton_data.ambient[0] = r;
+	singleton_data.ambient[1] = g;
+	singleton_data.ambient[2] = b;
+}
+
 PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, 
 	bool prefer_dedicated_gpu, bool prefer_opengl,
 	PigeonWGIRenderConfig render_cfg, float znear, float zfar)
@@ -58,6 +69,10 @@ PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters,
 
 	ASSERT_R1(!set_render_cfg(render_cfg));
 	singleton_data.bloom_intensity = 1;
+	singleton_data.brightness = 0.75f;
+	singleton_data.ambient[0] = 0.3f;
+	singleton_data.ambient[1] = 0.3f;
+	singleton_data.ambient[2] = 0.33f;
 
 	pigeon_wgi_set_depth_range(znear, zfar);
 
