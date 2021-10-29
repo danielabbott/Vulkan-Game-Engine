@@ -5,6 +5,7 @@ Dependencies
 The versions listed are the versions that have been tested on Solus Linux.
 Different versions will probably work fine.
 
+git lfs 2.13.3
 clang 12.0.1 or gcc 11.2.0
 Make 4.3
 GLFW 3.3.4
@@ -23,6 +24,8 @@ Glad (included)
 
 To compile and run (Linux):
 
+git lfs install
+git lfs pull
 make CC=clang DEBUG=1 -j`nproc` && build/debug/test1
 
 This compiles source files, converts assets, and builds build/release/test1

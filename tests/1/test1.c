@@ -1182,7 +1182,7 @@ int main(void)
 
 	light = pigeon_create_light();
 	ASSERT_R1(light);
-	light->intensity[0] = light->intensity[1] = light->intensity[2] = 5.0f;
+	light->intensity[0] = light->intensity[1] = light->intensity[2] = 1.7f;
 	light->shadow_resolution = 2048;
 	light->shadow_near = 6;
 	light->shadow_far = 13;
@@ -1190,7 +1190,7 @@ int main(void)
 	light->shadow_size_y = 5;
 	ASSERT_R1(!pigeon_join_transform_and_component(t_light, &light->c));
 
-	pigeon_wgi_set_brightness(0.6f);
+	pigeon_wgi_set_brightness(0.9f);
 
 
 	light2 = pigeon_create_light();
