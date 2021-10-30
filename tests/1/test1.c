@@ -185,8 +185,6 @@ static PIGEON_ERR_RET start(void)
 	PigeonWGIRenderConfig cfg = {0};
 	cfg.ssao = true;
 	cfg.bloom = true;
-	cfg.shadow_casting_lights = 1;
-	cfg.shadow_blur_passes = 1;
 	if (pigeon_wgi_init(window_parameters, true, false, cfg, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
@@ -758,9 +756,9 @@ static PIGEON_ERR_RET create_skybox_pipeline(void)
 	return 0;
 }
 
-static void create_pipeline_cleanup(uint32_t *spv_data[6], PigeonWGIShader shaders[6])
+static void create_pipeline_cleanup(uint32_t *spv_data[4], PigeonWGIShader shaders[4])
 {
-	for (unsigned int i = 0; i < 6; i++)
+	for (unsigned int i = 0; i < 4; i++)
 	{
 		if (spv_data[i])
 			free(spv_data[i]);
@@ -771,22 +769,20 @@ static void create_pipeline_cleanup(uint32_t *spv_data[6], PigeonWGIShader shade
 
 
 static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
-	const char * shader_paths[6][2], PigeonWGIRenderStage shader_stages[6], 
+	const char * shader_paths[4][2], PigeonWGIRenderStage shader_stages[6], 
 	PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
 {
 
-	PigeonWGIShaderType shader_types[6] = {
+	PigeonWGIShaderType shader_types[4] = {
 		PIGEON_WGI_SHADER_TYPE_VERTEX,
 		PIGEON_WGI_SHADER_TYPE_VERTEX,
-		PIGEON_WGI_SHADER_TYPE_VERTEX,
-		PIGEON_WGI_SHADER_TYPE_FRAGMENT,
 		PIGEON_WGI_SHADER_TYPE_FRAGMENT,
 		PIGEON_WGI_SHADER_TYPE_FRAGMENT
 	};
 
-	unsigned long spv_lengths[6] = {0};
-	uint32_t * spv_data[6] = {0};
-	PigeonWGIShader shaders[6] = {{{0}}};
+	unsigned long spv_lengths[4] = {0};
+	uint32_t * spv_data[4] = {0};
+	PigeonWGIShader shaders[4] = {{{0}}};
 
 
 	#define CHECK(x) \
@@ -795,7 +791,7 @@ static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
 			ASSERT_R1(false); \
 		}
 
-	for(unsigned int i = 0; i < 6; i++) {
+	for(unsigned int i = 0; i < 4; i++) {
 		if(shader_paths[i][0]) {
 			if(pigeon_wgi_accepts_spirv()) {
 				spv_data[i] = (uint32_t *)pigeon_load_file(shader_paths[i][1], 0, &spv_lengths[i]);
@@ -808,8 +804,8 @@ static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
 		}	
 	}
 
-	int err = pigeon_wgi_create_pipeline(pipeline, &shaders[0], &shaders[1], &shaders[2],
-		shaders[3].shader ? &shaders[3] : NULL, &shaders[4], &shaders[5], config, skinned, transparent);
+	int err = pigeon_wgi_create_pipeline(pipeline, &shaders[0], &shaders[1],
+		shaders[2].shader ? &shaders[2] : NULL, &shaders[3], config, skinned, transparent);
 
 	create_pipeline_cleanup(spv_data, shaders);
 
@@ -833,32 +829,26 @@ static PIGEON_ERR_RET create_pipelines(void)
 	#define FULL_PATH(x) SHADER_PATH_PREFIX x ".spv"
 	#define PATHS(x) {x, SHADER_PATH_PREFIX x ".spv"}
 
-	const char *shader_paths[6][2] = {
+	const char *shader_paths[4][2] = {
 		{"object.vert", FULL_PATH("object.vert.depth")},
-		{"object.vert", FULL_PATH("object.vert.light")},
 		PATHS("object.vert"),
 		{NULL, NULL},
-		PATHS("object_light.frag"),
 		PATHS("object.frag")};
 
-	PigeonWGIRenderStage shader_stages[6] = {
+	PigeonWGIRenderStage shader_stages[4] = {
 		PIGEON_WGI_RENDER_STAGE_DEPTH,
-		PIGEON_WGI_RENDER_STAGE_LIGHT,
 		PIGEON_WGI_RENDER_STAGE_RENDER,
 		PIGEON_WGI_RENDER_STAGE_DEPTH,
-		PIGEON_WGI_RENDER_STAGE_LIGHT,
 		PIGEON_WGI_RENDER_STAGE_RENDER
 	};
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
 	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, shader_stages, &config, false, false));
 
-	const char *shader_paths_skinned[6][2] = {
+	const char *shader_paths_skinned[4][2] = {
 		{"object.vert", FULL_PATH("object.vert.skinned.depth")},
-		{"object.vert", FULL_PATH("object.vert.skinned.light")},
 		{"object.vert", FULL_PATH("object.vert.skinned")},
 		{NULL, NULL},
-		PATHS("object_light.frag"),
 		PATHS("object.frag")};
 
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
@@ -867,15 +857,15 @@ static PIGEON_ERR_RET create_pipelines(void)
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
 	config.cull_mode = PIGEON_WGI_CULL_MODE_NONE;
 	shader_paths[0][1] = FULL_PATH("object.vert.depth_alpha");
-	shader_paths[3][0] = "object_depth_alpha.frag";
-	shader_paths[3][1] = FULL_PATH("object_depth_alpha.frag");
+	shader_paths[2][0] = "object_depth_alpha.frag";
+	shader_paths[2][1] = FULL_PATH("object_depth_alpha.frag");
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
 	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, shader_stages, &config, false, true));
 
 	shader_paths_skinned[0][1] = FULL_PATH("object.vert.skinned.depth_alpha");
-	shader_paths_skinned[3][0] = "object_depth_alpha.frag";
-	shader_paths_skinned[3][1] = FULL_PATH("object_depth_alpha.frag");
+	shader_paths_skinned[2][0] = "object_depth_alpha.frag";
+	shader_paths_skinned[2][1] = FULL_PATH("object_depth_alpha.frag");
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
 	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, shader_stages, &config, true, true));
 
@@ -927,9 +917,9 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
 	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
 	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
-	printf("\tLight Pass: %f\n", values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
-	printf("\tLight Blur: %f\n", values[PIGEON_WGI_TIMER_LIGHT_BLUR_DONE] - values[PIGEON_WGI_TIMER_LIGHT_PASS_DONE]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_LIGHT_BLUR_DONE]);
+	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
+	printf("\tSSAO Blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_DONE]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
 	printf("\tBloom Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
 	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE]);
 	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
@@ -1185,7 +1175,7 @@ int main(void)
 	light = pigeon_create_light();
 	ASSERT_R1(light);
 	light->intensity[0] = light->intensity[1] = light->intensity[2] = 1.7f;
-	light->shadow_resolution = 2048;
+	light->shadow_resolution = 1024;
 	light->shadow_near = 6;
 	light->shadow_far = 13;
 	light->shadow_size_x = 5;

@@ -2,7 +2,7 @@
 
 #include "common.glsl"
 
-// OBJECT_DEPTH, OBJECT_DEPTH_ALPHA, OBJECT_LIGHT, OBJECT
+// OBJECT_DEPTH, OBJECT_DEPTH_ALPHA, OBJECT
 
 /* inputs */
 
@@ -24,13 +24,6 @@ LOCATION(1) in uvec2 in_bone;
 LOCATION(0) in INPUT_POSITION_TYPE in_position;
 LOCATION(1) in uvec2 in_bone;
 LOCATION(2) in vec2 in_uv;
-
-#elif defined(OBJECT_LIGHT)
-
-LOCATION(0) in INPUT_POSITION_TYPE in_position;
-LOCATION(1) in uvec2 in_bone;
-LOCATION(2) in vec2 in_uv;
-LOCATION(3) in vec4 in_normal;
 
 #else // OBJECT
 
@@ -90,12 +83,6 @@ LOCATION(0) in INPUT_POSITION_TYPE in_position;
 LOCATION(0) in INPUT_POSITION_TYPE in_position;
 LOCATION(1) in vec2 in_uv;
 
-#elif defined(OBJECT_LIGHT)
-
-LOCATION(0) in INPUT_POSITION_TYPE in_position;
-LOCATION(1) in vec2 in_uv;
-LOCATION(2) in vec4 in_normal;
-
 #else // OBJECT
 
 LOCATION(0) in INPUT_POSITION_TYPE in_position;
@@ -118,21 +105,13 @@ LOCATION(3) in vec4 in_tangent;
 LOCATION(0) out vec2 pass_uv;
 LOCATION(1) flat out int pass_draw_index;
 
-#elif defined(OBJECT_LIGHT)
-
-LOCATION(0) out vec3 pass_position_model_space;
-LOCATION(1) out vec2 pass_uv;
-LOCATION(2) flat out int pass_draw_index;
-LOCATION(3) out vec3 pass_normal;
-
 #else // OBJECT
 
 LOCATION(0) out vec3 pass_normal;
 LOCATION(1) out vec2 pass_uv;
 LOCATION(2) flat out int pass_draw_index;
-LOCATION(3) out vec3 pass_position_model_space;
-LOCATION(4) out mat3 pass_tangent_to_world;
-LOCATION(7) out vec3 pass_position_world_space;
+LOCATION(3) out mat3 pass_tangent_to_world;
+LOCATION(6) out vec3 pass_position_world_space;
 
 #endif
 
@@ -185,7 +164,7 @@ void main() {
 
     vec3 p = raw_position * data.position_range.xyz + data.position_min.xyz;
 
-#if defined(OBJECT) || defined(OBJECT_LIGHT)
+#if defined(OBJECT)
     mat3 nmat = mat3(data.normal_model_matrix);
 #endif
 
@@ -219,7 +198,7 @@ void main() {
         vec3 p1 = (m1 * vec4(p, 1.0)).xyz;
         p = mix(p1, p0, bone_weight);
 
-        #if defined(OBJECT) || defined(OBJECT_LIGHT)
+        #if defined(OBJECT)
             vec3 n0 = (m0 * vec4(in_normal.xyz, 1.0)).xyz;
             vec3 n1 = (m1 * vec4(in_normal.xyz, 1.0)).xyz;
             pass_normal = normalize(nmat * mix(n1, n0, bone_weight));
@@ -240,11 +219,7 @@ void main() {
 
     // position
 
-#if defined(OBJECT_LIGHT) || defined(OBJECT)
-    pass_position_model_space = p.xyz;
-#endif
-
-#if (defined(OBJECT) || defined(OBJECT_LIGHT)) && !defined(SKINNED)
+#if defined(OBJECT) && !defined(SKINNED)
     pass_normal = normalize(nmat * in_normal.xyz);
 #endif
 

@@ -708,27 +708,23 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
         ASSERT_R1(!pigeon_wgi_set_uniform_data(&scene_uniform_data));
 
 
-        job_array_list.size = 3;
+        job_array_list.size = 2;
         i = 0;
 
         jobs[i].function = job_call_function;
         jobs[i++].arg1 = pigeon_wgi_present_frame_rec_sub0;
 
         jobs[i].function = render_frame;
-        jobs[i].arg0 = (uint64_t) pigeon_wgi_get_light_pass_command_buffer();
-        jobs[i++].arg1 = NULL;
-
-        jobs[i].function = render_frame;
         jobs[i].arg0 = (uint64_t) pigeon_wgi_get_render_command_buffer();
         jobs[i++].arg1 = skybox_pipeline;
 
-        ASSERT_R1(!pigeon_dispatch_jobs(jobs, 3));
+        ASSERT_R1(!pigeon_dispatch_jobs(jobs, 2));
 
 
 
 
-        assert(job_array_list.capacity >= 3);
-        job_array_list.size = 3;
+        assert(job_array_list.capacity >= 2);
+        job_array_list.size = 2;
 
         jobs[0].function = job_call_function;
         jobs[0].arg1 = (void *) pigeon_wgi_present_frame_rec1;
@@ -736,10 +732,7 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
         jobs[1].function = job_call_function;
         jobs[1].arg1 = (void *) pigeon_wgi_present_frame_rec2;
 
-        jobs[2].function = job_call_function;
-        jobs[2].arg1 = (void *) pigeon_wgi_present_frame_rec3;
-
-        ASSERT_R1(!pigeon_dispatch_jobs(jobs, 3));
+        ASSERT_R1(!pigeon_dispatch_jobs(jobs, 2));
 
 		ASSERT_R1(!pigeon_wgi_present_frame_sub1());
     }
@@ -760,7 +753,6 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
                 ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_shadow_command_buffer(i), NULL));
         }
 
-        ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_light_pass_command_buffer(), NULL));
         ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_render_command_buffer(), skybox_pipeline));
 
 		ASSERT_R1(!pigeon_wgi_present_frame_sub1());

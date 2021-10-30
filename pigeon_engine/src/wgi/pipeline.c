@@ -22,21 +22,13 @@ PIGEON_ERR_RET pigeon_wgi_create_render_passes(void)
 
 
 
-	// light pass
+	// ssao & ssao blur
 	memset(&config, 0, sizeof config);
-	config.depth_mode = PIGEON_VULKAN_RENDER_PASS_DEPTH_READ_ONLY;
-	config.depth_format = PIGEON_WGI_IMAGE_FORMAT_DEPTH_F32;
-	config.colour_image = singleton_data.light_framebuffer_image_format;
-	config.clear_colour_image = true;
+	config.colour_image = PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR;
 
-	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_pass, config));
+	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_ssao, config));
 
 
-
-	// light blur
-	memset(&config, 0, sizeof config);
-	config.colour_image = singleton_data.light_framebuffer_image_format;
-	ASSERT_R1 (!pigeon_vulkan_make_render_pass(&singleton_data.rp_light_blur, config));
 
 
     PigeonWGIImageFormat hdr_format = pigeon_vulkan_compact_hdr_framebuffer_available() ?
@@ -68,8 +60,7 @@ PIGEON_ERR_RET pigeon_wgi_create_render_passes(void)
 void pigeon_wgi_destroy_render_passes(void)
 {
 	if (singleton_data.rp_depth.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_depth);
-	if (singleton_data.rp_light_pass.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_light_pass);
-	if (singleton_data.rp_light_blur.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_light_blur);
+	if (singleton_data.rp_ssao.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_ssao);
 	if (singleton_data.rp_bloom_blur.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_bloom_blur);
 	if (singleton_data.rp_render.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_render);
 	if (singleton_data.rp_post.vk_renderpass) pigeon_vulkan_destroy_render_pass(&singleton_data.rp_post);
@@ -110,6 +101,29 @@ static PIGEON_ERR_RET create_program_gl(PigeonOpenGLShaderProgram * shader,
 
 static PIGEON_ERR_RET create_standard_pipeline_objects_gl(void)
 {
+	if (create_program_gl(&singleton_data.gl.shader_ssao,
+		"fullscreen.vert", "ssao.frag",
+		"#define SC_SSAO_SAMPLES 3", 0, NULL)) ASSERT_R1(false);
+
+	singleton_data.gl.shader_ssao_u_near_far_cutoff = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_ssao, "u_near_far_cutoff");
+	singleton_data.gl.shader_ssao_ONE_PIXEL = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_ssao, "ONE_PIXEL");
+
+	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_ssao, "depth_image", 0);
+
+	if (create_program_gl(&singleton_data.gl.shader_ssao_blur,
+		"fullscreen.vert", "kawase_ssao.frag",
+		NULL, 0, NULL)) ASSERT_R1(false);
+
+	singleton_data.gl.shader_ssao_blur_SAMPLE_DISTANCE = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_ssao_blur, "SAMPLE_DISTANCE");
+
+	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_ssao_blur, "src_image", 0);
+
+	
+
+
 	if (create_program_gl(&singleton_data.gl.shader_blur,
 		"fullscreen.vert", "kawase_rgb.frag",
 		NULL, 0, NULL)) ASSERT_R1(false);
@@ -132,48 +146,30 @@ static PIGEON_ERR_RET create_standard_pipeline_objects_gl(void)
 	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_kawase_merge, "src_image_small", 1);
 
 
-
-	const char * kawase_light_frag_path = NULL;
-	char kawase_prefix[] = "#define COLOUR_TYPE_RGBA";
-
-	if(singleton_data.light_image_components == 1) {
-		kawase_light_frag_path = "kawase_light.frag.1";
-		kawase_prefix[21] = 0;
-	}
-	else if(singleton_data.light_image_components == 2) {
-		kawase_light_frag_path = "kawase_light.frag";
-		kawase_prefix[0] = 0;
-	}
-	else if(singleton_data.light_image_components == 3) {
-		kawase_light_frag_path = "kawase_light.frag.3";
-		kawase_prefix[23] = 0;
-	}
-	else if(singleton_data.light_image_components == 4) {
-		kawase_light_frag_path = "kawase_light.frag.4";
-	}
-
-
-	if (kawase_light_frag_path && 
-		create_program_gl(&singleton_data.gl.shader_light_blur, "fullscreen.vert", 
-		kawase_light_frag_path, kawase_prefix, 0, NULL)) ASSERT_R1(false);
-
-	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_light_blur, "src_image", 0);
-	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_light_blur, "depth_buffer", 1);
-
-	singleton_data.gl.shader_light_blur_u_dist_and_half = 
-		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_light_blur, "u_dist_and_half");
-	singleton_data.gl.shader_light_blur_u_near_far = 
-		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_light_blur, "u_near_far");
 	
 
-	if (create_program_gl(&singleton_data.gl.shader_bloom_downsample,
-		"fullscreen.vert", "downsample.frag",
-		"#define SC_BLOOM_DOWNSAMPLE_SAMPLES 4", 0, NULL)) return 1;
+	if (create_program_gl(&singleton_data.gl.shader_bloom_downscale,
+		"fullscreen.vert", "downscale.frag",
+		"#define SC_DOWNSCALE_SAMPLES 1", 0, NULL)) return 1;
 
-	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_bloom_downsample, "src_image", 0);
+	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_bloom_downscale, "src_image", 0);
 	
-	singleton_data.gl.shader_bloom_downsample_u_offset_and_min = 
-		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_bloom_downsample, "u_offset_and_min");
+	singleton_data.gl.shader_bloom_downscale_u_offset_and_min = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_bloom_downscale, "u_offset_and_min");
+
+	
+	
+	if (create_program_gl(&singleton_data.gl.shader_ssao_downscale_x4,
+		"fullscreen.vert", "downscale_ssao.frag",
+		"#define SC_DOWNSCALE_SAMPLES 2", 0, NULL)) return 1;
+
+	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_ssao_downscale_x4, "src_image", 0);
+	
+	singleton_data.gl.shader_ssao_downscale_x4_OFFSET = 
+		pigeon_opengl_get_uniform_location(&singleton_data.gl.shader_ssao_downscale_x4, "OFFSET");
+
+
+
 
 	if (create_program_gl(&singleton_data.gl.shader_post, "post.vert", "post.frag",
 		singleton_data.render_cfg.bloom ? 
@@ -228,6 +224,7 @@ PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void)
 
 #define SHADER_PATH(x) (SPV_PATH_PREFIX x ".spv")
 
+	// TODO don't reload shared vertex shader files each time
 
 	if (create_pipeine(&singleton_data.pipeline_blur, SHADER_PATH("fullscreen.vert"), SHADER_PATH("kawase_rgb.frag"),
 		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 8, 0, NULL)) ASSERT_R1(false);
@@ -235,41 +232,36 @@ PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void)
 	if (create_pipeine(&singleton_data.pipeline_kawase_merge, SHADER_PATH("fullscreen.vert"), SHADER_PATH("kawase_merge.frag"),
 		&singleton_data.rp_bloom_blur, &singleton_data.two_texture_descriptor_layout, 8, 0, NULL)) ASSERT_R1(false);
 
-	const char * kawase_light_frag_path = NULL;
-	if(singleton_data.light_image_components == 1) {
-		kawase_light_frag_path = SHADER_PATH("kawase_light.frag.1");
-	}
-	else if(singleton_data.light_image_components == 2) {
-		kawase_light_frag_path = SHADER_PATH("kawase_light.frag");
-	}
-	else if(singleton_data.light_image_components == 3) {
-		kawase_light_frag_path = SHADER_PATH("kawase_light.frag.3");
-	}
-	else if(singleton_data.light_image_components == 4) {
-		kawase_light_frag_path = SHADER_PATH("kawase_light.frag.4");
-	}
-
-	if (kawase_light_frag_path && 
-		create_pipeine(&singleton_data.pipeline_light_blur, SHADER_PATH("fullscreen.vert"), kawase_light_frag_path,
-		&singleton_data.rp_light_blur, &singleton_data.two_texture_descriptor_layout, 24, 0, NULL)) ASSERT_R1(false);
+	
+	if (create_pipeine(&singleton_data.pipeline_ssao, SHADER_PATH("fullscreen.vert"), SHADER_PATH("ssao.frag"),
+		&singleton_data.rp_ssao, &singleton_data.one_texture_descriptor_layout, 20, 0, NULL)) ASSERT_R1(false);
 
 	
 
-	uint32_t sc_downsample_size = 2;
+	uint32_t spc[2] = {2, 0};
 
-	// if (create_pipeine(&singleton_data.pipeline_downsample_x4,
-	// 	SHADER_PATH("fullscreen.vert"), SHADER_PATH("downsample.frag"),
-	// 	&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_downsample_size)) return 1;
+	if (create_pipeine(&singleton_data.pipeline_ssao_downscale_x4,
+		SHADER_PATH("fullscreen.vert"), SHADER_PATH("downscale_ssao.frag"),
+		&singleton_data.rp_ssao, &singleton_data.one_texture_descriptor_layout, 8, 1, spc)) return 1;
+
+		
+
+
+	if (create_pipeine(&singleton_data.pipeline_ssao_blur, SHADER_PATH("fullscreen.vert"), SHADER_PATH("kawase_ssao.frag"),
+		&singleton_data.rp_ssao, &singleton_data.one_texture_descriptor_layout, 8, 0, NULL)) ASSERT_R1(false);
+
+
 	
-	sc_downsample_size = 1;
-	if (create_pipeine(&singleton_data.pipeline_downsample_x2,
-		SHADER_PATH("fullscreen.vert"), SHADER_PATH("downsample.frag"),
-		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_downsample_size)) return 1;
+	spc[0] = 1;
+	spc[1] = 1;
+	if (create_pipeine(&singleton_data.pipeline_downscale_x2,
+		SHADER_PATH("fullscreen.vert"), SHADER_PATH("downscale.frag"),
+		&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, spc)) return 1;
 	
-	// sc_downsample_size = 4;
-	// if (create_pipeine(&singleton_data.pipeline_downsample_x8,
-	// 	SHADER_PATH("fullscreen.vert"), SHADER_PATH("downsample.frag"),
-	// 	&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, &sc_downsample_size)) return 1;
+	// spc[0] = 4;
+	// if (create_pipeine(&singleton_data.pipeline_downscale_x8,
+	// 	SHADER_PATH("fullscreen.vert"), SHADER_PATH("downscale.frag"),
+	// 	&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, spc)) return 1;
 	
 		
 	uint32_t sc_use_bloom = singleton_data.render_cfg.bloom ? 1 : 0;
@@ -285,18 +277,22 @@ void pigeon_wgi_destroy_standard_pipeline_objects()
 {
 	if(VULKAN) {
 		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_blur);
+		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao);
 		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_kawase_merge);
-		// pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample_x8);
-		// pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample_x4);
-		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downsample_x2);
-		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_light_blur);
+		// pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downscale_x8);
+		// pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downscale_x4);
+		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_downscale_x2);
+		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao_downscale_x4);
+		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_ssao_blur);
 		pigeon_vulkan_destroy_pipeline(&singleton_data.pipeline_post);
 	}
 	else {
+		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_ssao);
+		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_ssao_blur);
+		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_ssao_downscale_x4);
+		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_bloom_downscale);
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_blur);
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_kawase_merge);
-		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_bloom_downsample);
-		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_light_blur);
 		pigeon_opengl_destroy_shader_program(&singleton_data.gl.shader_post);
 	}
 }
@@ -346,10 +342,7 @@ PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * f
 		const char * b_false = "false";
 
 		const char * stage_sym = "OBJECT";
-		if(stage == PIGEON_WGI_RENDER_STAGE_LIGHT) {
-			stage_sym = "OBJECT_LIGHT";
-		}
-		else if (stage == PIGEON_WGI_RENDER_STAGE_DEPTH) {
+		if (stage == PIGEON_WGI_RENDER_STAGE_DEPTH) {
 			if(config->blend_function) {
 				stage_sym = "OBJECT_DEPTH_ALPHA";
 			}
@@ -359,17 +352,11 @@ PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * f
 		}
 
 		snprintf(prefix, sizeof prefix, 
-			"#define SC_SSAO_SAMPLES %u\n"
-			"#define SC_SHADOW_SAMPLES 2\n"
-			"#define SC_FETCH_ALPHA %s\n"
-			"#define SC_COLOUR_COMPONENTS %u\n"
 			"#define SC_SSAO_ENABLED %s\n"
 			"#define SC_TRANSPARENT %s\n"
+			"#define SC_SHADOW_TYPE 1\n"
 			"#define %s\n"
 			"%s",
-			singleton_data.render_cfg.ssao ? 4 : 0,
-			config->blend_function == PIGEON_WGI_BLEND_NONE ? b_false : b_true,
-			singleton_data.light_image_components,
 			singleton_data.render_cfg.ssao ? b_true : b_false,
 			config->blend_function == PIGEON_WGI_BLEND_NONE ? b_false : b_true,
 			stage_sym,
@@ -444,19 +431,17 @@ PIGEON_ERR_RET pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline* pipeline, Pi
 }
 
 static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline, 
-	PigeonWGIShader* vs_depth, 
-	PigeonWGIShader* vs_light, PigeonWGIShader* vs, 
+	PigeonWGIShader* vs_depth, PigeonWGIShader* vs, 
 	PigeonWGIShader* fs_depth, // NULL for opaque objects
-	PigeonWGIShader* fs_light, PigeonWGIShader* fs,
+	PigeonWGIShader* fs,
 	const PigeonWGIPipelineConfig* config, bool skinned, bool transparent)
 {
 	pipeline->gl.program_depth = calloc(1, sizeof *pipeline->gl.program_depth);
-	pipeline->gl.program_light = calloc(1, sizeof *pipeline->gl.program_light);
 	pipeline->gl.program = calloc(1, sizeof *pipeline->gl.program);
 
 #define CLEANUP() pigeon_wgi_destroy_pipeline(pipeline);
 
-	ASSERT_R1(pipeline->gl.program_depth && pipeline->gl.program_light && pipeline->gl.program);
+	ASSERT_R1(pipeline->gl.program_depth && pipeline->gl.program);
 
 
 	const char * with_bones[5] = {
@@ -478,23 +463,17 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 		skinned ? 5 : 4, skinned ? with_bones : without_bones));
 
 
-	ASSERT_R1(!pigeon_opengl_create_shader_program(pipeline->gl.program_light, 
-		vs_light->opengl_shader, fs_light->opengl_shader,
-		skinned ? 4 : 3, skinned ? with_bones : without_bones));
-
-
 	ASSERT_R1(!pigeon_opengl_create_shader_program(pipeline->gl.program_depth, 
 		vs_depth->opengl_shader, fs_depth ? fs_depth->opengl_shader : NULL,
 		(skinned ? 2 : 1) + (transparent ? 1 : 0),
 		skinned ? with_bones : without_bones));
 
-	PigeonOpenGLShaderProgram* programs[3] = {
+	PigeonOpenGLShaderProgram* programs[2] = {
 		pipeline->gl.program_depth,
-		pipeline->gl.program,
-		pipeline->gl.program_light
+		pipeline->gl.program
 	};
 
-	for(unsigned int i = 0; i < 3; i++) {		
+	for(unsigned int i = 0; i < 2; i++) {		
 		pigeon_opengl_set_uniform_buffer_binding(programs[i], "UniformBufferObject", 0);
 		pigeon_opengl_set_uniform_buffer_binding(programs[i], "DrawObjectUniform", 1);
 
@@ -514,39 +493,25 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 		}
 	}
 
-	pigeon_opengl_set_shader_texture_binding_index(pipeline->gl.program_light, "depth_image", 5);
-
-	if(!transparent)
-		pigeon_opengl_set_shader_texture_binding_index(pipeline->gl.program, "shadow_texture", 5);
-
+	pigeon_opengl_set_shader_texture_binding_index(pipeline->gl.program, "ssao_texture", 5);
 	pigeon_opengl_set_shader_texture_binding_index(pipeline->gl.program, "nmap_texture", 6);
 
 
 	pipeline->gl.program_depth_mvp = -1;
-	pipeline->gl.program_light_mvp = -1;
 	pipeline->gl.program_mvp = -1;
 
 	pipeline->gl.program_depth_mvp_loc = pigeon_opengl_get_uniform_location(
 		pipeline->gl.program_depth, "MODEL_VIEW_PROJ_INDEX");
-	pipeline->gl.program_light_mvp_loc = pigeon_opengl_get_uniform_location(
-		pipeline->gl.program_light, "MODEL_VIEW_PROJ_INDEX");
 	pipeline->gl.program_mvp_loc = pigeon_opengl_get_uniform_location(
 		pipeline->gl.program, "MODEL_VIEW_PROJ_INDEX");
 
 	pipeline->gl.config_depth = *config;
-	pipeline->gl.config_light = *config;
 	pipeline->gl.config = *config;
 
 	
 	pipeline->gl.config.depth_write = false;
 	pipeline->gl.config.depth_test = true;
 	pipeline->gl.config.depth_cmp_equal = true;
-	
-	pipeline->gl.config_light.depth_write = false;
-	pipeline->gl.config_light.depth_test = true;
-	pipeline->gl.config_light.depth_cmp_equal = true;
-	pipeline->gl.config_light.depth_cmp_equal = true;
-
 
 	pipeline->gl.config_depth.depth_write = true;
 	pipeline->gl.config_depth.depth_test = true;
@@ -564,42 +529,38 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 }
 
 PIGEON_ERR_RET pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline, 
-	PigeonWGIShader* vs_depth, 
-	PigeonWGIShader* vs_light, PigeonWGIShader* vs, 
+	PigeonWGIShader* vs_depth, PigeonWGIShader* vs, 
 	PigeonWGIShader* fs_depth, // NULL for opaque objects
-	PigeonWGIShader* fs_light, PigeonWGIShader* fs,
+	PigeonWGIShader* fs,
 	const PigeonWGIPipelineConfig* config, bool skinned, bool transparent)
 {
-	ASSERT_R1(pipeline && vs_depth && vs_light && vs && fs && fs_light && config);
+	ASSERT_R1(pipeline && vs_depth && vs && fs && config);
 
 	pipeline->skinned = skinned;
 	pipeline->transparent = transparent;
 
 	if(OPENGL) {
 		return pigeon_wgi_create_pipeline_gl(pipeline, 
-			vs_depth, vs_light, vs, 
-			fs_depth, fs_light, fs, config, skinned, transparent);
+			vs_depth, vs, 
+			fs_depth, fs, config, skinned, transparent);
 	}
 
 
 
 	pipeline->pipeline_depth = calloc(1, sizeof *pipeline->pipeline_depth);
 	pipeline->pipeline_shadow_map = calloc(1, sizeof *pipeline->pipeline_shadow_map);
-	pipeline->pipeline_light = calloc(1, sizeof *pipeline->pipeline_light);
 	pipeline->pipeline = calloc(1, sizeof *pipeline->pipeline);
 
-	if(!pipeline->pipeline_depth || !pipeline->pipeline_shadow_map || !pipeline->pipeline_light || !pipeline->pipeline) {
-		if(pipeline->pipeline_depth) free(pipeline->pipeline_depth);
-		if(pipeline->pipeline_shadow_map) free(pipeline->pipeline_shadow_map);
-		if(pipeline->pipeline_light) free(pipeline->pipeline_light);
-		if(pipeline->pipeline) free(pipeline->pipeline);
+	if(!pipeline->pipeline_depth || !pipeline->pipeline_shadow_map || !pipeline->pipeline) {
+		free_if(pipeline->pipeline_depth);
+		free_if(pipeline->pipeline_shadow_map);
+		free_if(pipeline->pipeline);
 		ASSERT_R1(false);
 	}
 
 	#define ERR() \
 		free(pipeline->pipeline_depth); \
 		free(pipeline->pipeline_shadow_map); \
-		free(pipeline->pipeline_light); \
 		free(pipeline->pipeline); \
 		ASSERT_R1(false);
 
@@ -618,16 +579,6 @@ PIGEON_ERR_RET pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 		ERR();
 	}
 
-	config2.depth_cmp_equal = true;
-	uint32_t sc[4] = {singleton_data.render_cfg.ssao ? 4 : 0, 2,
-		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1, singleton_data.light_image_components};
-	if(pigeon_vulkan_create_pipeline(pipeline->pipeline_light, vs_light->shader, fs_light->shader,
-		8, &singleton_data.rp_light_pass, &singleton_data.render_descriptor_layout, &config2, 4, sc))
-	{
-		pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
-		ERR();
-	}
-
 	config2.depth_write = true;
 	config2.depth_test = true;
 	config2.depth_only = true;
@@ -640,7 +591,6 @@ PIGEON_ERR_RET pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 		&config2, 0, NULL))
 	{
 		pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
-		pigeon_vulkan_destroy_pipeline(pipeline->pipeline_light);
 		ERR();
 	}
 
@@ -653,7 +603,6 @@ PIGEON_ERR_RET pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 		&config2, 0, NULL))
 	{
 		pigeon_vulkan_destroy_pipeline(pipeline->pipeline);
-		pigeon_vulkan_destroy_pipeline(pipeline->pipeline_light);
 		pigeon_vulkan_destroy_pipeline(pipeline->pipeline_depth);
 		ERR();
 	}
@@ -683,11 +632,6 @@ void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline* pipeline)
 			free(pipeline->pipeline_shadow_map);
 			pipeline->pipeline_shadow_map = NULL;
 		}
-		if(pipeline->pipeline_light) {
-			pigeon_vulkan_destroy_pipeline(pipeline->pipeline_light);
-			free(pipeline->pipeline_light);
-			pipeline->pipeline_light = NULL;
-		}
 	}
 
 	if(OPENGL) {
@@ -700,11 +644,6 @@ void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline* pipeline)
 			pigeon_opengl_destroy_shader_program(pipeline->gl.program_depth);
 			free(pipeline->gl.program_depth);
 			pipeline->gl.program_depth = NULL;
-		}
-		if(pipeline->gl.program_light) {
-			pigeon_opengl_destroy_shader_program(pipeline->gl.program_light);
-			free(pipeline->gl.program_light);
-			pipeline->gl.program_light = NULL;
 		}
 	}
 

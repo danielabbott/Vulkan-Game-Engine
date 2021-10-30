@@ -64,9 +64,6 @@ $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.depth_alpha.spv \
 $(BUILD_DIR)/standard_assets/shaders/object.vert.skinned.light.spv \
-$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.1.spv \
-$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.3.spv \
-$(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.4.spv \
 $(SOURCES_GLSL:%=build/%) \
 $(SOURCES_VERT:%=build/%) \
 $(SOURCES_FRAG:%=build/%)

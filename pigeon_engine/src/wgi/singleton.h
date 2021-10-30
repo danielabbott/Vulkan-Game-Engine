@@ -42,7 +42,7 @@ typedef struct PigeonWGICommandBuffer {
 
 	// Below fields are unused for upload command buffer
 
-	bool depth_only, shadow, light_pass;
+	bool depth_only, shadow;
 	unsigned int mvp_index; // 0 for non-shadow render
 } PigeonWGICommandBuffer;
 
@@ -51,26 +51,24 @@ typedef struct PerFrameData {
 	PigeonWGICommandBuffer upload_command_buffer;
     PigeonWGICommandBuffer depth_command_buffer;
 	PigeonWGICommandBuffer shadow_command_buffers[4];
-    PigeonWGICommandBuffer light_pass_command_buffer;
     PigeonWGICommandBuffer render_command_buffer;
 
 	union {
 		struct {
-			// depth&shadow, light, render, post-processing
-			PigeonVulkanCommandPool primary_command_pools[4];
+			// depth&shadow, render, post-processing
+			PigeonVulkanCommandPool primary_command_pools[3];
 
 			PigeonVulkanMemoryAllocation uniform_buffer_memory;
 			PigeonVulkanBuffer uniform_buffer;
 
 			// These are per-frame because the uniform buffer is per-frame
 			PigeonVulkanDescriptorPool depth_descriptor_pool;
-			PigeonVulkanDescriptorPool light_pass_descriptor_pool;
 			PigeonVulkanDescriptorPool render_descriptor_pool;
 
 			bool commands_in_progress;
-			PigeonVulkanFence depth_and_shadows_done_fence;
+			PigeonVulkanFence pre_render_done_fence;
 
-			PigeonVulkanSemaphore semaphores[4][2];
+			PigeonVulkanSemaphore semaphores[3][2];
 
 			PigeonVulkanSemaphore swapchain_acquire_semaphore;
 
@@ -94,15 +92,11 @@ typedef struct SingletonData
 
 	float bloom_intensity;
 
-	unsigned int light_image_components;
-	PigeonWGIImageFormat light_framebuffer_image_format;
-
 	bool shadow_framebuffer_assigned[4];
 
 	FramebufferImageObjects depth_image;
 	FramebufferImageObjects shadow_images[4]; // ** images may be bigger than necessary
-	FramebufferImageObjects light_image;
-	FramebufferImageObjects light_blur_image;
+	FramebufferImageObjects ssao_images[3];
 	FramebufferImageObjects render_image;
 	
 	// 1/2,1/4,1/8. 2 for each
@@ -122,16 +116,19 @@ typedef struct SingletonData
 			PigeonVulkanSampler texture_sampler;
 
 			PigeonVulkanRenderPass rp_depth;
-			PigeonVulkanRenderPass rp_light_pass;
-			PigeonVulkanRenderPass rp_light_blur;
+			PigeonVulkanRenderPass rp_ssao;
 			PigeonVulkanRenderPass rp_bloom_blur;
 			PigeonVulkanRenderPass rp_render;
 			PigeonVulkanRenderPass rp_post;
 
-			// PigeonVulkanPipeline pipeline_downsample_x8;
-			// PigeonVulkanPipeline pipeline_downsample_x4;
-			PigeonVulkanPipeline pipeline_downsample_x2;
-			PigeonVulkanPipeline pipeline_light_blur;
+			PigeonVulkanPipeline pipeline_ssao;
+			PigeonVulkanPipeline pipeline_ssao_blur;
+			PigeonVulkanPipeline pipeline_ssao_downscale_x4;
+
+			// PigeonVulkanPipeline pipeline_downscale_x8;
+			// PigeonVulkanPipeline pipeline_downscale_x4;
+			PigeonVulkanPipeline pipeline_downscale_x2;
+
 			PigeonVulkanPipeline pipeline_blur;
 			PigeonVulkanPipeline pipeline_kawase_merge;
 			PigeonVulkanPipeline pipeline_post;
@@ -148,15 +145,12 @@ typedef struct SingletonData
 
 			PigeonVulkanFramebuffer depth_framebuffer;
 			PigeonVulkanFramebuffer shadow_framebuffers[4];
-			PigeonVulkanFramebuffer light_framebuffer;
-			PigeonVulkanFramebuffer light_blur1_framebuffer;
-			PigeonVulkanFramebuffer light_blur2_framebuffer;
+			PigeonVulkanFramebuffer ssao_framebuffers[3];
 			PigeonVulkanFramebuffer render_framebuffer;
 			PigeonVulkanFramebuffer bloom_framebuffers[3][2];
 
-			PigeonVulkanDescriptorPool light_blur1_descriptor_pool;
-			PigeonVulkanDescriptorPool light_blur2_descriptor_pool;
-			PigeonVulkanDescriptorPool bloom_downsample_descriptor_pool; // bilinear samples HDR render texture
+			PigeonVulkanDescriptorPool ssao_descriptor_pools[4]; // depth buffer, ssao, 1/4 ssao, 1/4 ssao
+			PigeonVulkanDescriptorPool bloom_downscale_descriptor_pool; // bilinear samples HDR render texture
 			PigeonVulkanDescriptorPool bloom_descriptor_pools[3][2]; // bilinear samples from bloom_image with same index
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool0;
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool1;
@@ -168,27 +162,28 @@ typedef struct SingletonData
 
 			PigeonOpenGLFramebuffer depth_framebuffer;
 			PigeonOpenGLFramebuffer shadow_framebuffers[4];
-			PigeonOpenGLFramebuffer light_framebuffer;
-			PigeonOpenGLFramebuffer light_blur1_framebuffer;
-			PigeonOpenGLFramebuffer light_blur2_framebuffer;
+			PigeonOpenGLFramebuffer ssao_framebuffers[3];
 			PigeonOpenGLFramebuffer render_framebuffer;
 			PigeonOpenGLFramebuffer bloom_framebuffers[3][2];
 
-			PigeonOpenGLShaderProgram shader_bloom_downsample;
-			PigeonOpenGLShaderProgram shader_light_blur;
+			PigeonOpenGLShaderProgram shader_ssao;
+			PigeonOpenGLShaderProgram shader_ssao_blur;
+			PigeonOpenGLShaderProgram shader_ssao_downscale_x4;
+			PigeonOpenGLShaderProgram shader_bloom_downscale;
 			PigeonOpenGLShaderProgram shader_blur;
 			PigeonOpenGLShaderProgram shader_kawase_merge;
 			PigeonOpenGLShaderProgram shader_post;
 
 			int shader_light_blur_u_dist_and_half;
 			int shader_light_blur_u_near_far;
-
-			int shader_bloom_downsample_u_offset_and_min;
-
+			int shader_bloom_downscale_u_offset_and_min;
 			int shader_blur_SAMPLE_DISTANCE;
 			int shader_kawase_merge_SAMPLE_DISTANCE;
-
 			int shader_post_u_one_pixel_and_bloom_intensity;
+			int shader_ssao_u_near_far_cutoff;
+			int shader_ssao_ONE_PIXEL;
+			int shader_ssao_blur_SAMPLE_DISTANCE;
+			int shader_ssao_downscale_x4_OFFSET;
 
 			PigeonOpenGLVAO empty_vao;
 
@@ -224,6 +219,7 @@ typedef struct SingletonData
 
 	float brightness;
 	float ambient[3];
+	float ssao_cutoff;
 
 } SingletonData;
 

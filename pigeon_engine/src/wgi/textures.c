@@ -292,13 +292,15 @@ void pigeon_wgi_destroy_default_textures(void)
 
 PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void)
 {
-	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.light_blur1_descriptor_pool,
-		1, &singleton_data.two_texture_descriptor_layout)) return 1;
-	if(pigeon_vulkan_create_descriptor_pool(&singleton_data.light_blur2_descriptor_pool,
-		1, &singleton_data.two_texture_descriptor_layout)) return 1;
+	if(singleton_data.render_cfg.ssao) {
+		for(unsigned int i = 0; i < 4; i++) {
+			if(pigeon_vulkan_create_descriptor_pool(&singleton_data.ssao_descriptor_pools[i],
+				1, &singleton_data.one_texture_descriptor_layout)) return 1;
+		}
+	}
 		
 	if(singleton_data.render_cfg.bloom) {
-		if(pigeon_vulkan_create_descriptor_pool(&singleton_data.bloom_downsample_descriptor_pool,
+		if(pigeon_vulkan_create_descriptor_pool(&singleton_data.bloom_downscale_descriptor_pool,
 			1, &singleton_data.one_texture_descriptor_layout)) return 1;
 		for(unsigned int i = 0; i < 3; i++) {
 			for(unsigned int j = 0; j < 2; j++) {
@@ -321,18 +323,18 @@ PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void)
 void pigeon_wgi_set_global_descriptors(void)
 {
 
-	pigeon_vulkan_set_descriptor_texture(&singleton_data.light_blur1_descriptor_pool, 0, 0, 0, 
-		&singleton_data.light_image.image_view, &singleton_data.bilinear_sampler);
-	pigeon_vulkan_set_descriptor_texture(&singleton_data.light_blur2_descriptor_pool, 0, 0, 0, 
-		&singleton_data.light_blur_image.image_view, &singleton_data.bilinear_sampler);
+	if(singleton_data.render_cfg.ssao) {
+		pigeon_vulkan_set_descriptor_texture(&singleton_data.ssao_descriptor_pools[0], 0, 0, 0, 
+			&singleton_data.depth_image.image_view, &singleton_data.nearest_filter_sampler);
 
-	pigeon_vulkan_set_descriptor_texture(&singleton_data.light_blur1_descriptor_pool, 0, 1, 0, 
-		&singleton_data.depth_image.image_view, &singleton_data.nearest_filter_sampler);
-	pigeon_vulkan_set_descriptor_texture(&singleton_data.light_blur2_descriptor_pool, 0, 1, 0, 
-		&singleton_data.depth_image.image_view, &singleton_data.nearest_filter_sampler);
+		for(unsigned int i = 0; i < 3; i++) {
+			pigeon_vulkan_set_descriptor_texture(&singleton_data.ssao_descriptor_pools[i+1], 0, 0, 0, 
+				&singleton_data.ssao_images[i].image_view, &singleton_data.bilinear_sampler);
+		}
+	}
 
 	if(singleton_data.render_cfg.bloom) {
-		pigeon_vulkan_set_descriptor_texture(&singleton_data.bloom_downsample_descriptor_pool, 0, 0, 0, 
+		pigeon_vulkan_set_descriptor_texture(&singleton_data.bloom_downscale_descriptor_pool, 0, 0, 0, 
 			&singleton_data.render_image.image_view, &singleton_data.bilinear_sampler);
 
 		for(unsigned int i = 0; i < 3; i++) {
@@ -362,9 +364,10 @@ void pigeon_wgi_set_global_descriptors(void)
 
 void pigeon_wgi_destroy_descriptor_pools(void)
 {
-	pigeon_vulkan_destroy_descriptor_pool(&singleton_data.light_blur1_descriptor_pool);
-	pigeon_vulkan_destroy_descriptor_pool(&singleton_data.light_blur2_descriptor_pool);
-	pigeon_vulkan_destroy_descriptor_pool(&singleton_data.bloom_downsample_descriptor_pool);
+	for(unsigned int i = 0; i < 4; i++) {
+		pigeon_vulkan_destroy_descriptor_pool(&singleton_data.ssao_descriptor_pools[i]);
+	}
+	pigeon_vulkan_destroy_descriptor_pool(&singleton_data.bloom_downscale_descriptor_pool);
 	for(unsigned int i = 0; i < 3; i++) {
 		for(unsigned int j = 0; j < 2; j++) {
 			pigeon_vulkan_destroy_descriptor_pool(&singleton_data.bloom_descriptor_pools[i][j]);

@@ -59,16 +59,16 @@ void pigeon_opengl_set_draw_state(PigeonWGIPipelineConfig const* config)
         else glDepthFunc(GL_GREATER);
     }
 
-    // if(first_set_state || config->depth_bias != old_config.depth_bias) {
-    //     if(config->depth_bias) {
-    //         glEnable(GL_POLYGON_OFFSET_FILL);
-    //         glPolygonOffset(-1, 0);
-    //     }
-    //     else {
-    //         glDisable(GL_POLYGON_OFFSET_FILL);
-    //         glPolygonOffset(0, 0);
-    //     }
-    // }
+    if(first_set_state || config->depth_bias != old_config.depth_bias) {
+        if(config->depth_bias) {
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(-1, 0);
+        }
+        else {
+            glDisable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(0, 0);
+        }
+    }
 
     old_config = *config;
     first_set_state = false;

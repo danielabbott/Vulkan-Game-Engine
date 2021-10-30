@@ -79,8 +79,7 @@ typedef struct PigeonWGIShader {
 
 typedef enum {
 	PIGEON_WGI_RENDER_STAGE_DEPTH,
-	PIGEON_WGI_RENDER_STAGE_LIGHT,
-	PIGEON_WGI_RENDER_STAGE_RENDER,
+	PIGEON_WGI_RENDER_STAGE_RENDER
 } PigeonWGIRenderStage;
 
 
@@ -101,23 +100,18 @@ typedef struct PigeonWGIPipeline {
 		struct {
 			struct PigeonVulkanPipeline * pipeline_depth;
 			struct PigeonVulkanPipeline * pipeline_shadow_map;
-			struct PigeonVulkanPipeline * pipeline_light;
 			struct PigeonVulkanPipeline * pipeline;
 		};
 		struct {
 			struct PigeonOpenGLShaderProgram * program_depth;
-			struct PigeonOpenGLShaderProgram * program_light;
 			struct PigeonOpenGLShaderProgram * program;
 			
 			PigeonWGIPipelineConfig config_depth;
 			PigeonWGIPipelineConfig config_shadow;
-			PigeonWGIPipelineConfig config_light;
 			PigeonWGIPipelineConfig config;
 
 			int program_mvp_loc; // uniform location for mvp index
 			int program_mvp; // currently set value
-			int program_light_mvp_loc;
-			int program_light_mvp;
 			int program_depth_mvp_loc;
 			int program_depth_mvp;
 		} gl;
@@ -132,10 +126,9 @@ typedef struct PigeonWGIPipeline {
 PIGEON_ERR_RET pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* fs);
 
 int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, 
-	PigeonWGIShader* vs_depth, 
-	PigeonWGIShader* vs_light, PigeonWGIShader* vs, 
+	PigeonWGIShader* vs_depth, PigeonWGIShader* vs, 
 	PigeonWGIShader* fs_depth, // NULL for opaque objects
-	PigeonWGIShader* fs_light, PigeonWGIShader* fs,
+	PigeonWGIShader* fs,
 	const PigeonWGIPipelineConfig*, bool skinned, bool transparent);
 
 void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline*);

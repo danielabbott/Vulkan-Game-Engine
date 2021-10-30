@@ -17,30 +17,9 @@
 static PIGEON_ERR_RET set_render_cfg(PigeonWGIRenderConfig render_cfg)
 {
 	singleton_data.render_cfg = render_cfg;
-
-	singleton_data.light_image_components = render_cfg.ssao ? 1 : 0;
-	singleton_data.light_image_components += render_cfg.shadow_casting_lights;
-	ASSERT_R1(singleton_data.light_image_components <= 4);
-
-	if(singleton_data.light_image_components == 0) {
-		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_NONE;
-	}
-	else if(singleton_data.light_image_components == 1) {
-		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR;
-	}
-	else if(singleton_data.light_image_components == 2) {
-		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR;
-	}
-	else if(singleton_data.light_image_components == 3) {
-		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_A2B10G10R10_LINEAR;
-	}
-	else {
-		singleton_data.light_framebuffer_image_format = PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_LINEAR;
-	}
-
-	if(singleton_data.render_cfg.shadow_blur_passes > 3) {
-		singleton_data.render_cfg.shadow_blur_passes = 3;
-	}
+	// if(singleton_data.render_cfg.ssao_blur_passes == 0) {
+	// 	singleton_data.ssao_blur_passes = 1;
+	// }
 
 	return 0;
 }
@@ -60,6 +39,10 @@ void pigeon_wgi_set_ambient(float r, float g, float b)
 	singleton_data.ambient[1] = g;
 	singleton_data.ambient[2] = b;
 }
+void pigeon_wgi_set_ssao_cutoff(float c)
+{
+	singleton_data.ssao_cutoff = c;
+}
 
 PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters, 
 	bool prefer_dedicated_gpu, bool prefer_opengl,
@@ -73,6 +56,7 @@ PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters,
 	singleton_data.ambient[0] = 0.3f;
 	singleton_data.ambient[1] = 0.3f;
 	singleton_data.ambient[2] = 0.33f;
+	singleton_data.ssao_cutoff = 0.02f;
 
 	pigeon_wgi_set_depth_range(znear, zfar);
 

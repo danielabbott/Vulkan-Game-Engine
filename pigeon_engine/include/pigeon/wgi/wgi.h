@@ -23,6 +23,7 @@ void pigeon_wgi_set_depth_range(float znear, float zfar);
 void pigeon_wgi_set_bloom_intensity(float i);
 void pigeon_wgi_set_brightness(float b);
 void pigeon_wgi_set_ambient(float r, float g, float b);
+void pigeon_wgi_set_ssao_cutoff(float cb);
 
 bool pigeon_wgi_close_requested(void);
 
@@ -31,8 +32,8 @@ typedef enum {
     PIGEON_WGI_TIMER_UPLOAD_DONE,
     PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE,
     PIGEON_WGI_TIMER_SHADOW_MAPS_DONE,
-    PIGEON_WGI_TIMER_LIGHT_PASS_DONE,
-    PIGEON_WGI_TIMER_LIGHT_BLUR_DONE,
+    PIGEON_WGI_TIMER_SSAO_DONE,
+    PIGEON_WGI_TIMER_SSAO_BLUR_DONE,
     PIGEON_WGI_TIMER_RENDER_DONE,
     PIGEON_WGI_TIMER_BLOOM_BLUR_DONE,
     PIGEON_WGI_TIMER_POST_PROCESS_DONE,
@@ -78,7 +79,6 @@ typedef struct PigeonWGICommandBuffer PigeonWGICommandBuffer;
 PigeonWGICommandBuffer * pigeon_wgi_get_upload_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_depth_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_shadow_command_buffer(unsigned int light_index);
-PigeonWGICommandBuffer * pigeon_wgi_get_light_pass_command_buffer(void);
 PigeonWGICommandBuffer * pigeon_wgi_get_render_command_buffer(void);
 
 bool pigeon_wgi_multithreading_supported(void);
@@ -113,9 +113,8 @@ PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer *);
 
 PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void); // upload&depth&shadow
 
-PIGEON_ERR_RET pigeon_wgi_present_frame_rec1(void); // light
-PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void); // render
-PIGEON_ERR_RET pigeon_wgi_present_frame_rec3(void); // post
+PIGEON_ERR_RET pigeon_wgi_present_frame_rec1(void); // render
+PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void); // post
 
 // Blocks when using OpenGL
 PIGEON_ERR_RET pigeon_wgi_present_frame_sub1(void); // everything else

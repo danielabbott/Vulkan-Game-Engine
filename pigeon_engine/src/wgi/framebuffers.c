@@ -70,41 +70,29 @@ PIGEON_ERR_RET pigeon_wgi_create_framebuffers(void)
     }
 
    
-    /* light */
+    /* ssao */
 
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.light_image, singleton_data.light_framebuffer_image_format, 
-        sc_info.width, sc_info.height, false, false, false)) return 1;
+	if(singleton_data.render_cfg.ssao) {
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_images[0], PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width, sc_info.height, false, false, false)) return 1;
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_images[1], PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width / 4, sc_info.height / 4, false, false, false)) return 1;
+        if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_images[2], PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
+            sc_info.width / 4, sc_info.height / 4, false, false, false)) return 1;
 
-    if(VULKAN) {
-        ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.light_framebuffer, 
-            &singleton_data.depth_image.image_view, &singleton_data.light_image.image_view,
-            &singleton_data.rp_light_pass));
-    }
-    else {
-        ASSERT_R1(!pigeon_opengl_create_framebuffer(&singleton_data.gl.light_framebuffer,
-            &singleton_data.depth_image.gltex2d, &singleton_data.light_image.gltex2d));
-    }
-
-
-    /* light blur */
-    
-    if(pigeon_wgi_create_framebuffer_images(&singleton_data.light_blur_image, singleton_data.light_framebuffer_image_format, 
-        sc_info.width, sc_info.height, false, false, false)) return 1;
-
-    if(VULKAN) {
-        ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.light_blur1_framebuffer,
-            NULL, &singleton_data.light_blur_image.image_view, &singleton_data.rp_light_blur));
-        ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.light_blur2_framebuffer,
-            NULL, &singleton_data.light_image.image_view, &singleton_data.rp_light_blur));
-    }
-    else {
-        ASSERT_R1(!pigeon_opengl_create_framebuffer(&singleton_data.gl.light_blur1_framebuffer,
-            NULL, &singleton_data.light_blur_image.gltex2d));
-        ASSERT_R1(!pigeon_opengl_create_framebuffer(&singleton_data.gl.light_blur2_framebuffer,
-            NULL, &singleton_data.light_image.gltex2d));
-    }
-
-        
+        if(VULKAN) {
+            for(unsigned int i = 0; i < 3; i++) {
+                ASSERT_R1(!pigeon_vulkan_create_framebuffer(&singleton_data.ssao_framebuffers[i], 
+                    NULL, &singleton_data.ssao_images[i].image_view, &singleton_data.rp_ssao));
+            }
+        }
+        else {
+            for(unsigned int i = 0; i < 3; i++) {
+                ASSERT_R1(!pigeon_opengl_create_framebuffer(&singleton_data.gl.ssao_framebuffers[i],
+                    NULL, &singleton_data.ssao_images[i].gltex2d));
+            }
+        }    
+    }    
 
 
     /* render */
@@ -176,9 +164,9 @@ void pigeon_wgi_destroy_framebuffers(void)
 {
     if(VULKAN) {
         pigeon_vulkan_destroy_framebuffer(&singleton_data.depth_framebuffer);
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.light_framebuffer);
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.light_blur1_framebuffer);
-        pigeon_vulkan_destroy_framebuffer(&singleton_data.light_blur2_framebuffer);
+        for(unsigned int i = 0; i < 3; i++) {
+            pigeon_vulkan_destroy_framebuffer(&singleton_data.ssao_framebuffers[i]);
+        }
         pigeon_vulkan_destroy_framebuffer(&singleton_data.render_framebuffer);
         for(unsigned int i = 0; i < 3; i++) {
             for(unsigned int j = 0; j < 2; j++) {
@@ -188,9 +176,9 @@ void pigeon_wgi_destroy_framebuffers(void)
     }
     else {
         pigeon_opengl_destroy_framebuffer(&singleton_data.gl.depth_framebuffer);
-        pigeon_opengl_destroy_framebuffer(&singleton_data.gl.light_framebuffer);
-        pigeon_opengl_destroy_framebuffer(&singleton_data.gl.light_blur1_framebuffer);
-        pigeon_opengl_destroy_framebuffer(&singleton_data.gl.light_blur2_framebuffer);
+        for(unsigned int i = 0; i < 3; i++) {
+            pigeon_opengl_destroy_framebuffer(&singleton_data.gl.ssao_framebuffers[i]);
+        }
         pigeon_opengl_destroy_framebuffer(&singleton_data.gl.render_framebuffer);
         for(unsigned int i = 0; i < 3; i++) {
             for(unsigned int j = 0; j < 2; j++) {
@@ -200,8 +188,9 @@ void pigeon_wgi_destroy_framebuffers(void)
     }
 
     destroy_framebuffer_images(&singleton_data.depth_image);
-    destroy_framebuffer_images(&singleton_data.light_image);
-    destroy_framebuffer_images(&singleton_data.light_blur_image);
+    for(unsigned int i = 0; i < 3; i++) {
+        destroy_framebuffer_images(&singleton_data.ssao_images[i]);
+    }
     destroy_framebuffer_images(&singleton_data.render_image);
     for(unsigned int i = 0; i < 3; i++) {
         for(unsigned int j = 0; j < 2; j++) {
