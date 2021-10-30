@@ -580,7 +580,7 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 		uint64_t sz = pigeon_wgi_mesh_meta_size_requirements(&model_assets[i].mesh_meta);
 
 		uint64_t full_size = 0;
-		for (unsigned int j = 0; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES; j++)
+		for (unsigned int j = 0; j < PIGEON_WGI_MAX_VERTEX_ATTRIBUTES+1 && j < model_assets[i].subresource_count; j++)
 		{
 			full_size += model_assets[i].subresources[j].decompressed_data_length;
 			if (!model_assets[i].mesh_meta.attribute_types[j])
@@ -631,8 +631,9 @@ static PIGEON_ERR_RET create_multimesh(PigeonWGIMultiMesh *mm, bool big_indices,
 		if (!model_assets[i].mesh_meta.vertex_count || (model_assets[i].bones_count > 0) != skinned)
 			continue;
 
-		if (j < model_assets[i].subresources[j].decompressed_data_length)
+		if (j < model_assets[i].subresource_count)
 		{
+			// Asset has index data
 			if (model_assets[i].mesh_meta.big_indices == big_indices)
 			{
 				ASSERT_R1(!pigeon_decompress_asset(&model_assets[i], &mapping_indices[offset], j));
@@ -1110,6 +1111,7 @@ static PIGEON_ERR_RET game_loop(void)
 		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
 		ASSERT_R1(!pigeon_draw_frame(t_camera, debug_disable_ssao, &skybox_pipeline));
 
+		// TODO get time just before swapping buffers- reported time is always 16ms on windows with vsync enabled
 		cpu_frame_time = (pigeon_wgi_get_time_seconds() - start_frame_time) * 1000.0;
 		
 

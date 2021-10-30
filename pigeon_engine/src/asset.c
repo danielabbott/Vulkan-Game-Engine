@@ -741,7 +741,7 @@ PIGEON_ERR_RET pigeon_load_asset_data(PigeonAsset * asset, const char * data_fil
 
 PIGEON_ERR_RET pigeon_decompress_asset(PigeonAsset * asset, void * buffer, unsigned int i)
 {
-    ASSERT_R1(asset);
+    ASSERT_R1(asset && i < asset->subresource_count);
 
     PigeonAssetSubresource * subr = &asset->subresources[i];
 

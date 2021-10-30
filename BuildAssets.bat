@@ -15,6 +15,7 @@ copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kaw
 copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kawase_light.3.frag
 copy standard_assets\shaders\kawase_light.frag build\standard_assets\shaders\kawase_light.4.frag
 copy standard_assets\shaders\kawase_rgb.frag build\standard_assets\shaders\kawase_rgb.frag
+copy standard_assets\shaders\kawase_merge.frag build\standard_assets\shaders\kawase_merge.frag
 copy standard_assets\shaders\object.frag build\standard_assets\shaders\object.frag
 copy standard_assets\shaders\object_depth_alpha.frag build\standard_assets\shaders\object_depth_alpha.frag
 copy standard_assets\shaders\object_light.frag build\standard_assets\shaders\object_light.frag
@@ -44,6 +45,7 @@ glslc -O -DNDEBUG -DCOLOUR_TYPE_RGB standard_assets\shaders\kawase_light.frag -o
 glslc -O -DNDEBUG -DCOLOUR_TYPE_RGBA standard_assets\shaders\kawase_light.frag -o build\release\standard_assets\shaders\kawase_light.4.frag.spv
 
 glslc -O -DNDEBUG standard_assets\shaders\kawase_rgb.frag -o build\release\standard_assets\shaders\kawase_rgb.frag.spv
+glslc -O -DNDEBUG standard_assets\shaders\kawase_merge.frag -o build\release\standard_assets\shaders\kawase_merge.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\object.frag -o build\release\standard_assets\shaders\object.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\object_depth_alpha.frag -o build\release\standard_assets\shaders\object_depth_alpha.frag.spv
 glslc -O -DNDEBUG standard_assets\shaders\object_light.frag -o build\release\standard_assets\shaders\object_light.frag.spv
@@ -73,6 +75,7 @@ glslc -O0 -DDEBUG -DCOLOUR_TYPE_R standard_assets\shaders\kawase_light.frag -o b
 glslc -O0 -DDEBUG -DCOLOUR_TYPE_RGB standard_assets\shaders\kawase_light.frag -o build\debug\standard_assets\shaders\kawase_light.3.frag.spv
 glslc -O0 -DDEBUG -DCOLOUR_TYPE_RGBA standard_assets\shaders\kawase_light.frag -o build\debug\standard_assets\shaders\kawase_light.4.frag.spv
 
+glslc -O0 -DDEBUG standard_assets\shaders\kawase_merge.frag -o build\debug\standard_assets\shaders\kawase_merge.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\kawase_rgb.frag -o build\debug\standard_assets\shaders\kawase_rgb.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\object.frag -o build\debug\standard_assets\shaders\object.frag.spv
 glslc -O0 -DDEBUG standard_assets\shaders\object_depth_alpha.frag -o build\debug\standard_assets\shaders\object_depth_alpha.frag.spv
