@@ -855,7 +855,6 @@ static PIGEON_ERR_RET create_pipelines(void)
 	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, shader_stages, &config, true, false));
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
-	config.cull_mode = PIGEON_WGI_CULL_MODE_NONE;
 	shader_paths[0][1] = FULL_PATH("object.vert.depth_alpha");
 	shader_paths[2][0] = "object_depth_alpha.frag";
 	shader_paths[2][1] = FULL_PATH("object_depth_alpha.frag");
@@ -915,9 +914,9 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 
 	printf("Render time statistics (300-frame average):\n");
 	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
-	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
+	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
+	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
+	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
 	printf("\tSSAO Blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_DONE]);
 	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
 	printf("\tBloom Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
@@ -1113,6 +1112,9 @@ static PIGEON_ERR_RET game_loop(void)
 
 int main(void)
 {
+	
+
+
 	ASSERT_R1(!start());
 	ASSERT_R1(!load_assets());
 	ASSERT_R1(!create_multimeshes());
@@ -1137,7 +1139,7 @@ int main(void)
 
 	t_wall->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
 	t_wall->scale[0] = 3;
-	t_wall->scale[1] = 10;
+	t_wall->scale[1] = 4;
 	t_wall->scale[2] = 0.3f;
 	t_wall->translation[0] = 3;
 	t_wall->translation[2] = -5;
@@ -1176,7 +1178,7 @@ int main(void)
 	ASSERT_R1(light);
 	light->intensity[0] = light->intensity[1] = light->intensity[2] = 1.7f;
 	light->shadow_resolution = 1024;
-	light->shadow_near = 6;
+	light->shadow_near = 3;
 	light->shadow_far = 13;
 	light->shadow_size_x = 5;
 	light->shadow_size_y = 5;
@@ -1219,6 +1221,8 @@ int main(void)
 	mr_sphere = pigeon_create_material_renderer(model_sphere);
 	ASSERT_R1(mr_white_cuboid && mr_spinning_cube && mr_sphere);
 
+	mr_white_cuboid->specular_intensity = 0;
+
 	mr_spinning_cube->colour[0] = 1.1f;
 	mr_spinning_cube->colour[1] = 0.5f;
 	mr_spinning_cube->colour[2] = 1.15f;
@@ -1245,7 +1249,6 @@ int main(void)
 	for(unsigned int i = 0; i < model_assets[1].materials_count; i++) {
 		model_character[i] = pigeon_create_model_renderer(&model_assets[1], i);
 		ASSERT_R1(model_character[i]);
-
 
 		mr_character[i] = pigeon_create_material_renderer(model_character[i]);
 		ASSERT_R1(mr_character[i]);

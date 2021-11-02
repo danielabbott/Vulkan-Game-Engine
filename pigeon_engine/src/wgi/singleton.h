@@ -19,6 +19,7 @@
 #include <pigeon/wgi/opengl/framebuffer.h>
 #include <pigeon/wgi/opengl/shader.h>
 #include <pigeon/wgi/opengl/buffer.h>
+#include <pigeon/wgi/opengl/timer_query.h>
 
 
 struct PigeonWGIArrayTexture;
@@ -76,6 +77,7 @@ typedef struct PerFrameData {
 		};
 		struct {
 			PigeonOpenGLBuffer uniform_buffer;
+			PigeonOpenGLTimerQueryGroup timer_queries;
 		} gl;
 	};
 

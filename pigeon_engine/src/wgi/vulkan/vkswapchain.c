@@ -30,7 +30,7 @@ static PIGEON_ERR_RET create_swapchain(void)
 {
 	const bool max_fps = false;
 
-	unsigned int image_count = max_fps ? 3 : 2;
+	unsigned int image_count = 3;
 
 	if (singleton_data.surface_capabilities.maxImageCount < image_count) {
 		image_count = singleton_data.surface_capabilities.maxImageCount;
@@ -92,7 +92,7 @@ static PIGEON_ERR_RET create_swapchain(void)
 	VkPresentModeKHR present_modes[6];
 	vkGetPhysicalDeviceSurfacePresentModesKHR(singleton_data.physical_device, singleton_data.surface, &present_mode_count, present_modes);
 
-	if(max_fps && image_count >= 3) {
+	if(max_fps) {
 		// mailbox prevents screen tearing while still running at the maximum frame rate
 		for(unsigned int i = 0; i < present_mode_count; i++) {
 			if(present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {

@@ -96,7 +96,7 @@ void pigeon_destroy_vulkan_context(void)
 }
 
 #ifndef NDEBUG
-static bool validation_layers_available(void)
+static bool validation_layers_available(bool * validation_ext)
 {
 	uint32_t layer_count;
 	vkEnumerateInstanceLayerProperties(&layer_count, NULL);
@@ -106,6 +106,7 @@ static bool validation_layers_available(void)
 
 	vkEnumerateInstanceLayerProperties(&layer_count, all_layers);
 
+	bool found_layer = false;
 
 	for (unsigned int i = 0; i < layer_count; i++) {
 		all_layers[i].layerName[VK_MAX_EXTENSION_NAME_SIZE - 1] = 0;
@@ -113,14 +114,33 @@ static bool validation_layers_available(void)
 		printf("Found layer: %s, %s\n", all_layers[i].layerName, all_layers[i].description);
 
 		if (strcmp(all_layers[i].layerName, validation_layer_name) == 0) {
-			free(all_layers);
-			return true;
+			found_layer = true;
+			break;
 		}
 	}
 
-
 	free(all_layers);
-	return false;
+
+	if(!found_layer) return false;
+
+	*validation_ext = false;
+
+	uint32_t ext_count = 0;
+	vkEnumerateInstanceExtensionProperties(validation_layer_name, &ext_count, NULL);
+
+	VkExtensionProperties * ext = malloc(ext_count * sizeof *ext);
+	if(ext) {
+		vkEnumerateInstanceExtensionProperties(validation_layer_name, &ext_count, ext);
+
+		for(unsigned int i = 0;  i < ext_count; i++) {
+			if(strcmp(ext[i].extensionName, "VK_EXT_validation_features") == 0) {
+				*validation_ext = true;
+				break;
+			}
+		}
+	}
+	
+	return true;
 }
 #endif
 
@@ -140,9 +160,23 @@ static PIGEON_ERR_RET create_vk_instance(void)
 	createInfo.ppEnabledExtensionNames = glfwGetRequiredInstanceExtensions(&createInfo.enabledExtensionCount);
 
 #ifndef NDEBUG
-	if (validation_layers_available()) {
+	bool validation_ext = false;
+
+	VkValidationFeaturesEXT validation_features = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+	VkValidationFeatureEnableEXT validation_features_list[1] = {
+		// VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, // requires spir-v 1.1 (vk1.1)
+		// VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+		// VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+		// VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+	};
+	validation_features.enabledValidationFeatureCount = (sizeof validation_features_list) / sizeof(VkValidationFeatureEnableEXT);
+	validation_features.pEnabledValidationFeatures = validation_features_list;
+
+	if (validation_layers_available(&validation_ext)) {
 		createInfo.enabledLayerCount = 1;
 		createInfo.ppEnabledLayerNames = &validation_layer_name;
+		// if(validation_ext) createInfo.pNext = &validation_features;
 	}
 	else {
 		puts("Validation layers not found. Force enable them using Vulkan Configurator (vkconfig)");

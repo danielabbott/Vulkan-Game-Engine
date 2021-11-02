@@ -208,7 +208,7 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
     }
 
 	data->first_bone_index = mr->animation_state ? mr->animation_state->_first_bone_index : UINT32_MAX;
-    data->rsvd0 = 0;
+    data->specular_intensity = mr->specular_intensity * 10.0f;
 
     memcpy(data->colour, mr->colour, 3 * 4);
     data->luminosity = mr->luminosity;
@@ -430,6 +430,10 @@ static void set_per_scene_uniform_data(bool debug_disable_ssao)
 	pigeon_wgi_get_window_dimensions(&window_width, &window_height);
 
     glm_mat4_inv(camera->world_transform_cache, scene_uniform_data.view);
+
+    vec4 eye_position = {0, 0, 0, 1};
+    glm_mat4_mulv(camera->world_transform_cache, eye_position, scene_uniform_data.eye_position);
+
 
 	pigeon_wgi_perspective(scene_uniform_data.proj, 45, (float)window_width / (float)window_height);
 
@@ -746,12 +750,12 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
 
         // Render
 
-        ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_depth_command_buffer(), NULL));
-
         for(unsigned int i = 0; i < 4; i++) {
             if(shadows[i].resolution)
                 ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_shadow_command_buffer(i), NULL));
         }
+
+        ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_depth_command_buffer(), NULL));
 
         ASSERT_R1(!render_frame((uint64_t) pigeon_wgi_get_render_command_buffer(), skybox_pipeline));
 

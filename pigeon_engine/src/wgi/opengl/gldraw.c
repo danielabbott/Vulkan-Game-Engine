@@ -31,7 +31,7 @@ void pigeon_opengl_set_draw_state(PigeonWGIPipelineConfig const* config)
 
     if(first_set_state || config->front_face != old_config.front_face) {
         glFrontFace(config->front_face == PIGEON_WGI_FRONT_FACE_ANTICLOCKWISE ?
-            GL_CW : GL_CCW);
+            GL_CW : GL_CCW);  // These are swapped because the coordinate system is upside down
     }
 
     if(first_set_state || config->blend_function != old_config.blend_function) {

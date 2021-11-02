@@ -22,7 +22,8 @@ typedef struct PigeonWGIDrawObject {
     float texture_index; // into array texture
     
     uint32_t first_bone_index;
-    int rsvd0;
+
+    float specular_intensity;
 
     vec3 colour;
     float luminosity;
@@ -68,6 +69,11 @@ typedef struct PigeonWGISceneUniformData {
     
     float znear;
     float zfar;
+
+    float rsvd0;
+    float rsvd1;
+
+    vec3 eye_position;
 } PigeonWGISceneUniformData;
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix);

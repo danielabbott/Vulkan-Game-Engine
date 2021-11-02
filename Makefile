@@ -31,7 +31,7 @@ LDFLAGS = -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -ldl -lm -lc -fus
 # -- GLSL CONFIG --
 
 GLSLC ?= glslc
-GLSLCFLAGS = -O -MD
+GLSLCFLAGS = -MD
 
 
 # -- BUILD-MODE-SPECIFIC OPTIONS --

@@ -744,7 +744,7 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 
 	VkSemaphore wait_semaphores[2];
 	VkPipelineStageFlags stage[2] = {
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
 
 	if(wait_semaphore) {
 		submit.waitSemaphoreCount++;

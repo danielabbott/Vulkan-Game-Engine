@@ -107,6 +107,7 @@ PigeonMaterialRenderer* pigeon_create_material_renderer(PigeonModelMaterial* mod
 
     mr->diffuse_bind_point = mr->nmap_bind_point = UINT32_MAX;
     mr->colour[0] = mr->colour[1] = mr->colour[2] = 0.8f;
+    mr->specular_intensity = 1;
 
     return mr;
 }

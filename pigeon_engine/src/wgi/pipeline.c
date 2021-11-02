@@ -354,7 +354,7 @@ PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * f
 		snprintf(prefix, sizeof prefix, 
 			"#define SC_SSAO_ENABLED %s\n"
 			"#define SC_TRANSPARENT %s\n"
-			"#define SC_SHADOW_TYPE 1\n"
+			"#define SC_SHADOW_TYPE 2\n"
 			"#define %s\n"
 			"%s",
 			singleton_data.render_cfg.ssao ? b_true : b_false,
@@ -507,6 +507,7 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 
 	pipeline->gl.config_depth = *config;
 	pipeline->gl.config = *config;
+	pipeline->gl.config_shadow = *config;
 
 	
 	pipeline->gl.config.depth_write = false;
@@ -523,6 +524,7 @@ static PIGEON_ERR_RET pigeon_wgi_create_pipeline_gl(PigeonWGIPipeline* pipeline,
 	pipeline->gl.config_shadow.depth_only = true;
 	pipeline->gl.config_shadow.depth_cmp_equal = false;
 	pipeline->gl.config_shadow.depth_bias = false;
+	
 
 #undef CLEANUP
 	return 0;

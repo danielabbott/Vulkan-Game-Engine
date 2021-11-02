@@ -23,8 +23,7 @@ uniform UniformBufferObject {
     mat4 proj;
     mat4 viewProj;
     vec2 viewport_size;
-    float one_pixel_x;
-    float one_pixel_y;
+    vec2 one_pixel;
     float time;
     int number_of_lights;
 	float ssao_cutoff;
@@ -33,6 +32,9 @@ uniform UniformBufferObject {
     vec4 ambient;
     float znear;
     float zfar;
+    float rsvd0;
+    float rsvd1;
+    vec3 eye_position;
 } ubo;
 
 #ifndef NO_DRAW_OBJECTS
@@ -50,7 +52,8 @@ struct DrawObject {
     float texture_index; // into array texture
     
     int first_bone_index;
-    int rsvd0;
+
+    float specular_intensity;
 
     vec4 colour; // colour components should be in [0,1], alpha = luminosity
     vec4 under_colour;
