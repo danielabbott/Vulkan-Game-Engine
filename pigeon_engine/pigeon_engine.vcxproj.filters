@@ -204,6 +204,9 @@
     <ClCompile Include="src\job_system\thread.c">
       <Filter>Source Files\Job System</Filter>
     </ClCompile>
+    <ClCompile Include="src\wgi\opengl\timer_query.c">
+      <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_functions.h">
@@ -373,6 +376,9 @@
     </ClInclude>
     <ClInclude Include="include\pigeon\job_system\threading.h">
       <Filter>Header Files\Job System</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\wgi\opengl\timer_query.h">
+      <Filter>Header Files\WGI\OpenGL</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
