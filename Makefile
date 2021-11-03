@@ -122,10 +122,15 @@ all: tests
 shaders: $(OBJECTS_GLSL)
 
 IMAGE_ASSET_CONVERTER_DEPS = image_asset_converter/converter.c config_parser/parser.c
+IMAGE_ASSET_CONVERTER_CFLAGS = $(CFLAGS)
 
-$(BUILD_DIR)/image_asset_converter: $(IMAGE_ASSET_CONVERTER_DEPS)
+ifneq ($(BC7E_OBJ),)
+	IMAGE_ASSET_CONVERTER_CFLAGS += -DBC7E
+endif
+
+$(BUILD_DIR)/image_asset_converter: $(IMAGE_ASSET_CONVERTER_DEPS) $(BC7E_OBJ)
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) $^ -o $@ -lzstd -lm
+	$(CC) $(IMAGE_ASSET_CONVERTER_CFLAGS) $^ -o $@ -lzstd -lm
 
 AUDIO_ASSET_CONVERTER_DEPS = audio_asset_converter/converter.c
 

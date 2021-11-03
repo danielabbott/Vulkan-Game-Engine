@@ -11,6 +11,13 @@
 #define STB_DXT_IMPLEMENTATION
 #include <stb_dxt.h>
 
+// To enable BC7, set BC7E_OBJ on the makefile command line (points to _avx.obj)
+#ifdef BC7E
+#include <bc7e.h>
+
+struct bc7e_compress_block_params bc7_params;
+#endif
+
 typedef enum {
     RGB,
     RGBA,
@@ -24,8 +31,16 @@ const char * output_asset_file_path;
 char * output_data_file_path;
 
 OutputFormat output_format = RGB;
-bool lossy_compress = true;
 bool generate_mipmap = true;
+bool use_bc1_3 = true;
+bool use_bc5 = false;
+
+#ifdef BC7E
+bool use_bc7 = true;
+#else
+bool use_bc7 = false;
+#endif
+
 
 
 static int parse_arguments(int argc, const char ** argv)
@@ -91,16 +106,18 @@ static int parse_import_file(void)
 
     enum {
         KEY_FORMAT,
-        KEY_LOSSY_COMPRESS,
         KEY_MIPMAP,
-        // KEY_FILE,
+        KEY_NO_BC1_OR_3,
+        KEY_NO_BC5,
+        KEY_NO_BC7,
     };
 
     const char * keys[] = {
         "FORMAT",
-        "LOSSY-COMPRESS",
-        "CREATE-MIPMAP"
-        // "FILE",
+        "CREATE-MIPMAP",
+        "NO-BC1-OR-3",
+        "NO-BC5",
+        "NO-BC7"
     };
     
 
@@ -113,24 +130,39 @@ static int parse_import_file(void)
         if(key == KEY_FORMAT) {
             if(word_matches(value, "RGB")) {
                 output_format = RGB;
+                use_bc5 = false;
             }
             else if(word_matches(value, "RGBA")) {
                 output_format = RGBA;
+                use_bc5 = false;
             }
             else if(word_matches(value, "NORMAL-MAP")) {
                 output_format = NormalMap;
+                use_bc1_3 = false;
+                use_bc7 = false;
+                use_bc5 = true;
             }
             else {
                 fputs("Unknown image format\n", stderr);
                 return 1;
             }
         }
-        else if(key == KEY_LOSSY_COMPRESS) {
-            lossy_compress = true;
-        }
         else if(key == KEY_MIPMAP) {
             generate_mipmap = true;
-        }        
+        } 
+        else if(key == KEY_NO_BC1_OR_3) {
+            use_bc1_3 = false;
+        }  
+        else if(key == KEY_NO_BC5) {
+            use_bc5 = false;
+        }  
+        else if(key == KEY_NO_BC7) {
+            use_bc7 = false;
+        }    
+        else {
+            fputs("Unrecognised image configuration key\n", stderr);
+            return 1;
+        }    
     }
 
 
@@ -157,7 +189,7 @@ static int load_image_file(void ** data, int * image_width, int * image_height)
         return 1;
     }
 
-    if(image_bytes_per_channel == 4 && output_format == RGB) {
+    if(image_bytes_per_channel == 4 && output_format == RGB && use_bc1_3) {
         // Set alpha to 1.0. This is needed for the DXT(BC1) compression
 
         uint8_t* image_u8 = *data;
@@ -207,26 +239,36 @@ static int alloc_memory_and_convert_raw(
     void ** raw_data,
     void ** uncompressed_data,
     unsigned int * uncompressed_data_size,
-    void ** lossy_compressed_data,
-    unsigned int * lossy_compressed_data_size,
+    void * lossy_compressed_data[2],
+    unsigned int lossy_compressed_data_size[2],
     unsigned int * mip_levels
 )
 {
-
     if(output_format == NormalMap) {
         get_mip_map_requirements(image_width, image_height, 32, generate_mipmap,
             mip_levels, uncompressed_data_size);
-        *lossy_compressed_data_size = *uncompressed_data_size/2;
+        *lossy_compressed_data_size = use_bc5 ? *uncompressed_data_size/2 : 0;
     }
     else {
         get_mip_map_requirements(image_width, image_height, 64, generate_mipmap,
             mip_levels, uncompressed_data_size);
 
-        if(output_format == RGBA) {
-            *lossy_compressed_data_size = *uncompressed_data_size/4;
+        lossy_compressed_data_size[0] = lossy_compressed_data_size[1] = 0;
+
+        unsigned int i = 0;
+
+        if(use_bc1_3) {
+            if(output_format == RGBA) {
+                lossy_compressed_data_size[0] = *uncompressed_data_size/4;
+            }
+            else {
+                lossy_compressed_data_size[0] = *uncompressed_data_size/8;
+            }
+            i=1;
         }
-        else {
-            *lossy_compressed_data_size = *uncompressed_data_size/8;
+
+        if(use_bc7) {
+            lossy_compressed_data_size[i] = *uncompressed_data_size/4;
         }
     }
 
@@ -243,10 +285,12 @@ static int alloc_memory_and_convert_raw(
     }
     *raw_data = NULL;
 
-    if(!lossy_compress) return 0;
-
-    *lossy_compressed_data = malloc(*lossy_compressed_data_size);
-    if(!*lossy_compressed_data) return 1;
+    for(unsigned int i = 0; i < 2; i++) {
+        if(lossy_compressed_data_size[i]) {
+            lossy_compressed_data[i] = malloc(lossy_compressed_data_size[i]);
+            if(!lossy_compressed_data[i]) return 1;
+        }
+    }
 
     return 0;
 }
@@ -302,13 +346,10 @@ static void generate_uncompressed_mipmap(unsigned int image_width, unsigned int 
     }
 }
 
-static void generate_lossy_compressed_mip(void * uncompressed_data, void * lossy_compressed_data,
+static void generate_lossy_compressed_mip_non_bc7(void * uncompressed_data, void * lossy_compressed_data,
     unsigned int width, unsigned int height)
 {
-    if(!lossy_compress) return;
-
     unsigned int bytes_per_pixel = output_format == NormalMap ? 2 : 4;
-    // unsigned int bytes_per_4x4_block = output_format == NormalMap ? 32 : 64;
     unsigned int bytes_per_compressed_4x4_block = output_format == RGB ? 8 : 16;
 
     uint8_t* dst = (uint8_t *)lossy_compressed_data;
@@ -337,22 +378,90 @@ static void generate_lossy_compressed_mip(void * uncompressed_data, void * lossy
     }
 }
 
-static void generate_lossy_compressed(void * uncompressed_data, void * lossy_compressed_data,
-    unsigned int width, unsigned int height)
+
+static int generate_lossy_compressed(void * uncompressed_data_, void * lossy_compressed_data_[2],
+    unsigned int width_, unsigned int height_)
 {
-    if(!lossy_compress) return;
-    unsigned int bytes_per_pixel = output_format == NormalMap ? 2 : 4;
-    unsigned int bytes_per_compressed_4x4_block = output_format == RGB ? 8 : 16;
+    void * lossy_compressed_data[2];
+    lossy_compressed_data[0] = lossy_compressed_data_[0];
+    lossy_compressed_data[1] = lossy_compressed_data_[1];
 
-    while(width >= 4 && height >= 4) {
-        generate_lossy_compressed_mip(uncompressed_data, lossy_compressed_data, width, height);
+    for(unsigned int i = 0; i < 2; i++) {
+        unsigned int width = width_, height = height_;
+        void * uncompressed_data = uncompressed_data_;
 
-        uncompressed_data = (void *)((uintptr_t)uncompressed_data + width*height*bytes_per_pixel);
-        lossy_compressed_data = (void *)((uintptr_t)lossy_compressed_data + 
-            ((width*height)/16)*bytes_per_compressed_4x4_block);
-        width /= 2;
-        height /= 2;
+        unsigned int bytes_per_pixel = output_format == NormalMap ? 2 : 4;
+        unsigned int bytes_per_compressed_4x4_block;
+        bool is_bc7 = false;
+
+        if(!i) {
+            if(output_format == NormalMap) {
+                if(!use_bc5) break;
+                bytes_per_compressed_4x4_block = 16;
+            }
+            else {
+                if(!use_bc1_3 && !use_bc7) break;
+                if(use_bc1_3) {
+                    bytes_per_compressed_4x4_block = output_format == RGB ? 8 : 16;
+                }
+                else {
+                    is_bc7 = true;
+                    bytes_per_compressed_4x4_block = 16;
+                }
+            }
+        }
+        else {
+            if(!use_bc7 || !use_bc1_3) break;
+            is_bc7 = true;
+            bytes_per_compressed_4x4_block = 16;
+        }
+
+        if(!lossy_compressed_data[i]) continue;
+
+        void * bc7_block_data = NULL;
+        if(is_bc7) {
+            bc7_block_data = malloc(width * height * 4);
+            if(!bc7_block_data) return 1;
+        }
+
+        while(width >= 4 && height >= 4) {
+            if(is_bc7) {
+#ifdef BC7E
+                unsigned int blocks = (width * height) / 16;
+                // Copy image data into appropriate format
+
+                uint32_t * block_data = bc7_block_data;
+                const uint32_t * src = uncompressed_data;
+
+                for(unsigned int y = 0; y < height; y += 4) {
+                    for(unsigned int x = 0; x < width; x += 4) {
+                        // Gather pixel data
+                        memcpy(&block_data[0], &src[(y*width + x)], 4*4);
+                        memcpy(&block_data[4], &src[((y+1)*width + x)], 4*4);
+                        memcpy(&block_data[4*2], &src[((y+2)*width + x)], 4*4);
+                        memcpy(&block_data[4*3], &src[((y+3)*width + x)], 4*4);
+
+                        block_data += 16;
+                    }
+                }
+                
+                bc7e_compress_blocks_avx(blocks, (uint64_t *)lossy_compressed_data[i],
+                    (const uint32_t *) bc7_block_data, &bc7_params);
+#endif
+            }
+            else {
+                generate_lossy_compressed_mip_non_bc7(uncompressed_data, lossy_compressed_data[i], width, height);
+            }
+
+            uncompressed_data = (void *)((uintptr_t)uncompressed_data + width*height*bytes_per_pixel);
+            lossy_compressed_data[i] = (void *)((uintptr_t)lossy_compressed_data[i] + 
+                ((width*height)/16)*bytes_per_compressed_4x4_block);
+            width /= 2;
+            height /= 2;
+        }
+        if(is_bc7) free(bc7_block_data);
     }
+    return 0;
 }
 
 static int do_zstd_compress(FILE * f, void * data_in, unsigned int data_in_size, bool * zstd,
@@ -392,7 +501,7 @@ static int do_zstd_compress(FILE * f, void * data_in, unsigned int data_in_size,
 }
 
 static int save_files(void * uncompressed_data, unsigned int uncompressed_data_length,
-        void * lossy_compressed_data, unsigned int lossy_compressed_data_size_bytes,
+        void * lossy_compressed_data[2], unsigned int lossy_compressed_data_size_bytes[2],
     unsigned int image_width, unsigned int image_height)
 {
     FILE * data_file = fopen(output_data_file_path, "wb");
@@ -407,17 +516,22 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
     }
 
     bool uncompressed_uses_zstd = false;
-    bool lossy_compressed_uses_zstd = false;
+    bool lossy_compressed_uses_zstd[2] = {0};
 
     unsigned int uncompressed_data_length_zstd_length=0;
-    unsigned int lossy_compressed_data_length_zstd_length=0;
+    unsigned int lossy_compressed_data_length_zstd_length[2] = {0};
 
     if(do_zstd_compress(data_file, uncompressed_data, uncompressed_data_length, &uncompressed_uses_zstd,
         &uncompressed_data_length_zstd_length)) return 1;
     
-    if(lossy_compress) {
-        if(do_zstd_compress(data_file, lossy_compressed_data, lossy_compressed_data_size_bytes, 
-            &lossy_compressed_uses_zstd, &lossy_compressed_data_length_zstd_length)) return 1;
+    unsigned int subr_count = 1;
+    for(unsigned int i = 0; i < 2; i++) {
+        if(lossy_compressed_data_size_bytes[i]) {
+            if(do_zstd_compress(data_file, lossy_compressed_data[i], lossy_compressed_data_size_bytes[i], 
+                &lossy_compressed_uses_zstd[i], &lossy_compressed_data_length_zstd_length[i])) return 1;
+            subr_count++;
+        }
+        else break;
     }
 
 
@@ -429,7 +543,7 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
         output_format == NormalMap ? "RG" : (output_format == RGB ? "RGB" : "RGBA")
     );
 
-    fprintf(asset_file, "SUBRESOURCE-COUNT %u\n", lossy_compress ? 2 : 1);
+    fprintf(asset_file, "SUBRESOURCE-COUNT %u\n", subr_count);
 
     fputs("SUBRESOURCES ", asset_file);
     if(uncompressed_uses_zstd) {
@@ -438,12 +552,15 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
     else {
         fprintf(asset_file, "NONE %u", uncompressed_data_length);
     }
-    if(lossy_compress) {
-        if(lossy_compressed_uses_zstd) {
-            fprintf(asset_file, " ZSTD %u>%u", lossy_compressed_data_size_bytes, lossy_compressed_data_length_zstd_length);
+    for(unsigned int i = 0; i < 2; i++) {
+        if(!lossy_compressed_data_size_bytes[i]) break;
+
+        if(lossy_compressed_uses_zstd[i]) {
+            fprintf(asset_file, " ZSTD %u>%u", lossy_compressed_data_size_bytes[i], 
+                lossy_compressed_data_length_zstd_length[i]);
         }
         else {
-            fprintf(asset_file, " NONE %u", lossy_compressed_data_size_bytes);
+            fprintf(asset_file, " NONE %u", lossy_compressed_data_size_bytes[i]);
         }
     }
     fputc('\n', asset_file);
@@ -452,17 +569,15 @@ static int save_files(void * uncompressed_data, unsigned int uncompressed_data_l
         fputs("MIP-MAPS\n", asset_file);
     }
 
-    if(lossy_compress) {
-        if(output_format == NormalMap) {
-            fputs("BC5\n", asset_file);
-        }
-        else if (output_format == RGBA) {
+    if(use_bc5) fputs("BC5\n", asset_file);
+    if(use_bc1_3) {
+        if (output_format == RGBA) 
             fputs("BC3\n", asset_file);
-        }
-        else {
+        else 
             fputs("BC1\n", asset_file);
-        }
     }
+    if(use_bc7) fputs("BC7\n", asset_file);
+
     fputc('\n', asset_file);
 
     fclose(data_file);
@@ -477,6 +592,16 @@ int main(int argc, const char ** argv)
     if(parse_arguments(argc, argv)) return 1;
     if(parse_import_file()) return 1;
 
+    #ifdef BC7E
+    if(use_bc7) {
+        bc7e_compress_block_init_avx();
+        if(output_format == RGBA)
+            bc7e_compress_block_params_init_veryfast_avx(&bc7_params, true);
+        else
+            bc7e_compress_block_params_init_ultrafast_avx(&bc7_params, true);
+    }
+    #endif
+
     unsigned int image_width, image_height;
     void * raw_data;
 
@@ -485,20 +610,22 @@ int main(int argc, const char ** argv)
     void * uncompressed_data = NULL;
     unsigned int uncompressed_data_size = 0;
 
-    void * lossy_compressed_data = NULL;
-    unsigned int lossy_compressed_data_size_bytes = 0;
+    void * lossy_compressed_data[2] = {0};
+    unsigned int lossy_compressed_data_size_bytes[2] = {0};
 
-    unsigned int mip_levels;
+    unsigned int mip_levels = 0;
 
     if(alloc_memory_and_convert_raw(image_width, image_height, &raw_data,
         &uncompressed_data, &uncompressed_data_size,
-        &lossy_compressed_data, &lossy_compressed_data_size_bytes, &mip_levels)) return 1;
+        lossy_compressed_data, lossy_compressed_data_size_bytes, &mip_levels)) return 1;
+    
+    raw_data = NULL;
 
 
     generate_uncompressed_mipmap(image_width, image_height, uncompressed_data);
 
 
-    generate_lossy_compressed(uncompressed_data, lossy_compressed_data, image_width, image_height);
+    if(generate_lossy_compressed(uncompressed_data, lossy_compressed_data, image_width, image_height)) return 1;
 
 
     if(save_files(uncompressed_data, uncompressed_data_size, 
