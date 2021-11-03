@@ -180,7 +180,7 @@
     <ClCompile Include="src\wgi\opengl\gllimit.c" />
     <ClCompile Include="src\wgi\opengl\glshader.c" />
     <ClCompile Include="src\wgi\opengl\gltexture.c" />
-    <ClCompile Include="src\wgi\opengl\timer_query.c" />
+    <ClCompile Include="src\wgi\opengl\gltimer_query.c" />
     <ClCompile Include="src\wgi\pipeline.c" />
     <ClCompile Include="src\wgi\render.c" />
     <ClCompile Include="src\wgi\shadow.c" />

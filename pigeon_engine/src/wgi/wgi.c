@@ -140,7 +140,9 @@ PIGEON_ERR_RET pigeon_wgi_recreate_swapchain(void)
 	} 
 
     ASSERT_R1(!pigeon_wgi_create_framebuffers());
-    if(VULKAN) pigeon_wgi_set_global_descriptors();
+    if(VULKAN) {
+		pigeon_wgi_set_global_descriptors();
+	}
     ASSERT_R1(!pigeon_wgi_create_per_frame_objects());
     return 0;
 }

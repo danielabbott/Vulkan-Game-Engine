@@ -109,7 +109,7 @@ PIGEON_ERR_RET pigeon_wgi_create_per_frame_objects()
             
 
             if(pigeon_vulkan_general_queue_supports_timestamps())
-                ASSERT_R1(!pigeon_vulkan_create_timer_query_pool(&objects->timer_query_pool, PIGEON_WGI_TIMERS_COUNT));
+                ASSERT_R1(!pigeon_vulkan_create_timer_query_pool(&objects->timer_query_pool, 2*PIGEON_WGI_TIMERS_COUNT));
         
 
             // Framebuffer is specific to swapchain image - NOT current frame index mod
@@ -118,7 +118,7 @@ PIGEON_ERR_RET pigeon_wgi_create_per_frame_objects()
                 NULL, pigeon_vulkan_get_swapchain_image_view(i), &singleton_data.rp_post));
         }
         else {
-            ASSERT_R1(!pigeon_opengl_create_timer_query_group(&objects->gl.timer_queries, PIGEON_WGI_TIMERS_COUNT));
+            ASSERT_R1(!pigeon_opengl_create_timer_query_group(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMERS_COUNT));
         }
 
     }
@@ -389,7 +389,12 @@ PIGEON_ERR_RET pigeon_wgi_next_frame_poll(double delayed_timer_values[PIGEON_WGI
             memset(delayed_timer_values, 0, sizeof(double) * PIGEON_WGI_TIMERS_COUNT);
         }
         else {
-            pigeon_opengl_get_timer_query_results(&objects->gl.timer_queries, delayed_timer_values);
+            double completion_times[1+PIGEON_WGI_TIMERS_COUNT];
+            pigeon_opengl_get_timer_query_results(&objects->gl.timer_queries, completion_times);
+
+            for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++) {
+                delayed_timer_values[i] = completion_times[i+1] - completion_times[i];
+            }
         }
 
 
@@ -419,10 +424,16 @@ PIGEON_ERR_RET pigeon_wgi_next_frame_poll(double delayed_timer_values[PIGEON_WGI
     }
 
     if(!ready || *ready == true) {
+        double absolute_times[2*PIGEON_WGI_TIMERS_COUNT];
+
         if(pigeon_vulkan_general_queue_supports_timestamps() && (!objects->first_frame_submitted ||
-            pigeon_vulkan_get_timer_results(&objects->timer_query_pool, delayed_timer_values)))
+            pigeon_vulkan_get_timer_results(&objects->timer_query_pool, absolute_times)))
         {        
             memset(delayed_timer_values, 0, sizeof(double) * PIGEON_WGI_TIMERS_COUNT);
+        }
+
+        for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++) {
+            delayed_timer_values[i] = absolute_times[2*i+1] - absolute_times[2*i];
         }
     }
 
@@ -532,8 +543,8 @@ PIGEON_ERR_RET pigeon_wgi_start_frame(unsigned int max_draws,
 
         *bone_matrices = (PigeonWGIBoneMatrix *) (void *) dst;
 
-        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_START);
-        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_UPLOAD_DONE); // not used for opengl
+        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 0);
+        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_UPLOAD); // not used for opengl
     }    
 
     return 0;
@@ -608,7 +619,7 @@ static PIGEON_ERR_RET pigeon_wgi_start_command_buffer_gl(PigeonWGICommandBuffer 
 
     if(command_buffer == &objects->depth_command_buffer) {
 
-        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_SHADOW_MAPS_DONE);
+        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_SHADOW_MAPS);
 
         pigeon_opengl_bind_framebuffer(&singleton_data.gl.depth_framebuffer);
         pigeon_opengl_clear_depth();
@@ -621,7 +632,7 @@ static PIGEON_ERR_RET pigeon_wgi_start_command_buffer_gl(PigeonWGICommandBuffer 
         pigeon_opengl_clear_depth();
     }
     else if(command_buffer == &objects->render_command_buffer) {
-        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE);
+        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_DEPTH_PREPASS);
 
         PigeonWGISwapchainInfo sc_info = pigeon_wgi_get_swapchain_info();
         
@@ -638,7 +649,7 @@ static PIGEON_ERR_RET pigeon_wgi_start_command_buffer_gl(PigeonWGICommandBuffer 
         pigeon_opengl_set_draw_state(&singleton_data.gl.full_screen_tri_cfg);
         pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
 
-        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_SSAO_DONE);
+        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_SSAO);
 
 
         // SSAO downscale
@@ -679,7 +690,7 @@ static PIGEON_ERR_RET pigeon_wgi_start_command_buffer_gl(PigeonWGICommandBuffer 
             pigeon_opengl_bind_texture(1, &singleton_data.shadow_images[1].gltex2d);  
         pigeon_opengl_bind_texture(5, &singleton_data.ssao_images[1].gltex2d);     
 
-        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_SSAO_BLUR_DONE);  
+        pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_SSAO_BLUR);  
     }
     else {
         ASSERT_R1(false);
@@ -1004,7 +1015,7 @@ PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer * command_bu
         PigeonWGISwapchainInfo sc_info = pigeon_wgi_get_swapchain_info();
 
         if(command_buffer == &objects->render_command_buffer) {
-            pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_RENDER_DONE);
+            pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_RENDER);
             pigeon_opengl_set_draw_state(&singleton_data.gl.full_screen_tri_cfg);
 
             if(singleton_data.render_cfg.bloom) {
@@ -1086,7 +1097,7 @@ PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer * command_bu
 
 
             }
-            pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_BLOOM_BLUR_DONE);
+            pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_BLOOM_BLUR);
 
             pigeon_opengl_bind_framebuffer(NULL);
             pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_post);
@@ -1102,7 +1113,7 @@ PIGEON_ERR_RET pigeon_wgi_end_command_buffer(PigeonWGICommandBuffer * command_bu
 
             pigeon_opengl_draw(&singleton_data.gl.empty_vao, 0, 3);
 
-            pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, PIGEON_WGI_TIMER_POST_PROCESS_DONE);            
+            pigeon_opengl_set_timer_query_value(&objects->gl.timer_queries, 1+PIGEON_WGI_TIMER_POST_PROCESS);            
         }
     }
     return 0;
@@ -1129,7 +1140,6 @@ static void use_secondary_command_buffer(PigeonVulkanCommandPool * primary, unsi
 
 }
 
-
 PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
 {
     if(OPENGL) return 0;
@@ -1150,7 +1160,7 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
         pigeon_vulkan_reset_query_pool(p, 0, &objects->timer_query_pool);
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_START);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_UPLOAD);
     }
 
     if(objects->upload_command_buffer.has_been_recorded) {
@@ -1163,7 +1173,8 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
     }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_UPLOAD_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_UPLOAD);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_SHADOW_MAPS);
     }
 
 
@@ -1188,7 +1199,8 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
     }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SHADOW_MAPS_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_SHADOW_MAPS);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_DEPTH_PREPASS);
     }
 
 
@@ -1201,7 +1213,8 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
     pigeon_vulkan_wait_for_depth_write(p, 0, &singleton_data.depth_image.image);
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_DEPTH_PREPASS);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_SSAO);
     }
 
 
@@ -1227,7 +1240,8 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
     }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_SSAO);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_SSAO_BLUR);
     }
 
 	if(singleton_data.render_cfg.ssao) {
@@ -1276,7 +1290,7 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec_sub0(void)
     }
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_SSAO_BLUR_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_SSAO_BLUR);
     }
 
 
@@ -1302,6 +1316,9 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec1(void)
     ASSERT_R1(!pigeon_vulkan_reset_command_pool(p));
     ASSERT_R1 (!pigeon_vulkan_start_submission(p, 0));
 
+    if(pigeon_vulkan_general_queue_supports_timestamps()) {
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_RENDER);
+    }
 
     use_secondary_command_buffer(p, 0,
         &objects->render_command_buffer, &singleton_data.rp_render,
@@ -1310,7 +1327,7 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec1(void)
     
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_RENDER_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_RENDER);
     }
     return 0;
 }
@@ -1322,7 +1339,6 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void)
     PigeonWGISwapchainInfo sc_info = pigeon_wgi_get_swapchain_info();
     PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
     
-    // TODO don't rerecord each time
 
     PigeonVulkanCommandPool * p = &objects->primary_command_pools[2];
     ASSERT_R1(!pigeon_vulkan_reset_command_pool(p));
@@ -1338,7 +1354,10 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void)
         unsigned int dst_w = src_w / 2;
         unsigned int dst_h = src_h / 2;
 
-        pigeon_vulkan_wait_for_colour_write(p, 0, &singleton_data.render_image.image);
+
+        if(pigeon_vulkan_general_queue_supports_timestamps()) {
+            pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_BLOOM_BLUR);
+        }
 
         for(unsigned int i = 0; i < 3; i++) {
             float downscale_pushc[3] = {
@@ -1416,7 +1435,8 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void)
 
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_BLOOM_BLUR_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_BLOOM_BLUR);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 2*PIGEON_WGI_TIMER_POST_PROCESS);
     }
 
 
@@ -1439,7 +1459,7 @@ PIGEON_ERR_RET pigeon_wgi_present_frame_rec2(void)
     pigeon_vulkan_end_render_pass(p, 0);
 
     if(pigeon_vulkan_general_queue_supports_timestamps()) {
-        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, PIGEON_WGI_TIMER_POST_PROCESS_DONE);
+        pigeon_vulkan_set_timer(p, 0, &objects->timer_query_pool, 1+2*PIGEON_WGI_TIMER_POST_PROCESS);
     }
 
     return 0;

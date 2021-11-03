@@ -204,7 +204,7 @@
     <ClCompile Include="src\job_system\thread.c">
       <Filter>Source Files\Job System</Filter>
     </ClCompile>
-    <ClCompile Include="src\wgi\opengl\timer_query.c">
+    <ClCompile Include="src\wgi\opengl\gltimer_query.c">
       <Filter>Source Files\WGI\OpenGL</Filter>
     </ClCompile>
   </ItemGroup>

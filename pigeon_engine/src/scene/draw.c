@@ -713,6 +713,7 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
 
 
         job_array_list.size = 2;
+        pigeon_array_list_zero(&job_array_list);
         i = 0;
 
         jobs[i].function = job_call_function;
@@ -729,6 +730,7 @@ PIGEON_ERR_RET pigeon_draw_frame(PigeonTransform * camera_, bool debug_disable_s
 
         assert(job_array_list.capacity >= 2);
         job_array_list.size = 2;
+        pigeon_array_list_zero(&job_array_list);
 
         jobs[0].function = job_call_function;
         jobs[0].arg1 = (void *) pigeon_wgi_present_frame_rec1;

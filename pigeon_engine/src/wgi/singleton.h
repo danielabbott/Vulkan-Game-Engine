@@ -71,12 +71,16 @@ typedef struct PerFrameData {
 
 			PigeonVulkanSemaphore semaphores[3][2];
 
+			// For Post-process
 			PigeonVulkanSemaphore swapchain_acquire_semaphore;
 
+			// 2 timer values for every render stage- before & after
 			PigeonVulkanTimerQueryPool timer_query_pool;
 		};
 		struct {
 			PigeonOpenGLBuffer uniform_buffer;
+
+			// start time value + 1 timer value for every render stage (time at completion)
 			PigeonOpenGLTimerQueryGroup timer_queries;
 		} gl;
 	};
@@ -157,6 +161,11 @@ typedef struct SingletonData
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool0;
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool1;
 			PigeonVulkanDescriptorPool post_process_descriptor_pool;
+
+
+			// ssao, bloom, post-processing
+			// None are dependant on draw objects etc.
+			PigeonVulkanCommandPool reusable_command_buffers;
 		};
 		struct {
 			PigeonOpenGLTexture default_1px_white_texture_image;

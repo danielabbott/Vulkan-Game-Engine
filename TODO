@@ -1,14 +1,12 @@
-Fix smooth shadow glitches
 Unit tests
-Better job system (dependency chains)
+Better job system (dependency chains, load balancing)
 Refactoring
-Optimise vulkan (performance is slightly worse than OpenGL)
+Optimise vulkan (performance is worse than OpenGL)
 Scene files
 GUI & editor
 Animation blending, procedural animation
 Cascaded shadow maps
 Multiplayer networking
-Better bloom
 BC7
 Asset packaging
 Mobile renderer

@@ -897,7 +897,7 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 {
 	static double values[PIGEON_WGI_TIMERS_COUNT];
 	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
-		values[i] += delayed_timer_values[i] - delayed_timer_values[0];
+		values[i] += delayed_timer_values[i];
 
 	static double cpu_frame_time_sum = 0;
 	cpu_frame_time_sum += cpu_frame_time;
@@ -909,19 +909,23 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 		return;
 	}
 
-	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
+	double total = 0;
+
+	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++) {
 		values[i] /= 300.0;
+		total += values[i];
+	}
 
 	printf("Render time statistics (300-frame average):\n");
-	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE] - values[PIGEON_WGI_TIMER_UPLOAD_DONE]);
-	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE] - values[PIGEON_WGI_TIMER_SHADOW_MAPS_DONE]);
-	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO_DONE] - values[PIGEON_WGI_TIMER_DEPTH_PREPASS_DONE]);
-	printf("\tSSAO Blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE] - values[PIGEON_WGI_TIMER_SSAO_DONE]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER_DONE] - values[PIGEON_WGI_TIMER_SSAO_BLUR_DONE]);
-	printf("\tBloom Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE] - values[PIGEON_WGI_TIMER_RENDER_DONE]);
-	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_BLOOM_BLUR_DONE]);
-	printf("Total: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] - values[PIGEON_WGI_TIMER_START]);
+	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD]);
+	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS]);
+	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS]);
+	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO]);
+	printf("\tSSAO Blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER]);
+	printf("\tBloom Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_BLUR]);
+	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS]);
+	printf("GPU time: %f\n", total);
 	printf("CPU time: %f\n", cpu_frame_time_sum / 300.0);
 
 	frame_counter = 0;
@@ -1035,7 +1039,7 @@ static PIGEON_ERR_RET game_loop(void)
 		ASSERT_R1(!pigeon_wgi_next_frame_wait(delayed_timer_values));
 
 		
-		if(delayed_timer_values[0] > 0.0 || delayed_timer_values[PIGEON_WGI_TIMER_POST_PROCESS_DONE] > 0.0)
+		if(delayed_timer_values[0] > 0.0 || delayed_timer_values[PIGEON_WGI_TIMER_POST_PROCESS] > 0.0)
 			print_timer_stats(delayed_timer_values, cpu_frame_time);
 
 		float time_now = pigeon_wgi_get_time_seconds();
