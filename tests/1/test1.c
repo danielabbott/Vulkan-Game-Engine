@@ -17,6 +17,7 @@
 #include <cglm/quat.h>
 #include <cglm/affine.h>
 #include <cglm/euler.h>
+#include <config_parser_test.h>
 
 #ifdef NDEBUG
 	#define SHADER_PATH_PREFIX "build/release/standard_assets/shaders/"
@@ -769,7 +770,7 @@ static void create_pipeline_cleanup(uint32_t *spv_data[4], PigeonWGIShader shade
 
 
 static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
-	const char * shader_paths[4][2], PigeonWGIRenderStage shader_stages[6], 
+	const char * shader_paths[4][2], PigeonWGIRenderStage shader_stages[4], 
 	PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
 {
 
@@ -1116,8 +1117,7 @@ static PIGEON_ERR_RET game_loop(void)
 
 int main(void)
 {
-	
-
+	ASSERT_R1(!pigeon_test_config_parser());
 
 	ASSERT_R1(!start());
 	ASSERT_R1(!load_assets());

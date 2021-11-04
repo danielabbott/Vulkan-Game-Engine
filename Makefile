@@ -7,7 +7,7 @@ DEBUG ?= 0
 # Run with make CC=clang to force usage of clang
 CC ?= clang
 
-CFLAGS_COMMON = -std=c11 -MMD -Wall -Wextra \
+CFLAGS_COMMON = -std=gnu11 -MMD -Wall -Wextra \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
 -Wunused-macros -Wcast-align -Werror=incompatible-pointer-types \
@@ -26,7 +26,7 @@ endif
 
 CFLAGS = $(CFLAGS_COMMON)
 
-LDFLAGS = -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -ldl -lm -lc -fuse-ld=lld
+LDFLAGS = -lcrypto -lssl -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -ldl -lm -lc -fuse-ld=lld
 
 # -- GLSL CONFIG --
 
@@ -71,12 +71,14 @@ $(SOURCES_FRAG:%=build/%)
 
 
 
-SOURCES = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
+SOURCES_NO_TESTS = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
 $(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/wgi/opengl/*.c) \
 $(wildcard pigeon_engine/src/scene/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
-$(wildcard pigeon_engine/src/job_system/*.c) \
-$(wildcard tests/1/*.c) config_parser/parser.c deps/glad.c
-OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
+$(wildcard pigeon_engine/src/job_system/*.c) $(wildcard pigeon_engine/src/network/*.c) \
+config_parser/parser.c deps/glad.c
+
+OBJECTS_NO_TESTS = $(SOURCES_NO_TESTS:%.c=$(BUILD_DIR)/%.o)
+
 
 
 DEPS = $(OBJECTS:%.o=%.d) $(OBJECTS_GLSL:%=%.d)
@@ -113,11 +115,14 @@ ASSET_FILES_TEXTURES = $(ASSETS_SRC_IMAGES:%=build/%.asset)
 ASSET_FILES_MODELS = $(ASSETS_SRC_MODELS:%=build/%.asset)
 ASSET_FILES_AUDIO = $(ASSETS_SRC_AUDIO:%=build/%.asset)
 
-ASSET_FILES = $(ASSET_FILES_TEXTURES) $(ASSET_FILES_MODELS) $(ASSET_FILES_AUDIO)
+ASSET_FILES = $(ASSET_FILES_TEXTURES) $(ASSET_FILES_MODELS) $(ASSET_FILES_AUDIO) build/standard_assets/ca-certificates.crt
 
 # -- RULES --
 
 all: tests
+
+build/standard_assets/ca-certificates.crt: standard_assets/ca-certificates.crt
+	ln -sf ../../$< $@
 
 shaders: $(OBJECTS_GLSL)
 
@@ -139,11 +144,7 @@ $(BUILD_DIR)/audio_asset_converter: $(AUDIO_ASSET_CONVERTER_DEPS)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 
-ifeq ($(DEBUG), 1)
-tests: $(BUILD_DIR)/test1 $(OBJECTS_GLSL) $(ASSET_FILES) build/debug/parser_test
-else
-tests: $(BUILD_DIR)/test1 $(OBJECTS_GLSL) $(ASSET_FILES)
-endif
+tests: $(BUILD_DIR)/test1 $(BUILD_DIR)/nettest $(OBJECTS_GLSL) $(ASSET_FILES)
 
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(@D)
@@ -209,13 +210,13 @@ $(BUILD_DIR)/standard_assets/shaders/kawase_light.frag.4.spv: standard_assets/sh
 
 -include $(DEPS)
 
-$(BUILD_DIR)/test1: $(OBJECTS)
+$(BUILD_DIR)/test1: $(OBJECTS_NO_TESTS) $(BUILD_DIR)/tests/1/test1.o
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-build/debug/parser_test: $(wildcard config_parser/*.c)
+$(BUILD_DIR)/nettest: $(OBJECTS_NO_TESTS) $(BUILD_DIR)/tests/network/test_network.o
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS_COMMON) -DDEBUG -g -O0 $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 
 $(ASSET_FILES_TEXTURES): build/%.asset: % %.import $(IMAGE_ASSET_CONVERTER_DEPS) | $(BUILD_DIR)/image_asset_converter

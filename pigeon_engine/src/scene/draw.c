@@ -178,12 +178,14 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
 
     /* Vertex meta & matrices */
 
-    const vec4* model_matrix = &t->world_transform_cache[0];
+    #define model_matrix t->world_transform_cache
 
 	glm_mat4_mul(scene_uniform_data.proj_view, (vec4*)model_matrix, data->proj_view_model[0]);
     pigeon_wgi_set_object_shadow_mvp_uniform(data, (vec4*)model_matrix);
 	memcpy(data->model, model_matrix, 64);
 	pigeon_wgi_get_normal_model_matrix(model_matrix, data->normal_model_matrix);
+
+    #undef model_matrix
     
 
 	memcpy(data->position_min, model->model_asset->mesh_meta.bounds_min, 3 * 4);

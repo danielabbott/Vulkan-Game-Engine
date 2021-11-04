@@ -159,19 +159,19 @@ static PIGEON_ERR_RET create_vk_instance(void)
 
 	createInfo.ppEnabledExtensionNames = glfwGetRequiredInstanceExtensions(&createInfo.enabledExtensionCount);
 
-#ifndef NDEBUG
+#ifdef DEBUG
 	bool validation_ext = false;
 
-	VkValidationFeaturesEXT validation_features = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
-	VkValidationFeatureEnableEXT validation_features_list[1] = {
-		// VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, // requires spir-v 1.1 (vk1.1)
-		// VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
-		// VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
-		VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
-		// VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
-	};
-	validation_features.enabledValidationFeatureCount = (sizeof validation_features_list) / sizeof(VkValidationFeatureEnableEXT);
-	validation_features.pEnabledValidationFeatures = validation_features_list;
+	// VkValidationFeaturesEXT validation_features = { VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+	// VkValidationFeatureEnableEXT validation_features_list[1] = {
+	// 	// VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, // requires spir-v 1.1 (vk1.1)
+	// 	// VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+	// 	// VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+	// 	VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+	// 	// VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+	// };
+	// validation_features.enabledValidationFeatureCount = (sizeof validation_features_list) / sizeof(VkValidationFeatureEnableEXT);
+	// validation_features.pEnabledValidationFeatures = validation_features_list;
 
 	if (validation_layers_available(&validation_ext)) {
 		createInfo.enabledLayerCount = 1;

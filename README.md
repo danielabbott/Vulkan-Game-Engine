@@ -15,6 +15,7 @@ Different versions will probably work fine.
 - zstd 1.5.0
 - Blender 2.92.0
 - OpenAL 1.1
+- OpenSSL 1.1.1l
 - stb_image.h (included)
 - stb_dxt.h (included)
 - stb_vorbis.c (included)

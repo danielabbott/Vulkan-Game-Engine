@@ -32,7 +32,7 @@ void pigeon_join_thread(PigeonThread thread)
 PigeonThread pigeon_start_thread(PigeonThreadFunction f, void* arg0)
 {
     PigeonThread thread;
-	ASSERT_R0(!pthread_create ((unsigned long *) &thread, NULL, (void * (*)(void *))f, (void *) arg0));
+	ASSERT_R0(!pthread_create ((unsigned long *) &thread, NULL, (void *(*)(void *)) (void *)f, (void *) arg0));
 	return thread;
 }
 
