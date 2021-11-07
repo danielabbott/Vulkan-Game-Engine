@@ -9,6 +9,7 @@ typedef struct PigeonWGIMaterialImport
     unsigned int count;
 
     float colour[3];
+    float specular;
 
     char * texture;
     char * normal_map_texture;

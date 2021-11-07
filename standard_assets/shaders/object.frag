@@ -145,7 +145,7 @@ vec3 apply_lighting(vec2 tex_coord, float intensities[4]) {
             vec4 shadow_xyzw = light.shadow_proj_view * vec4(pass_position_world_space, 1.0);
             vec2 abs_xy = abs(shadow_xyzw.xy);
             shadow_xyzw.xy = shadow_xyzw.xy*0.5 + vec2(0.5);
-            shadow_xyzw.z += 0.002; // bias
+            shadow_xyzw.z += 0.001; // bias
 #ifndef VULKAN
             shadow_xyzw.y = 1.0 - shadow_xyzw.y;
 #endif
@@ -156,7 +156,9 @@ vec3 apply_lighting(vec2 tex_coord, float intensities[4]) {
 
                 if(SC_SHADOW_TYPE == SHADOW_TYPE_NOISY) {
                     vec2 o = vec2(mod(random_value, 1.0), mod(random_value * 10.0, 1.0)) * 4 - vec2(2.0);
-                    shadow = sample_shadow_map(i, vec3(shadow_xyzw.xy + o*shadow_texture_offset, shadow_xyzw.z));
+                    float d = shadow_xyzw.z;
+                    if(o.x+o.y >= 2.0) d += 0.0005;
+                    shadow = sample_shadow_map(i, vec3(shadow_xyzw.xy + o*shadow_texture_offset, d));
                 }
                 else if(SC_SHADOW_TYPE == SHADOW_TYPE_PCF4) {
                     for (float y = -0.5; y <= 0.5; y += 1.0) {   
@@ -170,12 +172,13 @@ vec3 apply_lighting(vec2 tex_coord, float intensities[4]) {
                     for (float y = -1.5; y <= 1.5; y += 1.0) {   
                         for (float x = -1.5; x <= 1.5; x += 1.0) {
                             float d = shadow_xyzw.z;
-                            if(abs(y) == 1.5 || abs(x) == 1.5) d += 0.001;
+                            if(abs(y) == 1.5 || abs(x) == 1.5) d += 0.0005;
                             shadow += sample_shadow_map(i, vec3(shadow_xyzw.xy + vec2(x,y) * shadow_texture_offset, d));
                         }
                     }
                     shadow /= 16.0; 
                 }
+                shadow *= shadow;
                 intensity *= shadow;
                 #undef shadow_texture_offset
             }

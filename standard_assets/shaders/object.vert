@@ -123,7 +123,7 @@ LOCATION(6) out vec3 pass_position_world_space;
 
 layout(push_constant) uniform PushConstantsObject
 {
-	int draw_index_offset;
+	int draw_index_offset; // for non-multidraw
     int model_view_proj_index;
 } push_constants;
 

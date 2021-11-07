@@ -273,13 +273,15 @@ def get_mesh_data(flat_shading, export_tangents):
             self.flat_colour = flat_colour
             self.texture = ''
             self.normal_texture = ''
+            self.specular = 0
 
         def is_equiv(self, mat2):
             return self.colour[0] == mat2.colour[0] and self.colour[1] == mat2.colour[1]\
                 and self.colour[2] == mat2.colour[2] and self.texture == mat2.texture\
                 and self.flat_colour[0] == mat2.flat_colour[0] and self.flat_colour[1] == mat2.flat_colour[1]\
                 and self.flat_colour[2] == mat2.flat_colour[2]\
-                and self.normal_texture == mat2.normal_texture
+                and self.normal_texture == mat2.normal_texture\
+                and self.specular == mat2.specular
 
     materials = []
     blender_material_ref_to_materials_index = {}
@@ -300,6 +302,8 @@ def get_mesh_data(flat_shading, export_tangents):
             m.flat_colour[1] = colour_input.default_value[1]
             m.flat_colour[2] = colour_input.default_value[2]
             m.colour = m.flat_colour
+
+            m.specular = bsdf.inputs['Specular'].default_value
 
             if len(colour_input.links) > 0:
                 texture_node = colour_input.links[0].from_node
@@ -326,7 +330,7 @@ def get_mesh_data(flat_shading, export_tangents):
 
 
         materials.append(m)
-        blender_material_ref_to_materials_index[mat] = m
+        blender_material_ref_to_materials_index[mat] = materials[-1]
 
     
     default_mat = Material('Default Material', [0.8, 0.8, 0.8], [0.8, 0.8, 0.8])
@@ -399,7 +403,6 @@ def get_mesh_data(flat_shading, export_tangents):
                     tangent.normalize()
                     tangent = switch_coord_system(tangent)
                     bitangent_sign = obj.blender_object.data.loops[loop_index].bitangent_sign
-
 
                     if vertex.uv is None:
                         vertex.uv = uv
@@ -606,6 +609,8 @@ export_uv, export_tangents, loop_animations):
                 asset_text_file += 'TEXTURE ' + m.texture + '\n'
             if m.normal_texture != '':
                 asset_text_file += 'NORMAL-MAP ' + m.normal_texture + '\n'
+            asset_text_file += 'SPECULAR ' + str(m.specular) + '\n'
+            
 
     if len(bones) > 0:
         asset_text_file += 'BONES-COUNT ' + str(len(bones)) + '\n'

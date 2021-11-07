@@ -850,17 +850,14 @@ void pigeon_wgi_multidraw_draw(unsigned int multidraw_draw_index, unsigned int s
 
 void pigeon_wgi_multidraw_submit(PigeonWGIRenderStage stage,
     PigeonWGIPipeline* pipeline, PigeonWGIMultiMesh* mesh,
-    uint32_t first_multidraw_index, uint32_t multidraw_count, uint32_t first_draw_index, uint32_t draws)
+    uint32_t first_multidraw_index, uint32_t multidraw_count)
 {
-    if(!draws) return;
-
     if(!VULKAN) {
         assert(false);
         return;
     }
 
     assert(pipeline && pipeline->pipeline && mesh && mesh->staged_buffer);
-    assert(first_draw_index + draws <= singleton_data.max_draws);
     assert(first_multidraw_index + multidraw_count <= singleton_data.max_multidraw_draws);
     assert(mesh->index_count && mesh->vertex_count);
 
@@ -875,7 +872,7 @@ void pigeon_wgi_multidraw_submit(PigeonWGIRenderStage stage,
     o += round_up(sizeof(PigeonWGIDrawObject) * singleton_data.max_draws, align);
 
     const PigeonWGIRenderStageInfo * info = &singleton_data.stages[stage];
-    uint32_t pushc[2] = {first_draw_index, info->mvp_index};
+    uint32_t pushc[2] = {0, info->mvp_index};
 
     pigeon_vulkan_multidraw_indexed(&objects->command_pools[stage], 0, 
         vpipeline, sizeof pushc, &pushc,

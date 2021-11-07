@@ -211,7 +211,7 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
     }
 
 	data->first_bone_index = mr->animation_state ? mr->animation_state->_first_bone_index : UINT32_MAX;
-    data->specular_intensity = mr->specular_intensity * 10.0f;
+    data->specular_intensity = mr->specular_intensity * model->model_asset->materials[model->material_index].specular * 10.0f;
 
     memcpy(data->colour, mr->colour, 3 * 4);
     data->luminosity = mr->luminosity;
@@ -558,9 +558,7 @@ static void multi_draw_per_rs(void * rs_, void * arg0)
             rs->pipeline,
             rs->mesh,
             rs->_start_multidraw_index,
-            rs->_multidraws,
-            rs->_start_draw_index,
-            rs->_draws
+            rs->_multidraws
         );
     }
 }

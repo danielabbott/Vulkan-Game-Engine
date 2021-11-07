@@ -23,5 +23,5 @@ void pigeon_wgi_multidraw_draw(unsigned int multidraw_draw_index, unsigned int s
     uint32_t first, uint32_t count, uint32_t first_instance);
 
 void pigeon_wgi_multidraw_submit(PigeonWGIRenderStage, PigeonWGIPipeline*, PigeonWGIMultiMesh*,
-    uint32_t first_multidraw_index, uint32_t multidraw_count, uint32_t first_draw_index, uint32_t draws);
+    uint32_t first_multidraw_index, uint32_t multidraw_count);
 

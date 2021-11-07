@@ -28,6 +28,7 @@ enum {
     KEY_COUNT,
     KEY_TEXTURE,
     KEY_NORMAL_MAP,
+    KEY_SPECULAR,
     KEY_BONES_COUNT,
     KEY_BONE,
     KEY_HEAD,
@@ -80,6 +81,7 @@ const char * keys[] = {
     "COUNT",
     "TEXTURE",
     "NORMAL-MAP",
+    "SPECULAR",
     "BONES-COUNT",
     "BONE",
     "HEAD",
@@ -433,12 +435,16 @@ PIGEON_ERR_RET pigeon_load_asset_meta(PigeonAsset * asset, const char * meta_fil
         else if (key == KEY_NORMAL_MAP) {
             MATERIAL_CHECKS();
 
-
             char * s = copy_string_to_whitespace_to_malloc(value);
             ASSERT_R1(*s);
             asset->materials[material_index].normal_map_texture = s;
         }
+        else if (key == KEY_SPECULAR) {
+            MATERIAL_CHECKS();
+            asset->materials[material_index].specular = strtof(value, (char**)&value);
+        }
         #undef MATERIAL_CHECKS
+
         else if (key == KEY_BONES_COUNT) {
             CHECK_TYPE(PIGEON_ASSET_TYPE_MODEL); 
 
