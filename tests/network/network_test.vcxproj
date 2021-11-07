@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{cc7bb017-7984-4422-92a5-6d2b6fa7125d}</ProjectGuid>
-    <RootNamespace>imageassetconverter</RootNamespace>
+    <ProjectGuid>{17368654-6C13-4A8C-ABF5-D3DE293E2AA6}</ProjectGuid>
+    <RootNamespace>network_test</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -62,12 +62,14 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
-      <AdditionalIncludeDirectories>..\deps;..\config_parser</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\deps;..\..\pigeon_engine\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\..\x64\Debug;%VULKAN_SDK%\Lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>pigeon_engine.lib;Ws2_32.lib;libssl.lib;libcrypto.lib;Crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -79,7 +81,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
-      <AdditionalIncludeDirectories>..\deps;..\config_parser</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\deps;..\..\pigeon_engine\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -87,14 +89,19 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\..\x64\Release;%VULKAN_SDK%\Lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>pigeon_engine.lib;Ws2_32.lib;libssl.lib;libcrypto.lib;Crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="converter.c" />
+    <ClCompile Include="test_network.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\config_parser\config_parser.vcxproj">
+    <ProjectReference Include="..\..\config_parser\config_parser.vcxproj">
       <Project>{b0ad6c99-03fb-429b-ab14-a0196a1d9c6d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\pigeon_engine\pigeon_engine.vcxproj">
+      <Project>{f7e38ec1-9c0c-44ad-8f42-3ab65a8bdeea}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

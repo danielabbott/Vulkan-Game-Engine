@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <pigeon/util.h>
 
+PIGEON_ERR_RET pigeon_init_sockets_api(void);
+void pigeon_deinit_sockets_api(void);
+
 typedef uint16_t PigeonNetworkPort;
 
 typedef enum {
@@ -13,10 +16,11 @@ typedef enum {
 
 typedef struct PigeonNetworkSocket
 {
-    union {
-        void * handle;
-        int id;
-    };
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+    uintptr_t handle;
+#else
+    int handle;
+#endif
 
     PigeonNetworkProtocol protocol;
     PigeonNetworkPort port;

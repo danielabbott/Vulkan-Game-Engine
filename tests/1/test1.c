@@ -197,11 +197,7 @@ static PIGEON_ERR_RET start(void)
 	pigeon_wgi_set_key_callback(key_callback);
 	pigeon_wgi_set_mouse_button_callback(mouse_callback);
 
-	if (pigeon_audio_init())
-	{
-		pigeon_wgi_deinit();
-		return 1;
-	}
+	(void)pigeon_audio_init();
 
 	start_time = pigeon_wgi_get_time_seconds_double();
 

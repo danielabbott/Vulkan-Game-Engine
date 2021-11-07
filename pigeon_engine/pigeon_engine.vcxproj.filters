@@ -52,6 +52,12 @@
     <Filter Include="Source Files\Job System">
       <UniqueIdentifier>{5f990be0-b4a0-4d6f-8fda-b9cda2432175}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Network">
+      <UniqueIdentifier>{36f78b8e-3691-4ec7-aa38-00ba04484211}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Network">
+      <UniqueIdentifier>{0a2413be-68de-4572-9844-b2ada4e71f0b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\array_list.c">
@@ -206,6 +212,12 @@
     </ClCompile>
     <ClCompile Include="src\wgi\opengl\gltimer_query.c">
       <Filter>Source Files\WGI\OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\network.c">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network\tls.c">
+      <Filter>Source Files\Network</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -379,6 +391,18 @@
     </ClInclude>
     <ClInclude Include="include\pigeon\wgi\opengl\timer_query.h">
       <Filter>Header Files\WGI\OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\network\http.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\network\socket.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pigeon\network\tls.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network\tls.h">
+      <Filter>Source Files\Network</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

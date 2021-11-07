@@ -6,9 +6,10 @@
 static SSL_CTX* openssl_context;
 static const SSL_METHOD* method;
 
-PIGEON_ERR_RET pigeon_init_openssl(void);
 PIGEON_ERR_RET pigeon_init_openssl(void)
 {
+    if (openssl_context) return 0;
+
 #define OPENSSL_ASSERT_R1(x) \
     { \
         if(!(x)) { \
@@ -131,7 +132,6 @@ PIGEON_ERR_RET pigeon_network_client_tls_send_blocking(PigeonNetworkClientTLSCon
 }
 
 
-void pigeon_deinit_openssl(void);
 void pigeon_deinit_openssl(void)
 {
     if(openssl_context) {

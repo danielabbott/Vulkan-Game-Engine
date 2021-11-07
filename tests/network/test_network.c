@@ -19,7 +19,6 @@ while(True):
 
 #include <pigeon/assert.h>
 #include <pigeon/util.h>
-#include <pigeon/pigeon.h>
 #include <pigeon/network/socket.h>
 #include <pigeon/network/tls.h>
 #include <pigeon/network/http.h>
@@ -45,6 +44,7 @@ static int test_tcp(void)
     puts("The HTTP response for the main page of example.com should be shown below:");
 
     char * recv = malloc(1024*1024);
+	ASSERT_R1(recv);
 
 	for(unsigned int i = 0; i < 40; i++) {
 	    unsigned int bytes_received = 0;
@@ -77,6 +77,7 @@ static int test_tls(void)
     puts("The HTML for the main page of example.com should be shown below:");
 
 	char * recv = malloc(1024*1024);
+	ASSERT_R1(recv);
 
 	for(unsigned int i = 0; i < 40; i++) {
 	    unsigned int bytes_received = 0;
@@ -126,13 +127,15 @@ static int test_udp(void)
 
 int main(void)
 {    
-	ASSERT_R1(!pigeon_init());
+	ASSERT_R1(!pigeon_init_sockets_api());
+	ASSERT_R1(!pigeon_init_openssl());
     
 	ASSERT_R1(!test_tcp());
 	ASSERT_R1(!test_tls());
 	ASSERT_R1(!test_udp());
     
 
-    pigeon_deinit();
+	pigeon_deinit_openssl();
+	pigeon_deinit_sockets_api();
     return 0;
 }

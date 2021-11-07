@@ -8,6 +8,7 @@ mkdir build\standard_assets\shaders
 mkdir build\debug\standard_assets\shaders
 mkdir build\release\standard_assets\shaders
 
+copy standard_assets\ca-certificates.crt build\standard_assets\ca-certificates.crt
 
 copy standard_assets\shaders\downscale.frag build\standard_assets\shaders\downscale.frag
 copy standard_assets\shaders\ssao.frag build\standard_assets\shaders\ssao.frag
