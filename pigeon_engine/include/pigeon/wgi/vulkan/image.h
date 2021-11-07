@@ -38,7 +38,8 @@ typedef struct PigeonVulkanImageView
 	PigeonWGIImageFormat format;
 } PigeonVulkanImageView;
 
-PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView*, PigeonVulkanImage*, bool array_texture);
+PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_view, PigeonVulkanImage* image, bool array_texture);
+PIGEON_ERR_RET pigeon_vulkan_create_image_view2(PigeonVulkanImageView*, PigeonVulkanImage*, bool array_texture, unsigned int layer);
 void pigeon_vulkan_destroy_image_view(PigeonVulkanImageView*);
 
 

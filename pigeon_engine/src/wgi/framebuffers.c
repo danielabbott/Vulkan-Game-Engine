@@ -72,7 +72,7 @@ PIGEON_ERR_RET pigeon_wgi_create_framebuffers(void)
    
     /* ssao */
 
-	if(singleton_data.render_cfg.ssao) {
+	if(singleton_data.full_render_cfg.ssao) {
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_images[0], PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
             sc_info.width, sc_info.height, false, false, false)) return 1;
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.ssao_images[1], PIGEON_WGI_IMAGE_FORMAT_R_U8_LINEAR, 
@@ -113,7 +113,7 @@ PIGEON_ERR_RET pigeon_wgi_create_framebuffers(void)
     
     /* bloom */
 
-    if(singleton_data.render_cfg.bloom) {
+    if(singleton_data.full_render_cfg.bloom) {
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_images[0][0], hdr_format, 
             sc_info.width/2, sc_info.height/2, false, false, false)) return 1;
         if(pigeon_wgi_create_framebuffer_images(&singleton_data.bloom_images[0][1], hdr_format, 

@@ -77,10 +77,6 @@ typedef struct PigeonWGIShader {
 	};
 } PigeonWGIShader;
 
-typedef enum {
-	PIGEON_WGI_RENDER_STAGE_DEPTH,
-	PIGEON_WGI_RENDER_STAGE_RENDER
-} PigeonWGIRenderStage;
 
 
 // If false, pass glsl source code to pigeon_wgi_create_shader2
@@ -89,9 +85,9 @@ bool pigeon_wgi_accepts_spirv(void);
 PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint32_t size_bytes, 
 	PigeonWGIShaderType type);
 
-// if config is NULL then PigeonWGIRenderStage is ignored
+// if config is NULL then depth_only is ignored
 PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader*, const char * file_name, 
-	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, PigeonWGIRenderStage);
+	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, bool depth_only);
 
 void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 

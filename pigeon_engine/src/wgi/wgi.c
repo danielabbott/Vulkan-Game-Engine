@@ -14,14 +14,9 @@
 #include <pigeon/assert.h>
 #include <pigeon/wgi/rendergraph.h>
 
-static PIGEON_ERR_RET set_render_cfg(PigeonWGIRenderConfig render_cfg)
+static void validate_render_cfg(PigeonWGIRenderConfig* render_cfg)
 {
-	singleton_data.render_cfg = render_cfg;
-	// if(singleton_data.render_cfg.ssao_blur_passes == 0) {
-	// 	singleton_data.ssao_blur_passes = 1;
-	// }
-
-	return 0;
+	(void)render_cfg;
 }
 
 void pigeon_wgi_set_bloom_intensity(float i)
@@ -50,12 +45,15 @@ PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters,
 {
 	pigeon_wgi_deinit();
 
-	ASSERT_R1(!set_render_cfg(render_cfg));
+	validate_render_cfg(&render_cfg);
+	singleton_data.full_render_cfg = render_cfg;
+	singleton_data.active_render_cfg = render_cfg;
+
 	singleton_data.bloom_intensity = 1;
 	singleton_data.brightness = 0.75f;
-	singleton_data.ambient[0] = 0.3f;
-	singleton_data.ambient[1] = 0.3f;
-	singleton_data.ambient[2] = 0.33f;
+	singleton_data.ambient[0] = 0.08f;
+	singleton_data.ambient[1] = 0.08f;
+	singleton_data.ambient[2] = 0.083f;
 	singleton_data.ssao_cutoff = 0.02f;
 
 	pigeon_wgi_set_depth_range(znear, zfar);

@@ -1,7 +1,7 @@
 Unit tests
 Better job system (dependency chains, load balancing)
 Refactoring
-Optimise vulkan (performance is worse than OpenGL)
+Optimise vulkan (performance is worse than OpenGL on intel iGPUs)
 Scene files
 GUI & editor
 Animation blending, procedural animation

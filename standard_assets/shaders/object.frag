@@ -102,10 +102,10 @@ float calculate_light(int i, vec3 normal) {
     else {
         // point
         vec3 to_light = light.world_pos_and_type.xyz - pass_position_world_space;
-        to_light_norm = normalize(to_light);
-        intensity = max(dot(normal, to_light_norm), 0.0);
         float dist_to_light = length(to_light);
-        intensity /= max(0.01, dist_to_light*dist_to_light);
+        to_light_norm = to_light / dist_to_light;
+        intensity = max(dot(normal, to_light_norm), 0.0);
+        intensity /= max(0.1, dist_to_light*dist_to_light);
     }
 
     if(data.specular_intensity > 0.0) {
@@ -113,7 +113,7 @@ float calculate_light(int i, vec3 normal) {
 
         vec3 half_way_vector = normalize(to_light_norm + to_eye_norm);
 
-        intensity += max(0.0, dot(half_way_vector, normal)-0.9) * data.specular_intensity;
+        intensity *= 1+max(0.0, dot(half_way_vector, normal)-0.9) * data.specular_intensity;
     }
 
 
@@ -145,12 +145,12 @@ vec3 apply_lighting(vec2 tex_coord, float intensities[4]) {
             vec4 shadow_xyzw = light.shadow_proj_view * vec4(pass_position_world_space, 1.0);
             vec2 abs_xy = abs(shadow_xyzw.xy);
             shadow_xyzw.xy = shadow_xyzw.xy*0.5 + vec2(0.5);
-            shadow_xyzw.z += 0.0005; // bias
+            shadow_xyzw.z += 0.002; // bias
 #ifndef VULKAN
-            shadow_xyzw.y = 1-shadow_xyzw.y;
+            shadow_xyzw.y = 1.0 - shadow_xyzw.y;
 #endif
 
-            if(abs_xy.x < 1.0 && abs_xy.y < 1.0) {
+            if(abs_xy.x < 1.0 && abs_xy.y < 1.0 && shadow_xyzw.z > 0) {
                 float shadow = 0.0;
                 #define shadow_texture_offset light.light_intensity_and_shadow_pixel_offset.w
 

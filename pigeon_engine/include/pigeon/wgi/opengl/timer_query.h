@@ -13,6 +13,7 @@ PIGEON_ERR_RET pigeon_opengl_create_timer_query_group(PigeonOpenGLTimerQueryGrou
 
 void pigeon_opengl_set_timer_query_value(PigeonOpenGLTimerQueryGroup*, unsigned int i);
 
+double pigeon_opengl_get_timer_query_result(PigeonOpenGLTimerQueryGroup*, unsigned int i);
 void pigeon_opengl_get_timer_query_results(PigeonOpenGLTimerQueryGroup*, double * times);
 
 void pigeon_opengl_destroy_timer_query_group(PigeonOpenGLTimerQueryGroup*);

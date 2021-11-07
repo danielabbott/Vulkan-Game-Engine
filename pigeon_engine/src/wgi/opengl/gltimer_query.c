@@ -23,6 +23,7 @@ PIGEON_ERR_RET pigeon_opengl_create_timer_query_group(PigeonOpenGLTimerQueryGrou
     }
 
     if(fail) {
+        glDeleteQueries(n, g->ids);
         free(g->ids);
         ASSERT_R1(false);
     }
@@ -36,12 +37,21 @@ void pigeon_opengl_set_timer_query_value(PigeonOpenGLTimerQueryGroup* g, unsigne
     glQueryCounter(g->ids[i], GL_TIMESTAMP);
 }
 
+double pigeon_opengl_get_timer_query_result(PigeonOpenGLTimerQueryGroup* g, unsigned int i)
+{
+    assert(g && g->ids && i < g->n);
+
+    uint64_t x = 0;
+    glGetQueryObjectui64v(g->ids[i], GL_QUERY_RESULT, &x);
+    return (double)x / 1000000.0;
+}
+
 void pigeon_opengl_get_timer_query_results(PigeonOpenGLTimerQueryGroup* g, double * times)
 {
     assert(g && g->ids);
 
     for(unsigned int i = 0; i < g->n; i++) {
-        uint64_t x;
+        uint64_t x = 0;
         glGetQueryObjectui64v(g->ids[i], GL_QUERY_RESULT, &x);
         times[i] = (double)x / 1000000.0;
     }

@@ -49,6 +49,9 @@ PIGEON_ERR_RET pigeon_vulkan_create_framebuffer2(PigeonVulkanFramebuffer* frameb
     framebuffer_create.pAttachments = attachments;
 	framebuffer_create.attachmentCount = number_of_attachments;
 
+    framebuffer->width = framebuffer_create.width;
+    framebuffer->height = framebuffer_create.height;
+
     ASSERT_LOG_R1(vkCreateFramebuffer(vkdev, &framebuffer_create, NULL, &framebuffer->vk_framebuffer) == VK_SUCCESS, 
 					"vkCreateFramebuffer error");
     return 0;
@@ -89,6 +92,9 @@ PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer* framebu
 
     framebuffer_create.pAttachments = attachments;
 	framebuffer_create.attachmentCount = number_of_attachments;
+
+    framebuffer->width = framebuffer_create.width;
+    framebuffer->height = framebuffer_create.height;
 
     ASSERT_LOG_R1(vkCreateFramebuffer(vkdev, &framebuffer_create, NULL, &framebuffer->vk_framebuffer) == VK_SUCCESS, 
 					"vkCreateFramebuffer error");

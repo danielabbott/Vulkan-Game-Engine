@@ -17,7 +17,9 @@
 #include <cglm/quat.h>
 #include <cglm/affine.h>
 #include <cglm/euler.h>
+#include <cglm/cam.h>
 #include <config_parser_test.h>
+#include <time.h>
 
 #ifdef NDEBUG
 	#define SHADER_PATH_PREFIX "build/release/standard_assets/shaders/"
@@ -122,6 +124,9 @@ PigeonTransform *t_light;
 PigeonTransform *t_camera;
 PigeonTransform *t_sphere;
 PigeonTransform *t_pigeon;
+
+#define NUMBER_OF_CUBES 1000
+PigeonTransform ** many_cubes_transforms;
 
 PigeonModelMaterial *model_cube;
 PigeonModelMaterial **model_character;
@@ -318,7 +323,7 @@ static PIGEON_ERR_RET load_texture_assets()
 }
 
 
-static PIGEON_ERR_RET populate_array_textures(void)
+static PIGEON_ERR_RET calculate_array_texture_sizes(void)
 {
 	for (unsigned int i = 0; i < texture_assets_count; i++)
 	{
@@ -428,22 +433,30 @@ static PIGEON_ERR_RET populate_array_textures(void)
 	return 0;
 }
 
-// Runs in first frame
-static PIGEON_ERR_RET create_array_textures(PigeonWGICommandBuffer *cmd)
+static PIGEON_ERR_RET create_array_textures(void)
 {
-
 	ArrayTexture * arr = array_texture_0;
 	while(arr) {
 		ASSERT_R1(!pigeon_wgi_create_array_texture(&arr->t, arr->t.width, arr->t.height,
-			arr->t.layers, arr->t.format, arr->t.mip_maps ? 0 : 1, cmd));
+			arr->t.layers, arr->t.format, arr->t.mip_maps ? 0 : 1));
 
-		
+		arr = arr->next;
+	}
+	return 0;
+}
+
+// Runs in first frame
+static PIGEON_ERR_RET upload_array_textures(void)
+{
+	ArrayTexture * arr = array_texture_0;
+	while(arr) {
+		pigeon_wgi_start_array_texture_upload(&arr->t);	
 		unsigned int layer = 0;
 		for (unsigned int i = 0; i < texture_assets_count; i++)
 		{
 			if(texture_locations[i].texture == &arr->t) {
 				if(pigeon_wgi_array_texture_upload_method() == 1) {
-					void *dst = pigeon_wgi_array_texture_upload1(&arr->t, layer++, cmd);
+					void *dst = pigeon_wgi_array_texture_upload1(&arr->t, layer++);
 					ASSERT_R1(!pigeon_decompress_asset(&texture_assets[i], dst, texture_locations[i].subresource_index));
 				}
 				else {
@@ -457,7 +470,7 @@ static PIGEON_ERR_RET create_array_textures(PigeonWGICommandBuffer *cmd)
 			}
 		}
 
-		pigeon_wgi_array_texture_transition(&arr->t, cmd);
+		pigeon_wgi_array_texture_transition(&arr->t);
 		pigeon_wgi_array_texture_unmap(&arr->t);
 
 		arr = arr->next;
@@ -696,9 +709,9 @@ static PIGEON_ERR_RET create_skybox_pipeline_glsl(void)
 {
 	PigeonWGIShader vs = {0}, fs = {0};
 
-	ASSERT_R1 (!pigeon_wgi_create_shader2(&vs, "skybox.vert", PIGEON_WGI_SHADER_TYPE_VERTEX, NULL, PIGEON_WGI_RENDER_STAGE_RENDER));
+	ASSERT_R1 (!pigeon_wgi_create_shader2(&vs, "skybox.vert", PIGEON_WGI_SHADER_TYPE_VERTEX, NULL, false));
 
-	if (pigeon_wgi_create_shader2(&fs, "skybox.frag", PIGEON_WGI_SHADER_TYPE_FRAGMENT, NULL, PIGEON_WGI_RENDER_STAGE_RENDER))
+	if (pigeon_wgi_create_shader2(&fs, "skybox.frag", PIGEON_WGI_SHADER_TYPE_FRAGMENT, NULL, false))
 	{
 		pigeon_wgi_destroy_shader(&vs);
 		ASSERT_R1(false);
@@ -770,7 +783,7 @@ static void create_pipeline_cleanup(uint32_t *spv_data[4], PigeonWGIShader shade
 
 
 static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
-	const char * shader_paths[4][2], PigeonWGIRenderStage shader_stages[4], 
+	const char * shader_paths[4][2], bool shaders_depth_only[4], 
 	PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
 {
 
@@ -800,7 +813,7 @@ static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
 				CHECK(!pigeon_wgi_create_shader(&shaders[i], spv_data[i], (uint32_t)spv_lengths[i], shader_types[i]));
 			}
 			else {
-				CHECK(!pigeon_wgi_create_shader2(&shaders[i], shader_paths[i][0], shader_types[i], config, shader_stages[i]));
+				CHECK(!pigeon_wgi_create_shader2(&shaders[i], shader_paths[i][0], shader_types[i], config, shaders_depth_only[i]));
 			}
 		}	
 	}
@@ -836,15 +849,15 @@ static PIGEON_ERR_RET create_pipelines(void)
 		{NULL, NULL},
 		PATHS("object.frag")};
 
-	PigeonWGIRenderStage shader_stages[4] = {
-		PIGEON_WGI_RENDER_STAGE_DEPTH,
-		PIGEON_WGI_RENDER_STAGE_RENDER,
-		PIGEON_WGI_RENDER_STAGE_DEPTH,
-		PIGEON_WGI_RENDER_STAGE_RENDER
+	bool shaders_depth_only[4] = {
+		true,
+		false,
+		true,
+		false
 	};
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, shader_stages, &config, false, false));
+	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, shaders_depth_only, &config, false, false));
 
 	const char *shader_paths_skinned[4][2] = {
 		{"object.vert", FULL_PATH("object.vert.skinned.depth")},
@@ -853,7 +866,7 @@ static PIGEON_ERR_RET create_pipelines(void)
 		PATHS("object.frag")};
 
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, shader_stages, &config, true, false));
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, shaders_depth_only, &config, true, false));
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
 	shader_paths[0][1] = FULL_PATH("object.vert.depth_alpha");
@@ -861,13 +874,13 @@ static PIGEON_ERR_RET create_pipelines(void)
 	shader_paths[2][1] = FULL_PATH("object_depth_alpha.frag");
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, shader_stages, &config, false, true));
+	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, shaders_depth_only, &config, false, true));
 
 	shader_paths_skinned[0][1] = FULL_PATH("object.vert.skinned.depth_alpha");
 	shader_paths_skinned[2][0] = "object_depth_alpha.frag";
 	shader_paths_skinned[2][1] = FULL_PATH("object_depth_alpha.frag");
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, shader_stages, &config, true, true));
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, shaders_depth_only, &config, true, true));
 
 	return 0;
 
@@ -894,10 +907,10 @@ static void set_camera_transform(vec2 rotation, vec3 position)
 	pigeon_invalidate_world_transform(t_camera);
 }
 
-static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT], double cpu_frame_time)
+static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_RENDER_STAGE__COUNT], double cpu_frame_time)
 {
-	static double values[PIGEON_WGI_TIMERS_COUNT];
-	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++)
+	static double values[PIGEON_WGI_RENDER_STAGE__COUNT];
+	for(unsigned int i = 0; i < PIGEON_WGI_RENDER_STAGE__COUNT; i++)
 		values[i] += delayed_timer_values[i];
 
 	static double cpu_frame_time_sum = 0;
@@ -912,20 +925,22 @@ static void print_timer_stats(double delayed_timer_values[PIGEON_WGI_TIMERS_COUN
 
 	double total = 0;
 
-	for(unsigned int i = 0; i < PIGEON_WGI_TIMERS_COUNT; i++) {
+	for(unsigned int i = 0; i < PIGEON_WGI_RENDER_STAGE__COUNT; i++) {
 		values[i] /= 300.0;
 		total += values[i];
 	}
 
 	printf("Render time statistics (300-frame average):\n");
-	printf("\tUpload: %f\n", values[PIGEON_WGI_TIMER_UPLOAD]);
-	printf("\tShadow Maps: %f\n", values[PIGEON_WGI_TIMER_SHADOW_MAPS]);
-	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_TIMER_DEPTH_PREPASS]);
-	printf("\tSSAO: %f\n", values[PIGEON_WGI_TIMER_SSAO]);
-	printf("\tSSAO Blur: %f\n", values[PIGEON_WGI_TIMER_SSAO_BLUR]);
-	printf("\tRender: %f\n", values[PIGEON_WGI_TIMER_RENDER]);
-	printf("\tBloom Blur: %f\n", values[PIGEON_WGI_TIMER_BLOOM_BLUR]);
-	printf("\tPost Process: %f\n", values[PIGEON_WGI_TIMER_POST_PROCESS]);
+	printf("\tUpload: %f\n", values[PIGEON_WGI_RENDER_STAGE_UPLOAD]);
+	printf("\tShadow Map 0: %f\n", values[PIGEON_WGI_RENDER_STAGE_SHADOW0]);
+	if(values[PIGEON_WGI_RENDER_STAGE_SHADOW1] > 0.001) printf("\tShadow Map 1: %f\n", values[PIGEON_WGI_RENDER_STAGE_SHADOW1]);
+	if(values[PIGEON_WGI_RENDER_STAGE_SHADOW2] > 0.001) printf("\tShadow Map 2: %f\n", values[PIGEON_WGI_RENDER_STAGE_SHADOW2]);
+	if(values[PIGEON_WGI_RENDER_STAGE_SHADOW3] > 0.001) printf("\tShadow Map 3: %f\n", values[PIGEON_WGI_RENDER_STAGE_SHADOW3]);
+	printf("\tDepth Prepass: %f\n", values[PIGEON_WGI_RENDER_STAGE_DEPTH]);
+	if(values[PIGEON_WGI_RENDER_STAGE_SSAO] > 0.001) printf("\tSSAO: %f\n", values[PIGEON_WGI_RENDER_STAGE_SSAO]);
+	printf("\tRender: %f\n", values[PIGEON_WGI_RENDER_STAGE_RENDER]);
+	if(values[PIGEON_WGI_RENDER_STAGE_BLOOM] > 0.001) printf("\tBloom Blur: %f\n", values[PIGEON_WGI_RENDER_STAGE_BLOOM]);
+	printf("\tPost Process & GUI: %f\n", values[PIGEON_WGI_RENDER_STAGE_POST_AND_UI]);
 	printf("GPU time: %f\n", total);
 	printf("CPU time: %f\n", cpu_frame_time_sum / 300.0);
 
@@ -1027,20 +1042,19 @@ static PIGEON_ERR_RET game_loop(void)
 	unsigned int frame_number = 0;
 
 	vec2 rotation = {0};
-	vec3 position = {0, 1.7f, 0};
+	vec3 position = {0, 1.7f, 1};
 	vec3 position_prev = {0, 1.7f, 0};
 
 	double cpu_frame_time = 1/60.0;
 
 	while (!pigeon_wgi_close_requested() && !pigeon_wgi_is_key_down(PIGEON_WGI_KEY_ESCAPE))
 	{
-		double delayed_timer_values[PIGEON_WGI_TIMERS_COUNT];
+		double delayed_timer_values[PIGEON_WGI_RENDER_STAGE__COUNT];
 
 
 		ASSERT_R1(!pigeon_wgi_next_frame_wait(delayed_timer_values));
 
-		
-		if(delayed_timer_values[0] > 0.0 || delayed_timer_values[PIGEON_WGI_TIMER_POST_PROCESS] > 0.0)
+		if(delayed_timer_values[PIGEON_WGI_RENDER_STAGE__LAST] > 0.001)
 			print_timer_stats(delayed_timer_values, cpu_frame_time);
 
 		float time_now = pigeon_wgi_get_time_seconds();
@@ -1075,37 +1089,51 @@ static PIGEON_ERR_RET game_loop(void)
 		fps_camera_input(delta_time, rotation, position);
 		set_camera_transform(rotation, position);
 
-		PigeonWGICommandBuffer *upload_command_buffer = pigeon_wgi_get_upload_command_buffer();
+		PigeonWGISwapchainInfo sc_info = pigeon_wgi_get_swapchain_info();
+		
+		// Bind textures (must be done before generating command buffers)
+		// Free staging buffers
+		if(frame_number <= sc_info.image_count){
+			ArrayTexture * arr = array_texture_0;
+			unsigned int array_texture_index = 0;
+			while(arr) {
+				if(frame_number < sc_info.image_count)
+					pigeon_wgi_bind_array_texture(array_texture_index++, &arr->t);
+				if(frame_number == sc_info.image_count)
+					pigeon_wgi_array_texture_transfer_done(&arr->t);
+				// TODO this code will break if the window is resized
+				arr = arr->next;
+			}
+		}
+
+		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
+
+		// Scene graph pre-pass, ready uniform buffers, configure lighting
+		ASSERT_R1(!pigeon_prepare_draw_frame(t_camera));
+		
+
+		// Upload stage is required, even if nothing is uploaded
+		ASSERT_R1(!pigeon_wgi_start_record(PIGEON_WGI_RENDER_STAGE_UPLOAD));
+
 
 		if (frame_number == 0)
 		{
-			ASSERT_R1(!pigeon_wgi_start_command_buffer(upload_command_buffer));
-			pigeon_wgi_upload_multimesh(upload_command_buffer, &mesh);
-			pigeon_wgi_upload_multimesh(upload_command_buffer, &mesh_skinned);
-			ASSERT_R1(!create_array_textures(upload_command_buffer));
-			ASSERT_R1(!pigeon_wgi_end_command_buffer(upload_command_buffer));
+			pigeon_wgi_upload_multimesh(&mesh);
+			pigeon_wgi_upload_multimesh(&mesh_skinned);
+			ASSERT_R1(!upload_array_textures());
 		}
-		else if (frame_number == 1)
-		{
+		else if (frame_number == sc_info.image_count)
+		{ // upload has definitely finished
 			pigeon_wgi_multimesh_transfer_done(&mesh);
 			pigeon_wgi_multimesh_transfer_done(&mesh_skinned);
 		}	
 
-		
-		ArrayTexture * arr = array_texture_0;
-		unsigned int array_texture_index = 0;
-		while(arr) {
-			if(frame_number == 1)
-				pigeon_wgi_array_texture_transfer_done(&arr->t);
-			pigeon_wgi_bind_array_texture(array_texture_index++, &arr->t);
-			arr = arr->next;
-		}
+		ASSERT_R1(!pigeon_wgi_end_record(PIGEON_WGI_RENDER_STAGE_UPLOAD));
 
+		ASSERT_R1(!pigeon_draw_frame(debug_disable_ssao, &skybox_pipeline));
 
-		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
-		ASSERT_R1(!pigeon_draw_frame(t_camera, debug_disable_ssao, &skybox_pipeline));
+        ASSERT_R1(!pigeon_wgi_submit_frame());
 
-		// TODO get time just before swapping buffers- reported time is always 16ms on windows with vsync enabled
 		cpu_frame_time = (pigeon_wgi_get_time_seconds() - start_frame_time) * 1000.0;
 		
 
@@ -1119,11 +1147,13 @@ int main(void)
 {
 	ASSERT_R1(!pigeon_test_config_parser());
 
+	srand((unsigned)time(NULL));
 	ASSERT_R1(!start());
 	ASSERT_R1(!load_assets());
 	ASSERT_R1(!create_multimeshes());
 	ASSERT_R1(!create_pipelines());
-	ASSERT_R1(!populate_array_textures());
+	ASSERT_R1(!calculate_array_texture_sizes());
+	ASSERT_R1(!create_array_textures());
 
 	t_floor = pigeon_create_transform(NULL);
 	t_wall = pigeon_create_transform(NULL);
@@ -1133,7 +1163,21 @@ int main(void)
 	t_camera = pigeon_create_transform(NULL);
 	t_sphere = pigeon_create_transform(NULL);
 	t_pigeon = pigeon_create_transform(NULL);
-	ASSERT_R1(t_floor && t_character && t_spinning_cube && t_light && t_camera && t_sphere && t_pigeon);
+	many_cubes_transforms = malloc(sizeof *many_cubes_transforms * NUMBER_OF_CUBES);
+	ASSERT_R1(t_floor && t_character && t_spinning_cube && t_light && t_camera && t_sphere && t_pigeon && many_cubes_transforms);
+
+	for(unsigned int i = 0; i < NUMBER_OF_CUBES; i++) {
+		many_cubes_transforms[i] = pigeon_create_transform(NULL);
+		many_cubes_transforms[i]->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
+		many_cubes_transforms[i]->scale[0] = 0.5f;
+		many_cubes_transforms[i]->scale[1] = 0.5f;
+		many_cubes_transforms[i]->scale[2] = 0.5f;
+
+		many_cubes_transforms[i]->translation[0] = ((float)rand() / (float)(RAND_MAX) - 0.5f) * 100.0f;
+		many_cubes_transforms[i]->translation[1] = (float)rand() / (float)(RAND_MAX) * 20.0f;
+		many_cubes_transforms[i]->translation[2] = ((float)rand() / (float)(RAND_MAX) - 0.5f) * 100.0f;
+	}
+
 
 	t_floor->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
 	t_floor->scale[0] = 10000;
@@ -1146,7 +1190,7 @@ int main(void)
 	t_wall->scale[1] = 4;
 	t_wall->scale[2] = 0.3f;
 	t_wall->translation[0] = 3;
-	t_wall->translation[2] = -5;
+	t_wall->translation[2] = 3;
 
 	t_sphere->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
 	t_sphere->scale[0] = 0.1f;
@@ -1154,23 +1198,22 @@ int main(void)
 	t_sphere->scale[2] = 0.1f;
 	t_sphere->translation[0] = 3;
 	t_sphere->translation[1] = 1;
-	t_sphere->translation[2] = -4;
+	t_sphere->translation[2] = 2;
 
 	t_character->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
 	t_character->scale[0] = 1;
 	t_character->scale[1] = 1;
 	t_character->scale[2] = 1;
-	t_character->translation[2] = -4;
+	t_character->translation[2] = -3;
 
-	t_light->transform_type = PIGEON_TRANSFORM_TYPE_SRT;
-	t_light->scale[0] = 1;
-	t_light->scale[1] = 1;
-	t_light->scale[2] = 1;
-	t_light->translation[0] = 0;
-	t_light->translation[1] = 10;
-	t_light->translation[2] = -4;
-	t_light->rotation[0] = 0.819152f;
-	t_light->rotation[3] = -0.5735764f;
+	t_light->transform_type = PIGEON_TRANSFORM_TYPE_MATRIX;
+	{
+		vec3 position = {0, 6, 6};
+		vec3 centre = {0};
+		vec3 up = {0,1,0};
+		glm_lookat(position, centre, up, t_light->matrix_transform);
+		glm_mat4_inv(t_light->matrix_transform,t_light->matrix_transform);
+	}
 
 
 	// set each frame
@@ -1180,15 +1223,15 @@ int main(void)
 
 	light = pigeon_create_light();
 	ASSERT_R1(light);
-	light->intensity[0] = light->intensity[1] = light->intensity[2] = 1.7f;
+	light->intensity[0] = light->intensity[1] = light->intensity[2] = 1.3f;
 	light->shadow_resolution = 1024;
 	light->shadow_near = 3;
-	light->shadow_far = 13;
-	light->shadow_size_x = 5;
-	light->shadow_size_y = 5;
+	light->shadow_far = 16;
+	light->shadow_size_x = 6;
+	light->shadow_size_y = 6;
 	ASSERT_R1(!pigeon_join_transform_and_component(t_light, &light->c));
 
-	pigeon_wgi_set_brightness(0.9f);
+	pigeon_wgi_set_brightness(1);
 
 
 	light2 = pigeon_create_light();
@@ -1230,6 +1273,7 @@ int main(void)
 	mr_spinning_cube->colour[0] = 1.1f;
 	mr_spinning_cube->colour[1] = 0.5f;
 	mr_spinning_cube->colour[2] = 1.15f;
+	mr_spinning_cube->specular_intensity = 0;
 
 	mr_sphere->colour[0] = 0.15f;
 	mr_sphere->colour[1] = 0.5f;
@@ -1288,6 +1332,11 @@ int main(void)
 	ASSERT_R1(!pigeon_join_transform_and_component(t_wall, &mr_white_cuboid->c));
 	ASSERT_R1(!pigeon_join_transform_and_component(t_spinning_cube, &mr_spinning_cube->c));
 	ASSERT_R1(!pigeon_join_transform_and_component(t_sphere, &mr_sphere->c));
+
+
+	for(unsigned int i = 0; i < NUMBER_OF_CUBES; i++) {
+		ASSERT_R1(!pigeon_join_transform_and_component(many_cubes_transforms[i], &mr_spinning_cube->c));
+	}
 
 	int err = game_loop();
 

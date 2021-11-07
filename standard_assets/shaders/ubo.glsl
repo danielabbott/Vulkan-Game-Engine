@@ -39,6 +39,13 @@ uniform UniformBufferObject {
 
 #ifndef NO_DRAW_OBJECTS
 
+struct DrawObjectDepthOnly {
+	mat4 modelViewProj;
+	mat4 model;
+    vec4 position_min;
+    vec4 position_range;
+};
+
 struct DrawObject {
 	mat4 modelViewProj[5];
     

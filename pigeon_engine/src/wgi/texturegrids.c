@@ -89,15 +89,15 @@ PIGEON_ERR_RET pigeon_wgi_add_texture_to_grid(PigeonWGIGridTextureGrid ** grids_
 }
 
 PIGEON_ERR_RET pigeon_wgi_create_grid_texture(PigeonWGIGridTexture* grid_texture, 
-    uint32_t grids, PigeonWGIImageFormat format, PigeonWGICommandBuffer* cmd_buf, bool mip_maps)
+    uint32_t grids, PigeonWGIImageFormat format, bool mip_maps)
 {
-    ASSERT_R1(grid_texture && cmd_buf);
+    ASSERT_R1(grid_texture);
     ASSERT_R1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
     || (format >= PIGEON_WGI_IMAGE_FORMAT__FIRST_COMPRESSED_FORMAT &&
         format <= PIGEON_WGI_IMAGE_FORMAT__LAST_COMPRESSED_FORMAT));
 
     ASSERT_R1(pigeon_wgi_create_array_texture(&grid_texture->array_texture, 
-        4096, 4096, grids, format, mip_maps ? 8 : 1, cmd_buf));
+        4096, 4096, grids, format, mip_maps ? 8 : 1));
     return 0;
 }
 
@@ -112,7 +112,7 @@ uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format, bool
 }
 
 void* pigeon_wgi_grid_texture_upload(PigeonWGIGridTexture* grid_texture, 
-    PigeonWGITextureGridPosition position, unsigned int w, unsigned int h, PigeonWGICommandBuffer* cmd_buf)
+    PigeonWGITextureGridPosition position, unsigned int w, unsigned int h)
 {
     assert(w % 512 == 0);
     assert(h % 512 == 0);
@@ -126,7 +126,7 @@ void* pigeon_wgi_grid_texture_upload(PigeonWGIGridTexture* grid_texture,
     grid_texture->array_texture.mapping_offset += position.grid_w * position.grid_h * 
         pigeon_wgi_get_grid_texture_tile_size(grid_texture->array_texture.format, grid_texture->array_texture.mip_maps > 1);
     
-    pigeon_vulkan_transfer_buffer_to_image(&cmd_buf->command_pool, 0,
+    pigeon_vulkan_transfer_buffer_to_image(get_upload_cmd_pool(), 0,
         &grid_texture->array_texture.data->staging_buffer, buffer_offset,
         &grid_texture->array_texture.data->image, position.grid_i, position.grid_x*512, position.grid_y*512,
         w,h, grid_texture->array_texture.mip_maps ? 8 : 1);    
@@ -134,9 +134,9 @@ void* pigeon_wgi_grid_texture_upload(PigeonWGIGridTexture* grid_texture,
     return &((uint8_t*)grid_texture->array_texture.mapping)[buffer_offset];
 }
 
-void pigeon_wgi_grid_texture_transition(PigeonWGIGridTexture* grid_texture, PigeonWGICommandBuffer* cmd_buf)
+void pigeon_wgi_grid_texture_transition(PigeonWGIGridTexture* grid_texture)
 {
-    pigeon_wgi_array_texture_transition(&grid_texture->array_texture, cmd_buf);
+    pigeon_wgi_array_texture_transition(&grid_texture->array_texture);
 }
 
 void pigeon_wgi_grid_texture_unmap(PigeonWGIGridTexture* grid_texture)

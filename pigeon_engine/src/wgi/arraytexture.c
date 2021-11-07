@@ -4,10 +4,9 @@
 
 
 PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture* array_texture, 
-    uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat format, unsigned int mip_maps,
-    PigeonWGICommandBuffer* cmd_buf)
+    uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat format, unsigned int mip_maps)
 {
-    ASSERT_R1(array_texture && cmd_buf && width >= 4 && width <= 16384 && height >= 4 && height <= 16384);
+    ASSERT_R1(array_texture && width >= 4 && width <= 16384 && height >= 4 && height <= 16384);
     ASSERT_R1(layers && layers <= 1024);
     ASSERT_R1(format == PIGEON_WGI_IMAGE_FORMAT_RGBA_U8_SRGB || format == PIGEON_WGI_IMAGE_FORMAT_RG_U8_LINEAR
     || (format >= PIGEON_WGI_IMAGE_FORMAT__FIRST_COMPRESSED_FORMAT &&
@@ -62,7 +61,6 @@ PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture* array_text
             return 1;
         }
 
-        pigeon_vulkan_transition_image_to_transfer_dst(&cmd_buf->command_pool, 0, &array_texture->data->image);
     }
 
     else if (OPENGL) {
@@ -80,6 +78,12 @@ PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture* array_text
 
     return 0;
 
+}
+
+void pigeon_wgi_start_array_texture_upload(PigeonWGIArrayTexture* array_texture)
+{
+    if(VULKAN)
+        pigeon_vulkan_transition_image_to_transfer_dst(get_upload_cmd_pool(), 0, &array_texture->data->image);
 }
 
 uint32_t pigeon_wgi_get_array_texture_layer_size(PigeonWGIArrayTexture const* array_texture)
@@ -106,7 +110,7 @@ int pigeon_wgi_array_texture_upload_method(void)
 }
 
 void* pigeon_wgi_array_texture_upload1(PigeonWGIArrayTexture* array_texture, 
-    unsigned int layer, PigeonWGICommandBuffer* cmd_buf)
+    unsigned int layer)
 {
     ASSERT_R0(VULKAN);
 
@@ -114,7 +118,7 @@ void* pigeon_wgi_array_texture_upload1(PigeonWGIArrayTexture* array_texture,
     
     array_texture->mapping_offset += pigeon_wgi_get_array_texture_layer_size(array_texture);
     
-    pigeon_vulkan_transfer_buffer_to_image(&cmd_buf->command_pool, 0,
+    pigeon_vulkan_transfer_buffer_to_image(get_upload_cmd_pool(), 0,
         &array_texture->data->staging_buffer, buffer_offset,
         &array_texture->data->image, layer, 0, 0,
         array_texture->width, array_texture->height, array_texture->mip_maps);    
@@ -146,10 +150,10 @@ PIGEON_ERR_RET pigeon_wgi_array_texture_upload2(PigeonWGIArrayTexture* array_tex
     return 0;
 }
 
-void pigeon_wgi_array_texture_transition(PigeonWGIArrayTexture* array_texture, PigeonWGICommandBuffer* cmd_buf)
+void pigeon_wgi_array_texture_transition(PigeonWGIArrayTexture* array_texture)
 {
     if(VULKAN)
-        pigeon_vulkan_transition_transfer_dst_to_shader_read(&cmd_buf->command_pool, 0, &array_texture->data->image);
+        pigeon_vulkan_transition_transfer_dst_to_shader_read(get_upload_cmd_pool(), 0, &array_texture->data->image);
 }
 
 void pigeon_wgi_array_texture_unmap(PigeonWGIArrayTexture* array_texture)

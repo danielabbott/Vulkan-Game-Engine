@@ -5,7 +5,6 @@
 #include <pigeon/util.h>
 #include <pigeon/wgi/wgi.h>
 
-struct PigeonWGICommandBuffer;
 
 typedef struct PigeonWGITextureMeta
 {
@@ -67,8 +66,8 @@ typedef struct PigeonWGIArrayTexture {
 
 PIGEON_ERR_RET pigeon_wgi_create_array_texture(PigeonWGIArrayTexture*, 
     uint32_t width, uint32_t height, uint32_t layers, PigeonWGIImageFormat,
-    unsigned int mip_maps, // 0 = auto, 1 = no mipmapping
-    PigeonWGICommandBuffer*);
+    unsigned int mip_maps // 0 = auto, 1 = no mipmapping
+);
 
 uint32_t pigeon_wgi_get_array_texture_layer_size(PigeonWGIArrayTexture const*);
 
@@ -76,18 +75,21 @@ uint32_t pigeon_wgi_get_array_texture_layer_size(PigeonWGIArrayTexture const*);
 // If this returns 2, use pigeon_wgi_array_texture_upload2
 int pigeon_wgi_array_texture_upload_method(void);
 
+// Transition image to transfer_dst
+void pigeon_wgi_start_array_texture_upload(PigeonWGIArrayTexture*);
+
 // upload function copy (or the caller copies) pigeon_wgi_get_array_texture_layer_size() bytes
 
 // Call this once for each layer and memcpy image data (full mip chain) to returned pointer
 void* pigeon_wgi_array_texture_upload1(PigeonWGIArrayTexture*, 
-    unsigned int layer, PigeonWGICommandBuffer*);
+    unsigned int layer);
 
 // Call this once for each layer, this does the memcpy
 PIGEON_ERR_RET pigeon_wgi_array_texture_upload2(PigeonWGIArrayTexture*, 
     unsigned int layer, void *);
 
 // Call when finished calling pigeon_wgi_array_texture_upload1
-void pigeon_wgi_array_texture_transition(PigeonWGIArrayTexture* array_texture, PigeonWGICommandBuffer* cmd_buf);
+void pigeon_wgi_array_texture_transition(PigeonWGIArrayTexture* array_texture);
 
 void pigeon_wgi_array_texture_unmap(PigeonWGIArrayTexture*);
 
@@ -104,7 +106,7 @@ typedef struct PigeonWGIGridTexture {
 
 // mapping is set to a host-accessible write-only memory mapping
 PIGEON_ERR_RET pigeon_wgi_create_grid_texture(PigeonWGIGridTexture*, uint32_t grids, PigeonWGIImageFormat,
-    PigeonWGICommandBuffer*, bool mip_maps);
+    bool mip_maps);
 
 // 512 * 512 * bytes per pixel * 1.33333ish
 uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format, bool mip_maps);
@@ -115,11 +117,10 @@ uint32_t pigeon_wgi_get_grid_texture_tile_size(PigeonWGIImageFormat format, bool
 // Width&height halve with each mip level, data size in bytes quarters
 // Adds transfer commands to command buffer
 void* pigeon_wgi_grid_texture_upload(PigeonWGIGridTexture*, 
-    PigeonWGITextureGridPosition, unsigned int w, unsigned int h,
-    PigeonWGICommandBuffer*);
+    PigeonWGITextureGridPosition, unsigned int w, unsigned int h);
 
 // Call when finished calling pigeon_wgi_grid_texture_upload
-void pigeon_wgi_grid_texture_transition(PigeonWGIGridTexture* grid_texture, PigeonWGICommandBuffer* cmd_buf);
+void pigeon_wgi_grid_texture_transition(PigeonWGIGridTexture* grid_texture);
 
 void pigeon_wgi_grid_texture_unmap(PigeonWGIGridTexture*);
 

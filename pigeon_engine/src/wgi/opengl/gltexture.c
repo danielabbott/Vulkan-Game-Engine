@@ -258,6 +258,8 @@ PIGEON_ERR_RET pigeon_opengl_upload_texture_mip(PigeonOpenGLTexture* texture,
 
 	ASSERT_R1(data_size >= (w*h* pigeon_image_format_bytes_per_4x4_block(texture->format)) / 16);
 
+	pigeon_opengl_bind_texture_id(0, texture->id, texture->layers ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D);
+
 	if(texture->format >= PIGEON_WGI_IMAGE_FORMAT__FIRST_COMPRESSED_FORMAT &&
 		texture->format <= PIGEON_WGI_IMAGE_FORMAT__LAST_COMPRESSED_FORMAT)
 	{

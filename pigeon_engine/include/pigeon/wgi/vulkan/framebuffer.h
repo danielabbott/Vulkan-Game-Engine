@@ -8,6 +8,7 @@ struct VkFramebuffer_T;
 typedef struct PigeonVulkanFramebuffer
 {
 	struct VkFramebuffer_T* vk_framebuffer;
+    unsigned int width, height;
 } PigeonVulkanFramebuffer;
 
 PIGEON_ERR_RET pigeon_vulkan_create_framebuffer(PigeonVulkanFramebuffer*, 

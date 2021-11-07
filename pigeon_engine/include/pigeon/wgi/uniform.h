@@ -1,6 +1,8 @@
 #pragma once
 
-#define CGLM_FORCE_DEPTH_ZERO_TO_ONE
+#ifndef CGLM_FORCE_DEPTH_ZERO_TO_ONE
+    #define CGLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #include <cglm/types.h>
 #include <stdint.h>
 
@@ -77,3 +79,6 @@ typedef struct PigeonWGISceneUniformData {
 } PigeonWGISceneUniformData;
 
 void pigeon_wgi_get_normal_model_matrix(const mat4 model, mat4 normal_model_matrix);
+
+void pigeon_wgi_set_object_shadow_mvp_uniform(PigeonWGIDrawObject * data, mat4 model_matrix);
+PIGEON_ERR_RET pigeon_wgi_set_uniform_data(PigeonWGISceneUniformData * uniform_data);

@@ -109,12 +109,12 @@ PIGEON_ERR_RET pigeon_wgi_multimesh_unmap(PigeonWGIMultiMesh *mesh)
 }
 
 
-void pigeon_wgi_upload_multimesh(PigeonWGICommandBuffer* cmd, PigeonWGIMultiMesh* mesh)
+void pigeon_wgi_upload_multimesh(PigeonWGIMultiMesh* mesh)
 {
     assert(mesh && mesh->staged_buffer);
 
     if(VULKAN && !mesh->staged_buffer->buffer_is_host_visible) {
-        pigeon_vulkan_staged_buffer_transfer(mesh->staged_buffer, &cmd->command_pool, 0);
+        pigeon_vulkan_staged_buffer_transfer(mesh->staged_buffer, get_upload_cmd_pool(), 0);
     }
 }
 

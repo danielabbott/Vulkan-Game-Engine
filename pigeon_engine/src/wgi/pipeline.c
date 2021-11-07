@@ -172,7 +172,7 @@ static PIGEON_ERR_RET create_standard_pipeline_objects_gl(void)
 
 
 	if (create_program_gl(&singleton_data.gl.shader_post, "post.vert", "post.frag",
-		singleton_data.render_cfg.bloom ? 
+		singleton_data.full_render_cfg.bloom ? 
 			"#define SC_BLOOM true" : "#define SC_BLOOM false", 0, NULL)) return 1;
 			
 	pigeon_opengl_set_shader_texture_binding_index(&singleton_data.gl.shader_post, "hdr_render", 0);
@@ -264,7 +264,7 @@ PIGEON_ERR_RET pigeon_wgi_create_standard_pipeline_objects(void)
 	// 	&singleton_data.rp_bloom_blur, &singleton_data.one_texture_descriptor_layout, 12, 1, spc)) return 1;
 	
 		
-	uint32_t sc_use_bloom = singleton_data.render_cfg.bloom ? 1 : 0;
+	uint32_t sc_use_bloom = singleton_data.full_render_cfg.bloom ? 1 : 0;
 
 	if (create_pipeine(&singleton_data.pipeline_post, SHADER_PATH("post.vert"), SHADER_PATH("post.frag"),
 		&singleton_data.rp_post, &singleton_data.post_descriptor_layout, 12, 1, &sc_use_bloom)) return 1;
@@ -321,7 +321,7 @@ bool pigeon_wgi_accepts_spirv(void)
 }
 
 PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * file_name, 
-	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, PigeonWGIRenderStage stage)
+	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, bool depth_only)
 {
 	ASSERT_R1(shader && file_name && OPENGL);
 
@@ -342,7 +342,7 @@ PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * f
 		const char * b_false = "false";
 
 		const char * stage_sym = "OBJECT";
-		if (stage == PIGEON_WGI_RENDER_STAGE_DEPTH) {
+		if (depth_only) {
 			if(config->blend_function) {
 				stage_sym = "OBJECT_DEPTH_ALPHA";
 			}
@@ -357,7 +357,7 @@ PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * f
 			"#define SC_SHADOW_TYPE 2\n"
 			"#define %s\n"
 			"%s",
-			singleton_data.render_cfg.ssao ? b_true : b_false,
+			singleton_data.full_render_cfg.ssao ? b_true : b_false,
 			config->blend_function == PIGEON_WGI_BLEND_NONE ? b_false : b_true,
 			stage_sym,
 			skinned ? "#define SKINNED" : ""
@@ -572,7 +572,7 @@ PIGEON_ERR_RET pigeon_wgi_create_pipeline(PigeonWGIPipeline* pipeline,
 	config2.depth_test = true;
 	config2.depth_cmp_equal = true;
 
-	uint32_t sc_render[2] = {singleton_data.render_cfg.ssao ? 1 : 0, 
+	uint32_t sc_render[2] = {singleton_data.full_render_cfg.ssao ? 1 : 0, 
 		config->blend_function == PIGEON_WGI_BLEND_NONE ? 0 : 1};
 	if(pigeon_vulkan_create_pipeline(pipeline->pipeline, vs->shader, fs->shader,
 		8, &singleton_data.rp_render, &singleton_data.render_descriptor_layout, &config2, 2, sc_render))

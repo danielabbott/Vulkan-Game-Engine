@@ -4,7 +4,6 @@
 #include <pigeon/util.h>
 
 struct PigeonVulkanStagedBuffer;
-struct PigeonWGICommandBuffer;
 struct PigeonOpenGLVAO;
 
 typedef struct PigeonWGIMeshMeta
@@ -53,6 +52,6 @@ PIGEON_ERR_RET pigeon_wgi_create_multimesh(PigeonWGIMultiMesh*,
     unsigned int vertex_count, unsigned int index_count, bool big_indices, uint64_t* size, 
     void ** vertex_mapping, void ** index_mapping);
 PIGEON_ERR_RET pigeon_wgi_multimesh_unmap(PigeonWGIMultiMesh*);
-void pigeon_wgi_upload_multimesh(struct PigeonWGICommandBuffer*, PigeonWGIMultiMesh*);
+void pigeon_wgi_upload_multimesh(PigeonWGIMultiMesh*);
 void pigeon_wgi_multimesh_transfer_done(PigeonWGIMultiMesh*); // Call this when the transfer is done on the *GPU*
 void pigeon_wgi_destroy_multimesh(PigeonWGIMultiMesh*);

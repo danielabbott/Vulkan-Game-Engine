@@ -174,9 +174,14 @@ void pigeon_vulkan_destroy_image(PigeonVulkanImage* image)
 	}
 }
 
-
 PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_view, PigeonVulkanImage* image,
 	bool array_texture)
+{
+	return pigeon_vulkan_create_image_view2(image_view, image, array_texture, UINT32_MAX);
+}
+
+PIGEON_ERR_RET pigeon_vulkan_create_image_view2(PigeonVulkanImageView* image_view, PigeonVulkanImage* image,
+	bool array_texture, unsigned int layer)
 {
 	VkImageViewCreateInfo create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	create_info.image = image->vk_image;
@@ -193,7 +198,14 @@ PIGEON_ERR_RET pigeon_vulkan_create_image_view(PigeonVulkanImageView* image_view
 	}
 
 	create_info.subresourceRange.levelCount = image->mip_levels;
-	create_info.subresourceRange.layerCount = image->layers;
+
+	if(layer == UINT32_MAX) {
+		create_info.subresourceRange.layerCount = image->layers;
+	}
+	else {
+		create_info.subresourceRange.layerCount = 1;
+		create_info.subresourceRange.baseArrayLayer = layer;
+	}
 
 	
 	ASSERT_LOG_R1(vkCreateImageView(vkdev, &create_info, NULL, &image_view->vk_image_view) == VK_SUCCESS, "vkCreateImageView error");

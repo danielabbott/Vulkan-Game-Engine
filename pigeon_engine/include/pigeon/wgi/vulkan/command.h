@@ -28,10 +28,16 @@ typedef struct PigeonVulkanCommandPool {
 
 	bool primary;
 	bool use_transfer_queue;
+	bool one_shot; // command buffers used once then pool is reset.
+
+	// These are only valid when buffer_count == 1
+	bool recording;
+	bool recorded;
 } PigeonVulkanCommandPool;
 
 
-PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool*, unsigned int buffer_count, bool primary, bool use_transfer_queue);
+PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool*, unsigned int buffer_count,
+	bool primary, bool use_transfer_queue, bool one_shot);
 
 PIGEON_ERR_RET pigeon_vulkan_start_submission(PigeonVulkanCommandPool*, unsigned int buffer_index);
 int pigeon_vulkan_start_submission2(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
@@ -110,11 +116,35 @@ PIGEON_ERR_RET pigeon_vulkan_end_submission(PigeonVulkanCommandPool*, unsigned i
 
 // Fence is optional
 PIGEON_ERR_RET pigeon_vulkan_submit(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*);
-int pigeon_vulkan_submit2(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*,
-	 PigeonVulkanSemaphore* wait_sempaphore, PigeonVulkanSemaphore* signal_sempaphore);
-int pigeon_vulkan_submit3(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*,
-	 PigeonVulkanSemaphore* wait_sempaphore, PigeonVulkanSemaphore* wait_sempaphore2, 
-	 PigeonVulkanSemaphore* signal_sempaphore, PigeonVulkanSemaphore* signal_sempaphore2);
+PIGEON_ERR_RET pigeon_vulkan_submit2(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*,
+	 PigeonVulkanSemaphore* wait_semaphore, PigeonVulkanSemaphore* signal_semaphore);
+PIGEON_ERR_RET pigeon_vulkan_submit3(PigeonVulkanCommandPool*, unsigned int buffer_index, PigeonVulkanFence*,
+	 PigeonVulkanSemaphore* wait_semaphore, PigeonVulkanSemaphore* wait_semaphore2, 
+	 PigeonVulkanSemaphore* signal_semaphore, PigeonVulkanSemaphore* signal_semaphore2);
+
+typedef enum
+{
+	PIGEON_VULKAN_SEMAPHORE_WAIT_STAGE_ALL,
+	PIGEON_VULKAN_SEMAPHORE_WAIT_STAGE_FRAGMENT,
+	PIGEON_VULKAN_SEMAPHORE_WAIT_STAGE_COLOUR_WRITE // for writing to swapchain
+} PigeonVulkanWaitSemaphoreStage;
+
+typedef struct PigeonVulkanSubmitInfo
+{
+	PigeonVulkanCommandPool* pool;
+	unsigned int buffer_index;
+
+	// Copy the semaphore structs (copies vulkan object pointer)
+
+	PigeonVulkanSemaphore wait_semaphores[8];
+	PigeonVulkanWaitSemaphoreStage wait_semaphore_types[8];
+
+	PigeonVulkanSemaphore signal_semaphores[8];
+
+	unsigned int wait_semaphore_count, signal_semaphore_count;
+} PigeonVulkanSubmitInfo;
+
+PIGEON_ERR_RET pigeon_vulkan_submit_multi(PigeonVulkanSubmitInfo*, unsigned int count, PigeonVulkanFence*);
 
 // * Wait for execution to complete before resetting or destroying a command pool *
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 typedef enum {
 	PIGEON_WINDOW_MODE_WINDOWED,
 	PIGEON_WINDOW_MODE_MAXIMISED,
@@ -18,4 +20,6 @@ struct GLFWwindow* pigeon_wgi_get_glfw_window_handle(void);
 void pigeon_wgi_get_window_dimensions(unsigned int * width, unsigned int * height);
 
 void pigeon_wgi_poll_events(void);
+bool pigeon_wgi_close_requested(void);
+
 void pigeon_wgi_destroy_window(void);

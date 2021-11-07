@@ -86,14 +86,11 @@ void main() {
 	if(SC_BLOOM) {
 		colour += bloom * BLOOM_INTENSITY;
 	}
-
-
+	
 
 	float luminance = dot(luminance_multipliers, colour);
-
-	float new_luminance = luminance / (luminance + 1.0);
-
-
+	float new_luminance = pow(luminance, 1.2); // contrast
+	new_luminance = 3.0*new_luminance / (3.0*new_luminance + 1.0); // tone map
 	colour *= new_luminance / luminance;
 
 	out_colour = vec4(colour, 1.0);

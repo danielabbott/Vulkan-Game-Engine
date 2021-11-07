@@ -4,10 +4,13 @@
 #include <pigeon/assert.h>
 #include <stdlib.h>
 
-PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool* command_pool, unsigned int buffer_count, bool primary, bool use_transfer_queue)
+PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool* command_pool, 
+	unsigned int buffer_count, bool primary, bool use_transfer_queue, bool one_shot)
 {
 	assert(command_pool);
 	assert(buffer_count);
+
+	command_pool->one_shot = one_shot;
 
 	if(buffer_count > 1) {
 		command_pool->vk_command_buffers = malloc(sizeof *command_pool->vk_command_buffers * buffer_count);
@@ -21,7 +24,7 @@ PIGEON_ERR_RET pigeon_vulkan_create_command_pool(PigeonVulkanCommandPool* comman
 		pool_create.queueFamilyIndex = singleton_data.transfer_queue_family;
 	}
 
-	pool_create.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+	if(one_shot) pool_create.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 
 	if(vkCreateCommandPool(vkdev, &pool_create, NULL, &command_pool->vk_command_pool) != VK_SUCCESS) {
 		ERRLOG("vkCreateCommandPool error");
@@ -64,7 +67,8 @@ PIGEON_ERR_RET pigeon_vulkan_start_submission(PigeonVulkanCommandPool* command_p
 	assert(buffer_index < command_pool->buffer_count);
 
 	VkCommandBufferBeginInfo begin = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-	begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	if(command_pool->one_shot) begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 	VkCommandBufferInheritanceInfo inheritance = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO };
 	if (!command_pool->primary) {
@@ -72,6 +76,9 @@ PIGEON_ERR_RET pigeon_vulkan_start_submission(PigeonVulkanCommandPool* command_p
 	}
 
 	ASSERT_LOG_R1(vkBeginCommandBuffer(get_cmd_buf(command_pool, buffer_index), &begin) == VK_SUCCESS, "vkBeginCommandBuffer error");
+	
+	command_pool->recorded = false;
+	command_pool->recording = true;
 	return 0;
 }
 
@@ -101,6 +108,9 @@ int pigeon_vulkan_start_submission2(PigeonVulkanCommandPool* command_pool, unsig
 
 
 	ASSERT_LOG_R1(vkBeginCommandBuffer(get_cmd_buf(command_pool, buffer_index), &begin) == VK_SUCCESS, "vkBeginCommandBuffer error");
+	
+	command_pool->recorded = false;
+	command_pool->recording = true;	
 	return 0;
 }
 
@@ -707,15 +717,68 @@ PIGEON_ERR_RET pigeon_vulkan_end_submission(PigeonVulkanCommandPool* command_poo
 	assert(buffer_index < command_pool->buffer_count);
 
 	ASSERT_LOG_R1(vkEndCommandBuffer(get_cmd_buf(command_pool, buffer_index)) == VK_SUCCESS, "vkEndCommandBuffer error");
+	if(command_pool->buffer_count == 1) {
+		command_pool->recorded = true;
+		command_pool->recording = false;
+	}
 	return 0;
 }
 
-int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, PigeonVulkanFence* fence,
+
+PIGEON_ERR_RET pigeon_vulkan_submit_multi(PigeonVulkanSubmitInfo* info, unsigned int count, PigeonVulkanFence* fence)
+{
+	ASSERT_R1(info && count <= 12);
+	if(fence) ASSERT_R1(fence->vk_fence);
+	if(!count) return 0;
+
+	bool use_transfer_queue = info[0].pool->use_transfer_queue;
+
+	VkSubmitInfo submits[12] = {{0}};
+
+	for(unsigned int i = 0; i < count; i++) {
+		ASSERT_R1(info[i].pool->use_transfer_queue == use_transfer_queue);
+
+		submits[i].sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+		unsigned int buffer_count = info[i].pool->buffer_count;
+		submits[i].commandBufferCount = buffer_count;
+		submits[i].pCommandBuffers = buffer_count > 1 ? 
+			info[i].pool->vk_command_buffers : &info[i].pool->vk_command_buffer;
+
+		submits[i].pWaitSemaphores = (const VkSemaphore *)info[i].wait_semaphores;
+		submits[i].pWaitDstStageMask = info[i].wait_semaphore_types;// TODO change to vulkan flags
+		submits[i].waitSemaphoreCount = info[i].wait_semaphore_count;
+		submits[i].pSignalSemaphores = (const VkSemaphore *)info[i].signal_semaphores;
+		submits[i].signalSemaphoreCount = info[i].signal_semaphore_count;
+
+		ASSERT_R1(info[i].wait_semaphore_count <= 8);
+		ASSERT_R1(info[i].signal_semaphore_count && info[i].wait_semaphore_count <= 8);
+
+		for(unsigned int j = 0; j < info[i].wait_semaphore_count; j++) {
+			if(info[i].wait_semaphore_types[j] == PIGEON_VULKAN_SEMAPHORE_WAIT_STAGE_ALL) {
+				*(VkPipelineStageFlagBits*)(void*)&info[i].wait_semaphore_types[j] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			}
+			else if(info[i].wait_semaphore_types[j] == PIGEON_VULKAN_SEMAPHORE_WAIT_STAGE_FRAGMENT) {
+				*(VkPipelineStageFlagBits*)(void*)&info[i].wait_semaphore_types[j] = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			}
+			else if(info[i].wait_semaphore_types[j] == PIGEON_VULKAN_SEMAPHORE_WAIT_STAGE_COLOUR_WRITE) {
+				*(VkPipelineStageFlagBits*)(void*)&info[i].wait_semaphore_types[j] = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			}
+		}
+	}
+
+	ASSERT_LOG_R1(vkQueueSubmit(
+		use_transfer_queue ? singleton_data.transfer_queue : singleton_data.general_queue, count, submits,
+		fence ? fence->vk_fence : VK_NULL_HANDLE) == VK_SUCCESS, "vkQueueSubmit error");
+	return 0;
+}
+
+PIGEON_ERR_RET pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index, PigeonVulkanFence* fence,
 	PigeonVulkanSemaphore* wait_semaphore, PigeonVulkanSemaphore* wait_semaphore2,
 	PigeonVulkanSemaphore* signal_semaphore, PigeonVulkanSemaphore* signal_semaphore2)
 {
-	assert(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
-	assert(buffer_index < command_pool->buffer_count);
+	ASSERT_R1(command_pool && command_pool->vk_command_pool && command_pool->vk_command_buffer);
+	ASSERT_R1(buffer_index < command_pool->buffer_count);
 
 
 	ASSERT_LOG_R1(vkEndCommandBuffer(get_cmd_buf(command_pool, buffer_index)) == VK_SUCCESS, "vkEndCommandBuffer error");
@@ -744,7 +807,7 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 
 	VkSemaphore wait_semaphores[2];
 	VkPipelineStageFlags stage[2] = {
-		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
 
 	if(wait_semaphore) {
 		submit.waitSemaphoreCount++;
@@ -767,7 +830,7 @@ int pigeon_vulkan_submit3(PigeonVulkanCommandPool* command_pool, unsigned int bu
 	return 0;
 }
 
-int pigeon_vulkan_submit2(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
+PIGEON_ERR_RET pigeon_vulkan_submit2(PigeonVulkanCommandPool* command_pool, unsigned int buffer_index,
 	PigeonVulkanFence* fence, PigeonVulkanSemaphore* wait_semaphore,
 	PigeonVulkanSemaphore* signal_semaphore)
 {
@@ -785,7 +848,7 @@ PIGEON_ERR_RET pigeon_vulkan_reset_command_pool(PigeonVulkanCommandPool* command
 	assert(command_pool && command_pool->vk_command_pool);
 
 	ASSERT_LOG_R1(vkResetCommandPool(vkdev, command_pool->vk_command_pool, 0) == VK_SUCCESS, "vkResetCommandPool error");
-
+	command_pool->recorded = command_pool->recording = false;
 	return 0;
 }
 
