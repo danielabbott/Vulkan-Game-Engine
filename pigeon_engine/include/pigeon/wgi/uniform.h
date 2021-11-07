@@ -16,14 +16,15 @@ typedef struct PigeonWGIDrawObject {
     mat4 model;
     mat4 normal_model_matrix;
 
-    vec4 position_min;
+    vec3 position_min;
+    float first_bone_index;
     vec3 position_range;
     float ssao_intensity;
     
     uint32_t texture_sampler_index_plus1; // into array of glsl samplers
     float texture_index; // into array texture
     
-    uint32_t first_bone_index;
+    int rsvd0;
 
     float specular_intensity;
 
@@ -62,7 +63,7 @@ typedef struct PigeonWGISceneUniformData {
     float one_pixel_y;
     float time;
     uint32_t number_of_lights;
-	float ssao_cutoff;
+	float rsvd2;
     float rsvd3;
 
     PigeonWGILight lights[4];

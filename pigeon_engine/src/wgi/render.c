@@ -21,6 +21,22 @@
 #include <pigeon/wgi/wgi.h>
 #include "tex.h"
 
+
+void pigeon_wgi_set_active_render_config(PigeonWGIRenderConfig new_cfg)
+{
+    pigeon_wgi_validate_render_cfg(&new_cfg);
+    if(!singleton_data.full_render_cfg.ssao) new_cfg.ssao = false;
+    if(!singleton_data.full_render_cfg.bloom) new_cfg.bloom = false;
+
+    for(unsigned int i = 0; i < singleton_data.frame_objects_count; i++) {
+        if(singleton_data.active_render_cfg.ssao != new_cfg.ssao) {
+            singleton_data.per_frame_objects[i].need_to_rebind_ssao_texture = true;
+        }
+    }
+
+    singleton_data.active_render_cfg = new_cfg;
+}
+
 static void create_render_stage_info(void)
 {
     memset(singleton_data.stages, 0, sizeof singleton_data.stages);
@@ -511,7 +527,19 @@ PIGEON_ERR_RET pigeon_wgi_start_frame(unsigned int max_draws,
     ASSERT_R1(!prepare_uniform_buffers());
 
 
-    // Bind shadow textures
+    // Rebind ssao texture if render config has changed
+
+    if(VULKAN && objects->need_to_rebind_ssao_texture) {
+        if(singleton_data.active_render_cfg.ssao) {
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, 0, 
+                &singleton_data.ssao_images[1].image_view, &singleton_data.bilinear_sampler);
+        }
+        else {
+            pigeon_vulkan_set_descriptor_texture(&objects->render_descriptor_pool, 0, 3, 0, 
+                &singleton_data.default_1px_black_texture_image_view, &singleton_data.nearest_filter_sampler);
+        }
+        objects->need_to_rebind_ssao_texture = false;
+    }
 
     if(VULKAN) {
         for(unsigned int i = 0; i < 4; i++) {
@@ -918,9 +946,13 @@ static PIGEON_ERR_RET pigeon_wgi_start_record_gl(PigeonWGIRenderStage stage)
             for(unsigned int i = 0; i < 4; i++) { 
                 if(singleton_data.shadow_images[i].gltex2d.id)
                     pigeon_opengl_bind_texture(i, &singleton_data.shadow_images[i].gltex2d);  
+                else
+                    pigeon_opengl_bind_texture(i, &singleton_data.gl.default_shadow_map_image);  
             }
             if(singleton_data.active_render_cfg.ssao)
                 pigeon_opengl_bind_texture(5, &singleton_data.ssao_images[1].gltex2d);
+            else
+                pigeon_opengl_bind_texture(5, &singleton_data.gl.default_1px_black_texture_image);
         }
     }
     else if(stage == PIGEON_WGI_RENDER_STAGE_POST_AND_UI) {
@@ -930,7 +962,11 @@ static PIGEON_ERR_RET pigeon_wgi_start_record_gl(PigeonWGIRenderStage stage)
         pigeon_opengl_bind_framebuffer(NULL);
         pigeon_opengl_bind_shader_program(&singleton_data.gl.shader_post);
         pigeon_opengl_bind_texture(0, &singleton_data.render_image.gltex2d);
-        pigeon_opengl_bind_texture(1, &singleton_data.bloom_images[0][0].gltex2d);
+
+        if(singleton_data.active_render_cfg.bloom)
+            pigeon_opengl_bind_texture(1, &singleton_data.bloom_images[0][0].gltex2d);
+        else
+            pigeon_opengl_bind_texture(1, &singleton_data.gl.default_1px_black_texture_image);
 
 
         pigeon_opengl_set_uniform_vec3(&singleton_data.gl.shader_post, 
@@ -1021,7 +1057,9 @@ PIGEON_ERR_RET pigeon_wgi_start_record(PigeonWGIRenderStage stage)
 
         pigeon_vulkan_start_render_pass(p, 0, &singleton_data.rp_post, fb, vp_w, vp_h, false);
         pigeon_vulkan_bind_pipeline(p, 0, &singleton_data.pipeline_post);
-        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_post, &singleton_data.post_process_descriptor_pool, 0);
+        pigeon_vulkan_bind_descriptor_set(p, 0, &singleton_data.pipeline_post, 
+            singleton_data.active_render_cfg.bloom ? 
+                &singleton_data.post_process_descriptor_pool : &singleton_data.post_process_descriptor_pool_no_bloom, 0);
         pigeon_vulkan_draw(p, 0, 0, 3, 1, &singleton_data.pipeline_post, sizeof post_pushc, &post_pushc);
     }
 

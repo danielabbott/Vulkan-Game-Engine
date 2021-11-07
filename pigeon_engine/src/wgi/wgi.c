@@ -14,7 +14,7 @@
 #include <pigeon/assert.h>
 #include <pigeon/wgi/rendergraph.h>
 
-static void validate_render_cfg(PigeonWGIRenderConfig* render_cfg)
+void pigeon_wgi_validate_render_cfg(PigeonWGIRenderConfig* render_cfg)
 {
 	(void)render_cfg;
 }
@@ -45,7 +45,7 @@ PIGEON_ERR_RET pigeon_wgi_init(PigeonWindowParameters window_parameters,
 {
 	pigeon_wgi_deinit();
 
-	validate_render_cfg(&render_cfg);
+	pigeon_wgi_validate_render_cfg(&render_cfg);
 	singleton_data.full_render_cfg = render_cfg;
 	singleton_data.active_render_cfg = render_cfg;
 

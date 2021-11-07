@@ -162,7 +162,7 @@ void main() {
     #define data draw_object.obj
 #endif
 
-    vec3 p = raw_position * data.position_range.xyz + data.position_min.xyz;
+    vec3 p = raw_position * data.position_range.xyz + data.position_min_and_first_bone.xyz;
 
 #if defined(OBJECT)
     mat3 nmat = mat3(data.normal_model_matrix);
@@ -172,7 +172,7 @@ void main() {
     #ifdef SKINNED
     
 #if __VERSION__ >= 460
-    int first_bone_index = data.first_bone_index;
+    int first_bone_index = int(data.position_min_and_first_bone.w);
 #else
     #define first_bone_index 0
 #endif

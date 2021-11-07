@@ -32,6 +32,10 @@ typedef struct PigeonWGIRenderConfig {
 	// unsigned int ssao_blur_passes;
 } PigeonWGIRenderConfig;
 
+// Call after pigeon_wgi_next_frame_* and before pigeon_wgi_start_frame
+void pigeon_wgi_set_active_render_config(PigeonWGIRenderConfig);
+
+
 // Command buffer recording
 
 

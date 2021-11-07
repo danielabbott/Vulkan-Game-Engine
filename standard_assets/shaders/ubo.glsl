@@ -26,7 +26,7 @@ uniform UniformBufferObject {
     vec2 one_pixel;
     float time;
     int number_of_lights;
-	float ssao_cutoff;
+	float rsvd2;
     float rsvd3;
     Light lights[4];
     vec4 ambient;
@@ -52,13 +52,13 @@ struct DrawObject {
 	mat4 model;
     mat4 normal_model_matrix;
 
-    vec4 position_min;
+    vec4 position_min_and_first_bone;
     vec4 position_range_and_ssao_intensity;
 
     int texture_sampler_index_plus1; // into array of glsl samplers
     float texture_index; // into array texture
     
-    int first_bone_index;
+    int rsvd0;
 
     float specular_intensity;
 

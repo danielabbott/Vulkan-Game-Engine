@@ -142,11 +142,11 @@ PigeonLight * light;
 PigeonLight * light2;
 PigeonAudioPlayer * audio_pigeon;
 
+PigeonWGIRenderConfig render_config;
+
 bool mouse_grabbed;
 int last_mouse_x = -1;
 int last_mouse_y = -1;
-
-bool debug_disable_ssao = false, debug_disable_bloom = false;
 
 double start_time = 0;
 
@@ -154,12 +154,11 @@ static void key_callback(PigeonWGIKeyEvent e)
 {
 	if (e.key == PIGEON_WGI_KEY_1 && !e.pressed)
 	{
-		debug_disable_ssao = !debug_disable_ssao;
+		render_config.ssao = !render_config.ssao;
 	}
 	if (e.key == PIGEON_WGI_KEY_2 && !e.pressed)
 	{
-		debug_disable_bloom = !debug_disable_bloom;
-		pigeon_wgi_set_bloom_intensity(debug_disable_bloom ? 0 : 1);
+		render_config.bloom = !render_config.bloom;
 	}
 
 	if(e.key == PIGEON_WGI_KEY_0 && !e.pressed && AUDIO_ASSET_COUNT) {
@@ -188,10 +187,9 @@ static PIGEON_ERR_RET start(void)
 		.window_mode = PIGEON_WINDOW_MODE_WINDOWED,
 		.title = "Test 1"};
 
-	PigeonWGIRenderConfig cfg = {0};
-	cfg.ssao = true;
-	cfg.bloom = true;
-	if (pigeon_wgi_init(window_parameters, true, false, cfg, 0.1f, 1000.0f))
+	render_config.ssao = true;
+	render_config.bloom = true;
+	if (pigeon_wgi_init(window_parameters, true, false, render_config, 0.1f, 1000.0f))
 	{
 		pigeon_wgi_deinit();
 		return 1;
@@ -1107,6 +1105,7 @@ static PIGEON_ERR_RET game_loop(void)
 		}
 
 		ASSERT_R1(!pigeon_update_scene_audio(t_camera));
+		pigeon_wgi_set_active_render_config(render_config);
 
 		// Scene graph pre-pass, ready uniform buffers, configure lighting
 		ASSERT_R1(!pigeon_prepare_draw_frame(t_camera));
@@ -1130,7 +1129,7 @@ static PIGEON_ERR_RET game_loop(void)
 
 		ASSERT_R1(!pigeon_wgi_end_record(PIGEON_WGI_RENDER_STAGE_UPLOAD));
 
-		ASSERT_R1(!pigeon_draw_frame(debug_disable_ssao, &skybox_pipeline));
+		ASSERT_R1(!pigeon_draw_frame(&skybox_pipeline));
 
         ASSERT_R1(!pigeon_wgi_submit_frame());
 

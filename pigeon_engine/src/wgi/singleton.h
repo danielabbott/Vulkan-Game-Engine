@@ -108,6 +108,9 @@ typedef struct PerFrameData {
 		} gl;
 	};
 
+	// For when active render configuration has been changed
+	bool need_to_rebind_ssao_texture;
+
     
 	bool first_frame_submitted; // set to true when a frame has been rendered using this PerFrameData struct
 } PerFrameData;
@@ -192,6 +195,7 @@ typedef struct SingletonData
 			PigeonVulkanDescriptorPool bloom_descriptor_pools[3][2]; // bilinear samples from bloom_image with same index
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool0;
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool1;
+			PigeonVulkanDescriptorPool post_process_descriptor_pool_no_bloom;
 			PigeonVulkanDescriptorPool post_process_descriptor_pool;
 
 
@@ -275,6 +279,8 @@ SingletonData pigeon_wgi_singleton_data;
 #define singleton_data pigeon_wgi_singleton_data
 #define VULKAN pigeon_wgi_singleton_data.using_vulkan
 #define OPENGL pigeon_wgi_singleton_data.using_opengl
+
+void pigeon_wgi_validate_render_cfg(PigeonWGIRenderConfig* render_cfg);
 
 PIGEON_ERR_RET pigeon_create_window(PigeonWindowParameters, bool use_opengl);
 PigeonWGISwapchainInfo pigeon_opengl_get_swapchain_info(void);

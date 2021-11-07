@@ -33,6 +33,8 @@ PIGEON_ERR_RET pigeon_opengl_init(void)
     glDisable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_CLAMP);
 
+    printf("Device: %s\n", glGetString(GL_RENDERER));
+
     #ifdef DEBUG
     if (GL_ARB_debug_output != 0) {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);

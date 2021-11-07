@@ -190,6 +190,8 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
     
 
 	memcpy(data->position_min, model->model_asset->mesh_meta.bounds_min, 3 * 4);
+    data->first_bone_index = mr->animation_state ? (float)mr->animation_state->_first_bone_index : -1;
+    
 	memcpy(data->position_range, model->model_asset->mesh_meta.bounds_range, 3 * 4);
 
 	data->ssao_intensity = 1.35f;
@@ -210,7 +212,7 @@ static void set_object_uniform(PigeonModelMaterial const* model, PigeonMaterialR
         data->texture_index = 0;
     }
 
-	data->first_bone_index = mr->animation_state ? mr->animation_state->_first_bone_index : UINT32_MAX;
+	data->rsvd0 = 0;
     data->specular_intensity = mr->specular_intensity * model->model_asset->materials[model->material_index].specular * 10.0f;
 
     memcpy(data->colour, mr->colour, 3 * 4);
@@ -426,7 +428,7 @@ static PIGEON_ERR_RET set_uniform_data_per_rs_(uint64_t arg0, void * rs_)
     return 0;
 }
 
-static void set_per_scene_uniform_data(bool debug_disable_ssao)
+static void set_per_scene_uniform_data(void)
 {
 
 	unsigned int window_width, window_height;
@@ -446,7 +448,6 @@ static void set_per_scene_uniform_data(bool debug_disable_ssao)
 	scene_uniform_data.one_pixel_x = 1.0f / (float)window_width;
 	scene_uniform_data.one_pixel_y = 1.0f / (float)window_height;
 	scene_uniform_data.time = pigeon_wgi_get_time_seconds();
-	scene_uniform_data.ssao_cutoff = debug_disable_ssao ? -1 : 0.02f;
 
     // lights
 
@@ -679,9 +680,9 @@ PIGEON_ERR_RET pigeon_prepare_draw_frame(PigeonTransform * camera_)
     return 0;
 }
 
-PIGEON_ERR_RET pigeon_draw_frame(bool debug_disable_ssao, PigeonWGIPipeline* skybox_pipeline)
+PIGEON_ERR_RET pigeon_draw_frame(PigeonWGIPipeline* skybox_pipeline)
 {
-    set_per_scene_uniform_data(debug_disable_ssao);
+    set_per_scene_uniform_data();
 
     // Render
 
