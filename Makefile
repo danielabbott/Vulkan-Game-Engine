@@ -144,7 +144,7 @@ $(BUILD_DIR)/audio_asset_converter: $(AUDIO_ASSET_CONVERTER_DEPS)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 
-tests: $(BUILD_DIR)/test1 $(BUILD_DIR)/nettest $(OBJECTS_GLSL) $(ASSET_FILES)
+tests: $(BUILD_DIR)/test1 $(BUILD_DIR)/nettest $(BUILD_DIR)/unit_tests $(OBJECTS_GLSL) $(ASSET_FILES)
 
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(@D)
@@ -215,6 +215,10 @@ $(BUILD_DIR)/test1: $(OBJECTS_NO_TESTS) $(BUILD_DIR)/tests/1/test1.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/nettest: $(OBJECTS_NO_TESTS) $(BUILD_DIR)/tests/network/test_network.o
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+$(BUILD_DIR)/unit_tests: $(OBJECTS_NO_TESTS) $(BUILD_DIR)/tests/unit_tests/unit_tests.o
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 

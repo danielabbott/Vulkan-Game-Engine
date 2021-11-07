@@ -5,7 +5,7 @@
 #include <pigeon/array_list.h>
 
 
-#define PIGEON_GROUP_SIZE_DIV64 1
+#define PIGEON_GROUP_SIZE_DIV64 2
 
 typedef struct PigeonObjectPool
 {

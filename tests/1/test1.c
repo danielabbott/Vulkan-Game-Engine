@@ -18,7 +18,6 @@
 #include <cglm/affine.h>
 #include <cglm/euler.h>
 #include <cglm/cam.h>
-#include <config_parser_test.h>
 #include <time.h>
 
 #ifdef NDEBUG
@@ -1144,8 +1143,6 @@ static PIGEON_ERR_RET game_loop(void)
 
 int main(void)
 {
-	ASSERT_R1(!pigeon_test_config_parser());
-
 	srand((unsigned)time(NULL));
 	ASSERT_R1(!start());
 	ASSERT_R1(!load_assets());
