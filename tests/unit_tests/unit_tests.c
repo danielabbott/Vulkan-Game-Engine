@@ -4,6 +4,7 @@
 #include <pigeon/array_list.h>
 #include <pigeon/object_pool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 static PIGEON_ERR_RET pigeon_test_array_list(void)
 {
@@ -92,5 +93,6 @@ int main(void)
 	ASSERT_R1(!pigeon_test_config_parser());
 	ASSERT_R1(!pigeon_test_array_list());
 	ASSERT_R1(!pigeon_test_object_pool());
+    puts("Success");
     return 0;
 }
