@@ -63,7 +63,7 @@ static struct addrinfo* resolve_hostname(const char* remote_host, const char* po
 
 PIGEON_ERR_RET pigeon_network_create_client_socket_blocking(PigeonNetworkSocket* sock,
     const char* remote_host, PigeonNetworkPort remote_port,
-    PigeonNetworkProtocol protocol)
+    PigeonNetworkProtocol protocol, bool no_ipv6)
 {
     ASSERT_R1(sock && remote_host && remote_port);
 
@@ -75,7 +75,7 @@ PIGEON_ERR_RET pigeon_network_create_client_socket_blocking(PigeonNetworkSocket*
 
     bool got_connection = false;
 
-    for (int try_ipv4 = 0; try_ipv4 < 2; ++try_ipv4) {
+    for (int try_ipv4 = no_ipv6 ? 1 : 0; try_ipv4 < 2; ++try_ipv4) {
         for (struct addrinfo* address = addresses; address != NULL; address = address->ai_next) {
             if (!try_ipv4 && address->ai_family != AF_INET6) continue;
             if (try_ipv4 && address->ai_family != AF_INET) continue;
@@ -86,7 +86,7 @@ PIGEON_ERR_RET pigeon_network_create_client_socket_blocking(PigeonNetworkSocket*
 
             if (sock->handle == INVALID_SOCKET) continue;
 
-            if (connect(sock->handle, address->ai_addr, (int)address->ai_addrlen) < 0) {
+            if (connect(sock->handle, address->ai_addr, (unsigned int)address->ai_addrlen) < 0) {
                 CLOSE_SOCKET(sock->handle);
                 continue;
             }

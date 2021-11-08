@@ -29,7 +29,7 @@ typedef struct PigeonNetworkSocket
 
 PIGEON_ERR_RET pigeon_network_create_client_socket_blocking(PigeonNetworkSocket*,
     const char * remote_host, PigeonNetworkPort remote_port,
-    PigeonNetworkProtocol);
+    PigeonNetworkProtocol, bool no_ipv6);
 
 PIGEON_ERR_RET pigeon_network_recv_blocking(PigeonNetworkSocket*, unsigned int max_bytes, 
     unsigned int * bytes_received, void * buffer);

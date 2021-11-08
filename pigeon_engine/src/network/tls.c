@@ -49,7 +49,7 @@ PIGEON_ERR_RET pigeon_init_openssl(void)
 
 
 PIGEON_ERR_RET pigeon_network_create_client_tls_connection_blocking(PigeonNetworkClientTLSConnection* conn, 
-    const char * remote_host, PigeonNetworkPort remote_port)
+    const char * remote_host, PigeonNetworkPort remote_port, bool no_ipv6)
 {
 
 #define CLEANUP() pigeon_network_close_client_tls_connection_blocking(conn);
@@ -65,6 +65,9 @@ PIGEON_ERR_RET pigeon_network_create_client_tls_connection_blocking(PigeonNetwor
 
     conn->bio = BIO_new_ssl_connect(openssl_context);
     OPENSSL_ASSERT_R1(conn->bio);
+
+    if(no_ipv6) BIO_set_conn_ip_family(conn->bio, BIO_FAMILY_IPV4);
+    else BIO_set_conn_ip_family(conn->bio, BIO_FAMILY_IPV6);
 
     unsigned int host_string_max_len = (unsigned)strlen(remote_host) + 6;
     char * host = malloc(host_string_max_len);
@@ -82,7 +85,11 @@ PIGEON_ERR_RET pigeon_network_create_client_tls_connection_blocking(PigeonNetwor
 
     SSL_set_tlsext_host_name(conn->ssl, remote_host);
 
-    OPENSSL_ASSERT_R1(BIO_do_connect(conn->bio) == 1);
+    if(BIO_do_connect(conn->bio) != 1) {
+        ASSERT_R1(!no_ipv6);
+        BIO_set_conn_ip_family(conn->bio, BIO_FAMILY_IPANY);
+        ASSERT_R1(BIO_do_connect(conn->bio) == 1);
+    }
     OPENSSL_ASSERT_R1(BIO_do_handshake(conn->bio) == 1);
 
 

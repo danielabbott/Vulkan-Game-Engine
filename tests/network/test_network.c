@@ -32,7 +32,7 @@ static int test_tcp(void)
     PigeonNetworkSocket socket = {0};
 
 	ASSERT_R1(!pigeon_network_create_client_socket_blocking(&socket,
-		"example.com", 80, PIGEON_NETWORK_PROTOCOL_TCP));
+		"example.com", 80, PIGEON_NETWORK_PROTOCOL_TCP, false));
 
 	const char * send = HTTP_GET_HOMEPAGE;
 
@@ -65,7 +65,7 @@ static int test_tls(void)
     puts("Testing TLS...");
     PigeonNetworkClientTLSConnection tls = {0};
 
-	ASSERT_R1(!pigeon_network_create_client_tls_connection_blocking(&tls, "example.com", 443));
+	ASSERT_R1(!pigeon_network_create_client_tls_connection_blocking(&tls, "example.com", 443, false));
 
 	const char * send = HTTP_GET_HOMEPAGE;
 	
@@ -100,7 +100,7 @@ static int test_udp(void)
     PigeonNetworkSocket socket = {0};
 
 	ASSERT_R1(!pigeon_network_create_client_socket_blocking(&socket,
-		"127.0.0.1", 25565, PIGEON_NETWORK_PROTOCOL_UDP));
+		"127.0.0.1", 25565, PIGEON_NETWORK_PROTOCOL_UDP, false));
 
 	const char * msg = "TEST MESSAGE";
 
