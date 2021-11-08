@@ -19,6 +19,7 @@
 #include <cglm/euler.h>
 #include <cglm/cam.h>
 #include <time.h>
+#include <pigeon/network/http.h>
 
 #ifdef NDEBUG
 	#define SHADER_PATH_PREFIX "build/release/standard_assets/shaders/"
@@ -702,9 +703,9 @@ static PIGEON_ERR_RET create_skybox_pipeline_glsl(void)
 {
 	PigeonWGIShader vs = {0}, fs = {0};
 
-	ASSERT_R1 (!pigeon_wgi_create_shader2(&vs, "skybox.vert", PIGEON_WGI_SHADER_TYPE_VERTEX, NULL, false));
+	ASSERT_R1 (!pigeon_wgi_create_shader2(&vs, "skybox.vert", PIGEON_WGI_SHADER_TYPE_VERTEX, NULL));
 
-	if (pigeon_wgi_create_shader2(&fs, "skybox.frag", PIGEON_WGI_SHADER_TYPE_FRAGMENT, NULL, false))
+	if (pigeon_wgi_create_shader2(&fs, "skybox.frag", PIGEON_WGI_SHADER_TYPE_FRAGMENT, NULL))
 	{
 		pigeon_wgi_destroy_shader(&vs);
 		ASSERT_R1(false);
@@ -776,7 +777,7 @@ static void create_pipeline_cleanup(uint32_t *spv_data[4], PigeonWGIShader shade
 
 
 static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
-	const char * shader_paths[4][2], bool shaders_depth_only[4], 
+	const char * shader_paths[4][2], 
 	PigeonWGIPipelineConfig * config, bool skinned, bool transparent)
 {
 
@@ -806,7 +807,7 @@ static PIGEON_ERR_RET create_pipeline(PigeonWGIPipeline * pipeline,
 				CHECK(!pigeon_wgi_create_shader(&shaders[i], spv_data[i], (uint32_t)spv_lengths[i], shader_types[i]));
 			}
 			else {
-				CHECK(!pigeon_wgi_create_shader2(&shaders[i], shader_paths[i][0], shader_types[i], config, shaders_depth_only[i]));
+				CHECK(!pigeon_wgi_create_shader2(&shaders[i], shader_paths[i][0], shader_types[i], config));
 			}
 		}	
 	}
@@ -837,43 +838,36 @@ static PIGEON_ERR_RET create_pipelines(void)
 	#define PATHS(x) {x, SHADER_PATH_PREFIX x ".spv"}
 
 	const char *shader_paths[4][2] = {
-		{"object.vert", FULL_PATH("object.vert.depth")},
+		{"object.vert", FULL_PATH("object.depth.vert")},
 		PATHS("object.vert"),
 		{NULL, NULL},
 		PATHS("object.frag")};
 
-	bool shaders_depth_only[4] = {
-		true,
-		false,
-		true,
-		false
-	};
-
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, shaders_depth_only, &config, false, false));
+	ASSERT_R1(!create_pipeline(&render_pipeline, shader_paths, &config, false, false));
 
 	const char *shader_paths_skinned[4][2] = {
-		{"object.vert", FULL_PATH("object.vert.skinned.depth")},
-		{"object.vert", FULL_PATH("object.vert.skinned")},
+		{"object.vert", FULL_PATH("object.skinned.depth.vert")},
+		{"object.vert", FULL_PATH("object.skinned.vert")},
 		{NULL, NULL},
 		PATHS("object.frag")};
 
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, shaders_depth_only, &config, true, false));
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned, shader_paths_skinned, &config, true, false));
 
 	config.blend_function = PIGEON_WGI_BLEND_NORMAL;
-	shader_paths[0][1] = FULL_PATH("object.vert.depth_alpha");
+	shader_paths[0][1] = FULL_PATH("object.depth_alpha.vert");
 	shader_paths[2][0] = "object_depth_alpha.frag";
 	shader_paths[2][1] = FULL_PATH("object_depth_alpha.frag");
 
 	memcpy(config.vertex_attributes, static_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, shaders_depth_only, &config, false, true));
+	ASSERT_R1(!create_pipeline(&render_pipeline_transparent, shader_paths, &config, false, true));
 
-	shader_paths_skinned[0][1] = FULL_PATH("object.vert.skinned.depth_alpha");
+	shader_paths_skinned[0][1] = FULL_PATH("object.skinned.depth_alpha.vert");
 	shader_paths_skinned[2][0] = "object_depth_alpha.frag";
 	shader_paths_skinned[2][1] = FULL_PATH("object_depth_alpha.frag");
 	memcpy(config.vertex_attributes, skinned_mesh_attribs, sizeof config.vertex_attributes);
-	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, shaders_depth_only, &config, true, true));
+	ASSERT_R1(!create_pipeline(&render_pipeline_skinned_transparent, shader_paths_skinned, &config, true, true));
 
 	return 0;
 

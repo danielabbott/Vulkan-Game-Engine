@@ -1,6 +1,6 @@
 /*
     When running this test, the following are required: 
-        Internet access (example.com)
+        Internet access (www.wikipedia.org)
         A local UDP server (python3 code provided below)
 
 from socket import socket,AF_INET,SOCK_DGRAM
@@ -32,7 +32,7 @@ static int test_tcp(void)
     PigeonNetworkSocket socket = {0};
 
 	ASSERT_R1(!pigeon_network_create_client_socket_blocking(&socket,
-		"example.com", 80, PIGEON_NETWORK_PROTOCOL_TCP, false));
+		"www.wikipedia.org", 80, PIGEON_NETWORK_PROTOCOL_TCP, false));
 
 	const char * send = HTTP_GET_HOMEPAGE;
 
@@ -41,7 +41,7 @@ static int test_tcp(void)
 		&bytes_sent, send));
     ASSERT_R1(bytes_sent == (unsigned) strlen(send));
 
-    puts("The HTTP response for the main page of example.com should be shown below:");
+    puts("The HTTP response for the main page of www.wikipedia.org should be shown below:");
 
     char * recv = malloc(1024*1024);
 	ASSERT_R1(recv);
@@ -65,7 +65,7 @@ static int test_tls(void)
     puts("Testing TLS...");
     PigeonNetworkClientTLSConnection tls = {0};
 
-	ASSERT_R1(!pigeon_network_create_client_tls_connection_blocking(&tls, "example.com", 443, false));
+	ASSERT_R1(!pigeon_network_create_client_tls_connection_blocking(&tls, "www.wikipedia.org", 443, false));
 
 	const char * send = HTTP_GET_HOMEPAGE;
 	
@@ -74,7 +74,7 @@ static int test_tls(void)
 	ASSERT_R1(!pigeon_network_client_tls_send_blocking(&tls, (unsigned)strlen(send), &bytes_sent, send));
 	ASSERT_R1(bytes_sent == strlen(send));
 
-    puts("The HTML for the main page of example.com should be shown below:");
+    puts("The HTTP response for the main page of www.wikipedia.org should be shown below:");
 
 	char * recv = malloc(1024*1024);
 	ASSERT_R1(recv);

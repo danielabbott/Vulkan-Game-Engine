@@ -87,7 +87,7 @@ PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint3
 
 // if config is NULL then depth_only is ignored
 PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader*, const char * file_name, 
-	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, bool depth_only);
+	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config);
 
 void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 

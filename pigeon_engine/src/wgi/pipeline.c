@@ -321,7 +321,7 @@ bool pigeon_wgi_accepts_spirv(void)
 }
 
 PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * file_name, 
-	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config, bool depth_only)
+	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config)
 {
 	ASSERT_R1(shader && file_name && OPENGL);
 
@@ -341,25 +341,13 @@ PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader* shader, const char * f
 		const char * b_true = "true";
 		const char * b_false = "false";
 
-		const char * stage_sym = "OBJECT";
-		if (depth_only) {
-			if(config->blend_function) {
-				stage_sym = "OBJECT_DEPTH_ALPHA";
-			}
-			else {
-				stage_sym = "OBJECT_DEPTH";	
-			}
-		}
-
 		snprintf(prefix, sizeof prefix, 
 			"#define SC_SSAO_ENABLED %s\n"
 			"#define SC_TRANSPARENT %s\n"
 			"#define SC_SHADOW_TYPE 2\n"
-			"#define %s\n"
 			"%s",
 			singleton_data.full_render_cfg.ssao ? b_true : b_false,
 			config->blend_function == PIGEON_WGI_BLEND_NONE ? b_false : b_true,
-			stage_sym,
 			skinned ? "#define SKINNED" : ""
 		);
 	}

@@ -55,7 +55,7 @@ static struct addrinfo* resolve_hostname(const char* remote_host, const char* po
     hints.ai_protocol = protocol == PIGEON_NETWORK_PROTOCOL_UDP ? IPPROTO_UDP : IPPROTO_TCP;
 
     struct addrinfo* result;
-    int s = s = getaddrinfo(remote_host, port_string, &hints, &result);
+    int s = getaddrinfo(remote_host, port_string, &hints, &result);
     ASSERT_R0(!s);
 
     return result;
