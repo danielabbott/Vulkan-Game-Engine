@@ -1,6 +1,7 @@
-#include <pigeon/network/socket.h>
+#include <pigeon/io/socket.h>
 #include <pigeon/util.h>
 #include <pigeon/assert.h>
+#include <pigeon/io/ip.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define WIN32_LEAN_AND_MEAN // must be defined for winsock2
@@ -151,4 +152,15 @@ void pigeon_network_close_socket_blocking(PigeonNetworkSocket* sock)
         sock->handle = 0;
     }
 
+}
+
+void pigeon_ipv6_to_string(PigeonIPv6Address ip, char dst[40])
+{
+    assert(dst);
+    if(!dst) return;
+
+    if(!inet_ntop(AF_INET6, &ip, dst, 40)) {
+        dst[0] = 0;
+    }
+    // TODO windows
 }

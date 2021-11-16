@@ -6,7 +6,6 @@ Scene files
 GUI & editor
 Animation blending, procedural animation
 Cascaded shadow maps
-DTLS
 Multiplayer networking (io_uring / epoll / windows async)
 Asset packaging
 Mobile renderer

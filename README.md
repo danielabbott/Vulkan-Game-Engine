@@ -16,6 +16,7 @@ Different versions will probably work fine.
 - Blender 2.92.0
 - OpenAL 1.1
 - OpenSSL 1.1.1l
+- liburing 0.7 (Linux only, optional)
 - stb_image.h (included)
 - stb_dxt.h (included)
 - stb_vorbis.c (included)

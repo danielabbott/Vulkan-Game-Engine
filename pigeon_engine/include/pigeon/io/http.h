@@ -4,7 +4,7 @@
 // change www.wikipedia.org if using a different site
 #define HTTP_GET_HOMEPAGE \
 "GET / HTTP/1.1\r\n" \
-"Host: ewww.wikipedia.org\r\n" \
+"Host: www.wikipedia.org\r\n" \
 "Connection: close\r\n" \
 "DNT: 1\r\n" \
 "Upgrade-Insecure-Requests: 1\r\n" \

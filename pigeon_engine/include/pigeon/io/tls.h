@@ -1,7 +1,7 @@
 #pragma once
 
 #include <pigeon/util.h>
-#include <pigeon/network/socket.h>
+#include <pigeon/io/socket.h>
 
 PIGEON_ERR_RET pigeon_init_openssl(void);
 void pigeon_deinit_openssl(void);

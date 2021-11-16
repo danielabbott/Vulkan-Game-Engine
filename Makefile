@@ -20,6 +20,9 @@ endif
 # Run with make CC=clang to force usage of clang
 CC ?= clang
 
+# If 1 then liburing must be available
+ENABLE_IO_URING ?= 0
+
 CFLAGS = -std=gnu11 -MMD -Wall -Wextra \
 -Wshadow -Wno-missing-field-initializers -Werror=implicit-function-declaration \
 -Wmissing-prototypes -Wimplicit-fallthrough \
@@ -36,8 +39,15 @@ else
 CFLAGS += -Wno-sign-conversion
 endif
 
+ifeq ($(ENABLE_IO_URING), 1)
+CFLAGS += -DENABLE_IO_URING
+endif
+
 LDFLAGS = -lcrypto -lssl -lopenal -lglfw -lzstd -lvulkan -lX11 -lXi -lpthread -ldl -lm -lc -fuse-ld=lld
 
+ifeq ($(ENABLE_IO_URING), 1)
+LDFLAGS := $(LDFLAGS) -luring
+endif
 
 
 
@@ -85,7 +95,7 @@ CONFIG_PARSER_SOURCES = $(wildcard config_parser/*.c)
 SOURCES_C_NO_TESTS = $(wildcard pigeon_engine/src/*.c) $(wildcard pigeon_engine/src/wgi/*.c) \
 $(wildcard pigeon_engine/src/wgi/vulkan/*.c) $(wildcard pigeon_engine/src/wgi/opengl/*.c) \
 $(wildcard pigeon_engine/src/scene/*.c) $(wildcard pigeon_engine/src/audio/*.c) \
-$(wildcard pigeon_engine/src/job_system/*.c) $(wildcard pigeon_engine/src/network/*.c) \
+$(wildcard pigeon_engine/src/job_system/*.c) $(wildcard pigeon_engine/src/io/*.c) \
 $(CONFIG_PARSER_SOURCES) deps/glad.c
 
 OBJECTS_C_NO_TESTS = $(SOURCES_C_NO_TESTS:%.c=$(BUILD_DIR)/%.o)
@@ -95,7 +105,7 @@ $(wildcard tests/network/*.c) $(wildcard tests/unit_tests/*.c)
 
 OBJECTS_ALL_C = $(SOURCES_ALL_C:%.c=$(BUILD_DIR)/%.o)
 
-DEPS = $(OBJECTS_ALL_C:%=%.d) $(OBJECTS_GLSL:%=%.d)
+DEPS = $(OBJECTS_ALL_C:%.o=%.d) $(OBJECTS_GLSL:%=%.d)
 
 ASSETS_SRC_IMAGES = \
 $(wildcard test_assets/textures/*.jpg) \
@@ -147,7 +157,7 @@ $(BUILD_DIR)/test1: $(OBJECTS_C_NO_TESTS) $(BUILD_DIR)/tests/1/test1.o
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(BUILD_DIR)/nettest: $(OBJECTS_C_NO_TESTS) $(BUILD_DIR)/tests/network/test_network.o
+$(BUILD_DIR)/nettest: $(OBJECTS_C_NO_TESTS) $(BUILD_DIR)/tests/network/test_network_client.o $(BUILD_DIR)/tests/network/test_network_server.o
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 

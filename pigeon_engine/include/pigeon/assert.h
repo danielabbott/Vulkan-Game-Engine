@@ -12,6 +12,12 @@ static inline void CLEANUP(void) {}
 
 #define ERRLOG(s) fputs(s "\n", stderr)
 
+#ifdef DEBUG
+#define DEBUGLOG(s) ERRLOG(s)
+#else
+#define DEBUGLOG(s)
+#endif
+
 #define ASSERT_LOG_R1(x, s) if(!(x)) {ERRLOG(s); assert(false); CLEANUP(); return 1;}
 #define ASSERT_LOG_R0(x, s) if(!(x)) {ERRLOG(s); assert(false); CLEANUP(); return 0;}
 #define ASSERT_LOG_R(x, s, r) if(!(x)) {ERRLOG(s); assert(false); CLEANUP(); return r;}

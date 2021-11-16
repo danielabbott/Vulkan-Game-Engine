@@ -19,7 +19,6 @@
 #include <cglm/euler.h>
 #include <cglm/cam.h>
 #include <time.h>
-#include <pigeon/network/http.h>
 
 #ifdef NDEBUG
 	#define SHADER_PATH_PREFIX "build/release/standard_assets/shaders/"

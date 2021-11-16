@@ -19,9 +19,12 @@ while(True):
 
 #include <pigeon/assert.h>
 #include <pigeon/util.h>
-#include <pigeon/network/socket.h>
-#include <pigeon/network/tls.h>
-#include <pigeon/network/http.h>
+#include <pigeon/io/socket.h>
+#include <pigeon/io/tls.h>
+#include <pigeon/io/http.h>
+#include <pigeon/io/io_hub.h>
+#include <pigeon/io/server_socket.h>
+#include <pigeon/object_pool.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -125,15 +128,30 @@ static int test_udp(void)
     return 0;
 }
 
-int main(void)
-{    
+
+PIGEON_ERR_RET pigeon_test_server(void);
+int main(int argc, char ** argv)
+{   
 	ASSERT_R1(!pigeon_init_sockets_api());
 	ASSERT_R1(!pigeon_init_openssl());
-    
-	ASSERT_R1(!test_tcp());
-	ASSERT_R1(!test_tls());
-	ASSERT_R1(!test_udp());
-    
+
+	bool test_server = false;
+
+	for(int i = 1; i < argc; i++) {
+		if(strcmp(argv[i], "server") == 0) {
+			test_server = true;
+			break;
+		}
+	}
+
+	if(test_server) {
+		ASSERT_R1(!pigeon_test_server());
+	}
+	else {
+		ASSERT_R1(!test_tcp());
+		ASSERT_R1(!test_tls());
+		ASSERT_R1(!test_udp());
+	}    
 
 	pigeon_deinit_openssl();
 	pigeon_deinit_sockets_api();
