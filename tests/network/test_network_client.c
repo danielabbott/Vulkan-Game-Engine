@@ -129,29 +129,40 @@ static int test_udp(void)
 }
 
 
+#if !defined(WIN32) && !defined(_WIN32) && !defined(__WIN32__) && !defined(__NT__)
 PIGEON_ERR_RET pigeon_test_server(void);
+#endif
+
 int main(int argc, char ** argv)
 {   
 	ASSERT_R1(!pigeon_init_sockets_api());
 	ASSERT_R1(!pigeon_init_openssl());
 
+
+#if !defined(WIN32) && !defined(_WIN32) && !defined(__WIN32__) && !defined(__NT__)
 	bool test_server = false;
 
-	for(int i = 1; i < argc; i++) {
-		if(strcmp(argv[i], "server") == 0) {
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "server") == 0) {
 			test_server = true;
 			break;
 		}
 	}
 
-	if(test_server) {
+	if (test_server) {
 		ASSERT_R1(!pigeon_test_server());
 	}
 	else {
 		ASSERT_R1(!test_tcp());
 		ASSERT_R1(!test_tls());
 		ASSERT_R1(!test_udp());
-	}    
+	}
+#endif
+
+
+	ASSERT_R1(!test_tcp());
+	ASSERT_R1(!test_tls());
+	ASSERT_R1(!test_udp());
 
 	pigeon_deinit_openssl();
 	pigeon_deinit_sockets_api();

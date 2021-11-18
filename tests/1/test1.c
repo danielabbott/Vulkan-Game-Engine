@@ -1,3 +1,5 @@
+// TODO texture assets are loaded multiple times if used by multiple materials in a model
+
 #include <pigeon/scene/transform.h>
 #include <pigeon/scene/scene.h>
 #include <pigeon/scene/mesh_renderer.h>

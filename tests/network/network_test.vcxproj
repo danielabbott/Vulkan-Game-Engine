@@ -94,15 +94,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="test_network.c" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\config_parser\config_parser.vcxproj">
       <Project>{b0ad6c99-03fb-429b-ab14-a0196a1d9c6d}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\pigeon_engine\pigeon_engine.vcxproj">
       <Project>{f7e38ec1-9c0c-44ad-8f42-3ab65a8bdeea}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="test_network_client.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

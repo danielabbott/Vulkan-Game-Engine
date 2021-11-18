@@ -100,8 +100,8 @@
     <ClCompile Include="src\job_system\job.c" />
     <ClCompile Include="src\job_system\mutex.c" />
     <ClCompile Include="src\job_system\thread.c" />
-    <ClCompile Include="src\network\network.c" />
-    <ClCompile Include="src\network\tls.c" />
+    <ClCompile Include="src\io\network.c" />
+    <ClCompile Include="src\io\tls.c" />
     <ClCompile Include="src\object_pool.c" />
     <ClCompile Include="src\pigeon.c" />
     <ClCompile Include="src\scene\scene_audio.c" />
@@ -154,9 +154,9 @@
     <ClInclude Include="include\pigeon\job_system\job.h" />
     <ClInclude Include="include\pigeon\job_system\threading.h" />
     <ClInclude Include="include\pigeon\misc.h" />
-    <ClInclude Include="include\pigeon\network\http.h" />
-    <ClInclude Include="include\pigeon\network\socket.h" />
-    <ClInclude Include="include\pigeon\network\tls.h" />
+    <ClInclude Include="include\pigeon\io\http.h" />
+    <ClInclude Include="include\pigeon\io\socket.h" />
+    <ClInclude Include="include\pigeon\io\tls.h" />
     <ClInclude Include="include\pigeon\object_pool.h" />
     <ClInclude Include="include\pigeon\pigeon.h" />
     <ClInclude Include="include\pigeon\scene\audio.h" />
@@ -202,7 +202,7 @@
     <ClInclude Include="include\pigeon\wgi\wgi.h" />
     <ClInclude Include="include\pigeon\wgi\window.h" />
     <ClInclude Include="src\bit_functions.h" />
-    <ClInclude Include="src\network\tls.h" />
+    <ClInclude Include="src\io\tls.h" />
     <ClInclude Include="src\scene\pointer_list.h" />
     <ClInclude Include="src\wgi\opengl\gl.h" />
     <ClInclude Include="src\wgi\singleton.h" />
