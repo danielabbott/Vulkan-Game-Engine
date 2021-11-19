@@ -3,6 +3,9 @@
 #include <pigeon/io/io_hub.h>
 #include <pigeon/assert.h>
 #include <sys/utsname.h>
+#include <pigeon/io/ip.h>
+#include <sys/utsname.h>
+#include <signal.h>
 
 static bool io_uring_supported;
 
@@ -112,6 +115,18 @@ PIGEON_ERR_RET pigeon_io_hub_close_tcp_socket(PigeonIOHub* io_hub, PigeonIOHubCo
 #endif
 //TODO
     return 1;
+}
+
+
+void pigeon_io_hub_set_connection_object(PigeonIOHubConnectionHandle h, PigeonIOHubConnectionObject obj)
+{
+#ifdef ENABLE_IO_URING
+    if(io_uring_supported) {
+        pigeon_io_hub_set_connection_object__uring(h, obj);
+        return;
+    }
+#endif
+//TODO
 }
 
 

@@ -374,7 +374,7 @@ static PIGEON_ERR_RET pigeon_io_hub_tcp_shutdown_write__uring(PigeonIOHub* io_hu
     return uring_tcp_shutdown(io_hub, h, SHUT_WR);
 }
 
-void pigeon_io_hub_set_connection_object(PigeonIOHubConnectionHandle h, PigeonIOHubConnectionObject obj)
+static void pigeon_io_hub_set_connection_object__uring(PigeonIOHubConnectionHandle h, PigeonIOHubConnectionObject obj)
 {
     assert(h);
     UringConnectionData * connection = (UringConnectionData *)h;
