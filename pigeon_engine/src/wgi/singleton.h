@@ -1,26 +1,26 @@
 #pragma once
 
-#include <pigeon/wgi/vulkan/descriptor.h>
-#include <pigeon/wgi/vulkan/sampler.h>
-#include <pigeon/wgi/vulkan/renderpass.h>
-#include <pigeon/wgi/vulkan/pipeline.h>
-#include <pigeon/wgi/vulkan/image.h>
-#include <pigeon/wgi/vulkan/framebuffer.h>
-#include <pigeon/wgi/vulkan/fence.h>
-#include <pigeon/wgi/vulkan/semaphore.h>
-#include <pigeon/wgi/vulkan/command.h>
-#include <pigeon/wgi/vulkan/query.h>
-#include <pigeon/wgi/window.h>
-#include <pigeon/wgi/shadow.h>
-#include <pigeon/wgi/uniform.h>
-#include <pigeon/wgi/rendergraph.h>
-#include <pigeon/wgi/swapchain.h>
-#include <pigeon/wgi/opengl/texture.h>
+#include <assert.h>
+#include <pigeon/wgi/opengl/buffer.h>
 #include <pigeon/wgi/opengl/framebuffer.h>
 #include <pigeon/wgi/opengl/shader.h>
-#include <pigeon/wgi/opengl/buffer.h>
+#include <pigeon/wgi/opengl/texture.h>
 #include <pigeon/wgi/opengl/timer_query.h>
-#include <assert.h>
+#include <pigeon/wgi/rendergraph.h>
+#include <pigeon/wgi/shadow.h>
+#include <pigeon/wgi/swapchain.h>
+#include <pigeon/wgi/uniform.h>
+#include <pigeon/wgi/vulkan/command.h>
+#include <pigeon/wgi/vulkan/descriptor.h>
+#include <pigeon/wgi/vulkan/fence.h>
+#include <pigeon/wgi/vulkan/framebuffer.h>
+#include <pigeon/wgi/vulkan/image.h>
+#include <pigeon/wgi/vulkan/pipeline.h>
+#include <pigeon/wgi/vulkan/query.h>
+#include <pigeon/wgi/vulkan/renderpass.h>
+#include <pigeon/wgi/vulkan/sampler.h>
+#include <pigeon/wgi/vulkan/semaphore.h>
+#include <pigeon/wgi/window.h>
 
 struct PigeonWGIArrayTexture;
 
@@ -35,7 +35,6 @@ typedef struct FramebufferImageObjects {
 	};
 } FramebufferImageObjects;
 
-
 typedef enum {
 	PIGEON_WGI_RENDER_STAGE_MODE_NO_RENDER, // upload
 	PIGEON_WGI_RENDER_STAGE_MODE_FULL_SCREEN_PASS, // SSAO, bloom, post-processing
@@ -43,29 +42,25 @@ typedef enum {
 	PIGEON_WGI_RENDER_STAGE_MODE_NORMAL // 3D HDR render, UI
 } PigeonWGIRenderStageRenderMode;
 
-
-
 typedef struct PigeonWGIRenderStageInfo {
 	PigeonWGIRenderStageRenderMode render_mode;
 	bool active; // can be false for shadows, SSAO, UI
 	unsigned int mvp_index; // only for PIGEON_WGI_RENDER_STAGE_MODE_DEPTH_ONLY & _NORMAL
-
 
 	union {
 		// for RENDER_STAGE_MODE_DEPTH_ONLY and _NORMAL
 		// If framebuffer is NULL, then use swapchain (for UI)
 
 		struct {
-			PigeonVulkanFramebuffer * framebuffer;
-			PigeonVulkanRenderPass * render_pass;
+			PigeonVulkanFramebuffer* framebuffer;
+			PigeonVulkanRenderPass* render_pass;
 		};
 		struct {
-			PigeonOpenGLFramebuffer * framebuffer; // for RENDER_STAGE_MODE_DEPTH_ONLY and _NORMAL
+			PigeonOpenGLFramebuffer* framebuffer; // for RENDER_STAGE_MODE_DEPTH_ONLY and _NORMAL
 		} gl;
 	};
 
 } PigeonWGIRenderStageInfo;
-
 
 typedef struct PerFrameData {
 	union {
@@ -86,7 +81,7 @@ typedef struct PerFrameData {
 				PigeonVulkanSemaphore semaphores_all[18];
 				struct {
 					// comments are what depends on the semaphores and the dst wait stage
-					PigeonVulkanSemaphore upload_done[2+4]; // depth(all),render(all),shadows(all)
+					PigeonVulkanSemaphore upload_done[2 + 4]; // depth(all),render(all),shadows(all)
 					PigeonVulkanSemaphore shadows_done[4]; // render(frag)
 					PigeonVulkanSemaphore depth_done; // ssao/render(frag)
 					PigeonVulkanSemaphore ssao_done; // render(frag)
@@ -111,12 +106,10 @@ typedef struct PerFrameData {
 	// For when active render configuration has been changed
 	bool need_to_rebind_ssao_texture;
 
-    
 	bool first_frame_submitted; // set to true when a frame has been rendered using this PerFrameData struct
 } PerFrameData;
 
-typedef struct SingletonData
-{
+typedef struct SingletonData {
 	bool using_vulkan;
 	bool using_opengl;
 
@@ -134,11 +127,11 @@ typedef struct SingletonData
 	FramebufferImageObjects shadow_images[4]; // ** images may be bigger than necessary
 	FramebufferImageObjects ssao_images[3];
 	FramebufferImageObjects render_image;
-	
+
 	// 1/2,1/4,1/8. 2 for each
 	FramebufferImageObjects bloom_images[3][2];
 
-	union{
+	union {
 		struct {
 			PigeonVulkanDescriptorLayout depth_descriptor_layout;
 			PigeonVulkanDescriptorLayout one_texture_descriptor_layout;
@@ -192,12 +185,12 @@ typedef struct SingletonData
 
 			PigeonVulkanDescriptorPool ssao_descriptor_pools[4]; // depth buffer, ssao, 1/4 ssao, 1/4 ssao
 			PigeonVulkanDescriptorPool bloom_downscale_descriptor_pool; // bilinear samples HDR render texture
-			PigeonVulkanDescriptorPool bloom_descriptor_pools[3][2]; // bilinear samples from bloom_image with same index
+			PigeonVulkanDescriptorPool bloom_descriptor_pools[3]
+															 [2]; // bilinear samples from bloom_image with same index
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool0;
 			PigeonVulkanDescriptorPool bloom_blur_merge_descriptor_pool1;
 			PigeonVulkanDescriptorPool post_process_descriptor_pool_no_bloom;
 			PigeonVulkanDescriptorPool post_process_descriptor_pool;
-
 
 			// ssao, bloom, post-processing
 			// None are dependant on draw objects etc.
@@ -241,17 +234,14 @@ typedef struct SingletonData
 		} gl;
 	};
 
-	
-
-
 	// Equals number of swapchain images
 	unsigned int frame_objects_count;
 
 	// Index is frame number % frame_objects_count
-	PerFrameData * per_frame_objects;
+	PerFrameData* per_frame_objects;
 
 	// Index is whatever the swapchain gives us
-	PigeonVulkanFramebuffer * post_framebuffers;
+	PigeonVulkanFramebuffer* post_framebuffers;
 
 	unsigned int max_draws;
 	unsigned int max_multidraw_draws;
@@ -274,7 +264,7 @@ typedef struct SingletonData
 #ifndef WGI_C_
 extern
 #endif
-SingletonData pigeon_wgi_singleton_data;
+	SingletonData pigeon_wgi_singleton_data;
 
 #define singleton_data pigeon_wgi_singleton_data
 #define VULKAN pigeon_wgi_singleton_data.using_vulkan
@@ -294,7 +284,6 @@ void pigeon_wgi_destroy_descriptor_layouts(void);
 
 PIGEON_ERR_RET pigeon_wgi_create_samplers(void);
 void pigeon_wgi_destroy_samplers(void);
-
 
 PIGEON_ERR_RET pigeon_wgi_create_default_textures(void);
 void pigeon_wgi_destroy_default_textures(void);
@@ -318,14 +307,13 @@ PIGEON_ERR_RET pigeon_wgi_create_descriptor_pools(void);
 PIGEON_ERR_RET pigeon_wgi_assign_shadow_framebuffers(void);
 void pigeon_wgi_set_shadow_uniforms(PigeonWGISceneUniformData* data);
 
-int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects * objects,
-    PigeonWGIImageFormat format, unsigned int width, unsigned int height,
-    bool to_be_transfer_src, bool to_be_transfer_dst, bool shadow);
+int pigeon_wgi_create_framebuffer_images(FramebufferImageObjects* objects, PigeonWGIImageFormat format,
+	unsigned int width, unsigned int height, bool to_be_transfer_src, bool to_be_transfer_dst, bool shadow);
 
 static inline PigeonVulkanCommandPool* get_upload_cmd_pool(void)
 {
-    PerFrameData * objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
-    PigeonVulkanCommandPool * p = &objects->command_pools[PIGEON_WGI_RENDER_STAGE_UPLOAD];
+	PerFrameData* objects = &singleton_data.per_frame_objects[singleton_data.current_frame_index_mod];
+	PigeonVulkanCommandPool* p = &objects->command_pools[PIGEON_WGI_RENDER_STAGE_UPLOAD];
 	assert(p->recording);
 	return p;
 }

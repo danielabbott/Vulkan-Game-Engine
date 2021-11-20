@@ -1,27 +1,26 @@
 #define GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include "singleton.h"
-#include <stdlib.h>
-#include <pigeon/wgi/vulkan/swapchain.h>
+#include <GLFW/glfw3.h>
 #include <pigeon/assert.h>
+#include <pigeon/wgi/vulkan/swapchain.h>
+#include <stdlib.h>
 
 extern GLFWwindow* pigeon_wgi_glfw_window;
-
-
-
 
 static PIGEON_ERR_RET create_swapchain(void);
 static PIGEON_ERR_RET get_images(void);
 
 PIGEON_ERR_RET pigeon_vulkan_create_swapchain(void)
 {
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(singleton_data.physical_device, singleton_data.surface, 
-		&singleton_data.surface_capabilities);
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+		singleton_data.physical_device, singleton_data.surface, &singleton_data.surface_capabilities);
 
 	int err = create_swapchain();
-	if (err) return err;
-	if (get_images()) return 1;
+	if (err)
+		return err;
+	if (get_images())
+		return 1;
 
 	return 0;
 }
@@ -44,21 +43,20 @@ static PIGEON_ERR_RET create_swapchain(void)
 	uint32_t formats_count;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(singleton_data.physical_device, singleton_data.surface, &formats_count, NULL);
 
-	VkSurfaceFormatKHR * formats = malloc(formats_count * sizeof *formats);
+	VkSurfaceFormatKHR* formats = malloc(formats_count * sizeof *formats);
 	ASSERT_R1(formats);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(singleton_data.physical_device, singleton_data.surface, &formats_count, formats);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(
+		singleton_data.physical_device, singleton_data.surface, &formats_count, formats);
 
-	for(unsigned int i = 0; i < formats_count; i++) {
-		if(formats[i].format == VK_FORMAT_B8G8R8A8_SRGB || formats[i].format == VK_FORMAT_R8G8B8A8_SRGB) {
+	for (unsigned int i = 0; i < formats_count; i++) {
+		if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB || formats[i].format == VK_FORMAT_R8G8B8A8_SRGB) {
 			chosen_format = formats[i].format;
 			break;
-		}
-		else {
+		} else {
 			chosen_format = formats[i].format;
 		}
 	}
 	free(formats);
-
 
 	VkSwapchainCreateInfoKHR create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	create_info.surface = singleton_data.surface;
@@ -67,11 +65,11 @@ static PIGEON_ERR_RET create_swapchain(void)
 	create_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
 	glfwPollEvents();
-	glfwGetFramebufferSize(pigeon_wgi_glfw_window, (int*)&singleton_data.swapchain_width, (int*)&singleton_data.swapchain_height);
-	if(singleton_data.swapchain_width < 16 || singleton_data.swapchain_height < 16) {
+	glfwGetFramebufferSize(
+		pigeon_wgi_glfw_window, (int*)&singleton_data.swapchain_width, (int*)&singleton_data.swapchain_height);
+	if (singleton_data.swapchain_width < 16 || singleton_data.swapchain_height < 16) {
 		return 2;
 	}
-
 
 	create_info.imageExtent.width = singleton_data.swapchain_width;
 	create_info.imageExtent.height = singleton_data.swapchain_height;
@@ -84,33 +82,34 @@ static PIGEON_ERR_RET create_swapchain(void)
 	create_info.clipped = VK_TRUE;
 	create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
-
 	uint32_t present_mode_count;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(singleton_data.physical_device, singleton_data.surface, &present_mode_count, NULL);
-	if(present_mode_count > 6) present_mode_count = 6;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(
+		singleton_data.physical_device, singleton_data.surface, &present_mode_count, NULL);
+	if (present_mode_count > 6)
+		present_mode_count = 6;
 
 	VkPresentModeKHR present_modes[6];
-	vkGetPhysicalDeviceSurfacePresentModesKHR(singleton_data.physical_device, singleton_data.surface, &present_mode_count, present_modes);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(
+		singleton_data.physical_device, singleton_data.surface, &present_mode_count, present_modes);
 
-	if(max_fps) {
+	if (max_fps) {
 		// mailbox prevents screen tearing while still running at the maximum frame rate
-		for(unsigned int i = 0; i < present_mode_count; i++) {
-			if(present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+		for (unsigned int i = 0; i < present_mode_count; i++) {
+			if (present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
 				create_info.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 			}
 		}
-	}
-	else {
+	} else {
 		// Use relaxed fifo to reduce stuttering, if available
-		for(unsigned int i = 0; i < present_mode_count; i++) {
-			if(present_modes[i] == VK_PRESENT_MODE_FIFO_RELAXED_KHR) {
+		for (unsigned int i = 0; i < present_mode_count; i++) {
+			if (present_modes[i] == VK_PRESENT_MODE_FIFO_RELAXED_KHR) {
 				create_info.presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
 			}
-		}		
+		}
 	}
 
-
-	ASSERT_LOG_R1(vkCreateSwapchainKHR(vkdev, &create_info, NULL, &singleton_data.swapchain_handle) == VK_SUCCESS, "Error creating swapchain");
+	ASSERT_LOG_R1(vkCreateSwapchainKHR(vkdev, &create_info, NULL, &singleton_data.swapchain_handle) == VK_SUCCESS,
+		"Error creating swapchain");
 
 	return 0;
 }
@@ -121,19 +120,21 @@ static PIGEON_ERR_RET get_images(void)
 
 	vkGetSwapchainImagesKHR(vkdev, singleton_data.swapchain_handle, &singleton_data.swapchain_image_count, NULL);
 
-	singleton_data.swapchain_images = malloc(sizeof *singleton_data.swapchain_images * singleton_data.swapchain_image_count);
-	if (!singleton_data.swapchain_images) return 1;
+	singleton_data.swapchain_images
+		= malloc(sizeof *singleton_data.swapchain_images * singleton_data.swapchain_image_count);
+	if (!singleton_data.swapchain_images)
+		return 1;
 
-	singleton_data.swapchain_image_views = calloc(singleton_data.swapchain_image_count, sizeof * singleton_data.swapchain_image_views);
+	singleton_data.swapchain_image_views
+		= calloc(singleton_data.swapchain_image_count, sizeof *singleton_data.swapchain_image_views);
 	if (!singleton_data.swapchain_image_views) {
 		free(singleton_data.swapchain_images);
 		singleton_data.swapchain_images = NULL;
 		return 1;
 	}
 
-
-
-	vkGetSwapchainImagesKHR(vkdev, singleton_data.swapchain_handle, &singleton_data.swapchain_image_count, singleton_data.swapchain_images);
+	vkGetSwapchainImagesKHR(
+		vkdev, singleton_data.swapchain_handle, &singleton_data.swapchain_image_count, singleton_data.swapchain_images);
 
 	// Image views
 
@@ -150,15 +151,18 @@ static PIGEON_ERR_RET get_images(void)
 		singleton_data.swapchain_image_views[i].height = singleton_data.swapchain_height;
 		singleton_data.swapchain_image_views[i].layers = 1;
 
-		ASSERT_LOG_R1(vkCreateImageView(vkdev, &create_info, NULL, &singleton_data.swapchain_image_views[i].vk_image_view) == VK_SUCCESS, "vkCreateImageView error");
+		ASSERT_LOG_R1(
+			vkCreateImageView(vkdev, &create_info, NULL, &singleton_data.swapchain_image_views[i].vk_image_view)
+				== VK_SUCCESS,
+			"vkCreateImageView error");
 	}
 	return 0;
 }
 
-
 void pigeon_vulkan_destroy_swapchain(void)
 {
-	if(!vkdev) return;
+	if (!vkdev)
+		return;
 
 	singleton_data.current_swapchain_image = UINT32_MAX;
 
@@ -184,36 +188,32 @@ void pigeon_vulkan_destroy_swapchain(void)
 	singleton_data.swapchain_image_count = singleton_data.swapchain_width = singleton_data.swapchain_height = 0;
 }
 
-
 PigeonWGISwapchainInfo pigeon_vulkan_get_swapchain_info(void)
 {
-	PigeonWGISwapchainInfo info = {
-		.image_count = singleton_data.swapchain_image_count,
+	PigeonWGISwapchainInfo info = { .image_count = singleton_data.swapchain_image_count,
 		.format = PIGEON_WGI_IMAGE_FORMAT_BGRA_U8_SRGB,
 		.width = singleton_data.swapchain_width,
-		.height = singleton_data.swapchain_height
-	};
+		.height = singleton_data.swapchain_height };
 	return info;
 }
 
-PigeonVulkanImageView * pigeon_vulkan_get_swapchain_image_view(unsigned int i)
+PigeonVulkanImageView* pigeon_vulkan_get_swapchain_image_view(unsigned int i)
 {
 	assert(i < singleton_data.swapchain_image_count);
 	return &singleton_data.swapchain_image_views[i];
 }
 
-
-int pigeon_vulkan_next_swapchain_image(unsigned int * new_image_index, 
-	PigeonVulkanSemaphore* semaphore, PigeonVulkanFence* fence, bool block)
+int pigeon_vulkan_next_swapchain_image(
+	unsigned int* new_image_index, PigeonVulkanSemaphore* semaphore, PigeonVulkanFence* fence, bool block)
 {
 	assert(semaphore || fence);
 
-	VkResult result = vkAcquireNextImageKHR(vkdev, singleton_data.swapchain_handle, block ? 3000000000 : 0, 
-	semaphore ? semaphore->vk_semaphore : NULL, fence ? fence->vk_fence : NULL, 
-	&singleton_data.current_swapchain_image);
+	VkResult result = vkAcquireNextImageKHR(vkdev, singleton_data.swapchain_handle, block ? 3000000000 : 0,
+		semaphore ? semaphore->vk_semaphore : NULL, fence ? fence->vk_fence : NULL,
+		&singleton_data.current_swapchain_image);
 
-	if(result == VK_TIMEOUT) {
-		if(block) {
+	if (result == VK_TIMEOUT) {
+		if (block) {
 			ERRLOG("vkAcquireNextImageKHR timeout");
 			return 1;
 		}
@@ -224,14 +224,14 @@ int pigeon_vulkan_next_swapchain_image(unsigned int * new_image_index,
 		return 2;
 	}
 
-	ASSERT_LOG_R1((result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) && singleton_data.current_swapchain_image < 999, "vkAcquireNextImageKHR error");
+	ASSERT_LOG_R1((result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) && singleton_data.current_swapchain_image < 999,
+		"vkAcquireNextImageKHR error");
 	*new_image_index = singleton_data.current_swapchain_image;
 
 	return 0;
 }
 
-
-PIGEON_ERR_RET pigeon_vulkan_swapchain_present(PigeonVulkanSemaphore * wait_semaphore)
+PIGEON_ERR_RET pigeon_vulkan_swapchain_present(PigeonVulkanSemaphore* wait_semaphore)
 {
 	VkPresentInfoKHR present_info = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 

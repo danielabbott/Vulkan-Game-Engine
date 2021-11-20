@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdbool.h>
 #include "memory.h"
+#include <stdbool.h>
 
 struct VkBuffer_T;
 struct PigeonVulkanCommandPool;
@@ -22,12 +22,13 @@ typedef struct PigeonVulkanBuffer {
 	bool requires_dedicated_memory;
 } PigeonVulkanBuffer;
 
-PIGEON_ERR_RET pigeon_vulkan_create_buffer(PigeonVulkanBuffer*, uint64_t size, PigeonVulkanBufferUsages, PigeonVulkanMemoryRequirements*);
+PIGEON_ERR_RET pigeon_vulkan_create_buffer(
+	PigeonVulkanBuffer*, uint64_t size, PigeonVulkanBufferUsages, PigeonVulkanMemoryRequirements*);
 
-PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory(PigeonVulkanBuffer*, struct PigeonVulkanMemoryAllocation*, uint64_t offset);
+PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory(
+	PigeonVulkanBuffer*, struct PigeonVulkanMemoryAllocation*, uint64_t offset);
 PIGEON_ERR_RET pigeon_vulkan_buffer_bind_memory_dedicated(PigeonVulkanBuffer*, struct PigeonVulkanMemoryAllocation*);
 void pigeon_vulkan_destroy_buffer(PigeonVulkanBuffer*);
-
 
 // Creates device-local and host-visible buffers (dedicated memory allocation for each)
 // Then transfers the contents from staging buffer to device-local and deletes staging buffer
@@ -43,17 +44,17 @@ typedef struct PigeonVulkanStagedBuffer {
 } PigeonVulkanStagedBuffer;
 
 PIGEON_ERR_RET pigeon_vulkan_create_staged_buffer(PigeonVulkanStagedBuffer*, uint64_t size, PigeonVulkanBufferUsages);
-PIGEON_ERR_RET pigeon_vulkan_staged_buffer_map(PigeonVulkanStagedBuffer*, void **);
+PIGEON_ERR_RET pigeon_vulkan_staged_buffer_map(PigeonVulkanStagedBuffer*, void**);
 PIGEON_ERR_RET pigeon_vulkan_staged_buffer_write_done(PigeonVulkanStagedBuffer*);
 
 // If buffer_is_host_visible is true then don't call these 2 functions
 
-void pigeon_vulkan_staged_buffer_transfer(PigeonVulkanStagedBuffer*,
-	struct PigeonVulkanCommandPool*, unsigned int command_pool_buffer_index);
+void pigeon_vulkan_staged_buffer_transfer(
+	PigeonVulkanStagedBuffer*, struct PigeonVulkanCommandPool*, unsigned int command_pool_buffer_index);
 void pigeon_vulkan_staged_buffer_transfer_complete(PigeonVulkanStagedBuffer*);
 
 void pigeon_vulkan_destroy_staged_buffer(PigeonVulkanStagedBuffer*);
 
 // Convenience function
-PIGEON_ERR_RET pigeon_vulkan_create_staging_buffer_with_dedicated_memory(PigeonVulkanBuffer* buffer,
-	PigeonVulkanMemoryAllocation * memory, uint64_t size, void ** mapping);
+PIGEON_ERR_RET pigeon_vulkan_create_staging_buffer_with_dedicated_memory(
+	PigeonVulkanBuffer* buffer, PigeonVulkanMemoryAllocation* memory, uint64_t size, void** mapping);

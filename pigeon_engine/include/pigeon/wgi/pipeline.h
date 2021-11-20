@@ -1,8 +1,8 @@
 #pragma once
 
+#include <pigeon/util.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <pigeon/util.h>
 
 #define PIGEON_WGI_MAX_VERTEX_ATTRIBUTES 6
 
@@ -11,16 +11,9 @@ struct PigeonVulkanShader;
 struct PigeonOpenGLShaderProgram;
 struct PigeonOpenGLShader;
 
-typedef enum {
-	PIGEON_WGI_CULL_MODE_NONE,
-	PIGEON_WGI_CULL_MODE_FRONT,
-	PIGEON_WGI_CULL_MODE_BACK
-} PigeonWGICullMode;
+typedef enum { PIGEON_WGI_CULL_MODE_NONE, PIGEON_WGI_CULL_MODE_FRONT, PIGEON_WGI_CULL_MODE_BACK } PigeonWGICullMode;
 
-typedef enum {
-	PIGEON_WGI_FRONT_FACE_ANTICLOCKWISE,
-	PIGEON_WGI_FRONT_FACE_CLOCKWISE
-} PigeonWGIFrontFace;
+typedef enum { PIGEON_WGI_FRONT_FACE_ANTICLOCKWISE, PIGEON_WGI_FRONT_FACE_CLOCKWISE } PigeonWGIFrontFace;
 
 typedef enum {
 	PIGEON_WGI_BLEND_NONE,
@@ -65,43 +58,38 @@ typedef struct PigeonWGIPipelineConfig {
 	PigeonWGIVertexAttributeType vertex_attributes[PIGEON_WGI_MAX_VERTEX_ATTRIBUTES];
 } PigeonWGIPipelineConfig;
 
-typedef enum {
-	PIGEON_WGI_SHADER_TYPE_VERTEX,
-	PIGEON_WGI_SHADER_TYPE_FRAGMENT
-} PigeonWGIShaderType;
+typedef enum { PIGEON_WGI_SHADER_TYPE_VERTEX, PIGEON_WGI_SHADER_TYPE_FRAGMENT } PigeonWGIShaderType;
 
 typedef struct PigeonWGIShader {
 	union {
-		struct PigeonVulkanShader * shader;
-		struct PigeonOpenGLShader * opengl_shader;
+		struct PigeonVulkanShader* shader;
+		struct PigeonOpenGLShader* opengl_shader;
 	};
 } PigeonWGIShader;
-
-
 
 // If false, pass glsl source code to pigeon_wgi_create_shader2
 bool pigeon_wgi_accepts_spirv(void);
 
-PIGEON_ERR_RET pigeon_wgi_create_shader(PigeonWGIShader*, const void* spv, uint32_t size_bytes, 
-	PigeonWGIShaderType type);
+PIGEON_ERR_RET pigeon_wgi_create_shader(
+	PigeonWGIShader*, const void* spv, uint32_t size_bytes, PigeonWGIShaderType type);
 
 // if config is NULL then depth_only is ignored
-PIGEON_ERR_RET pigeon_wgi_create_shader2(PigeonWGIShader*, const char * file_name, 
-	PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config);
+PIGEON_ERR_RET pigeon_wgi_create_shader2(
+	PigeonWGIShader*, const char* file_name, PigeonWGIShaderType type, const PigeonWGIPipelineConfig* config);
 
 void pigeon_wgi_destroy_shader(PigeonWGIShader*);
 
 typedef struct PigeonWGIPipeline {
 	union {
 		struct {
-			struct PigeonVulkanPipeline * pipeline_depth;
-			struct PigeonVulkanPipeline * pipeline_shadow_map;
-			struct PigeonVulkanPipeline * pipeline;
+			struct PigeonVulkanPipeline* pipeline_depth;
+			struct PigeonVulkanPipeline* pipeline_shadow_map;
+			struct PigeonVulkanPipeline* pipeline;
 		};
 		struct {
-			struct PigeonOpenGLShaderProgram * program_depth;
-			struct PigeonOpenGLShaderProgram * program;
-			
+			struct PigeonOpenGLShaderProgram* program_depth;
+			struct PigeonOpenGLShaderProgram* program;
+
 			PigeonWGIPipelineConfig config_depth;
 			PigeonWGIPipelineConfig config_shadow;
 			PigeonWGIPipelineConfig config;
@@ -121,10 +109,8 @@ typedef struct PigeonWGIPipeline {
 
 PIGEON_ERR_RET pigeon_wgi_create_skybox_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs, PigeonWGIShader* fs);
 
-int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, 
-	PigeonWGIShader* vs_depth, PigeonWGIShader* vs, 
+int pigeon_wgi_create_pipeline(PigeonWGIPipeline*, PigeonWGIShader* vs_depth, PigeonWGIShader* vs,
 	PigeonWGIShader* fs_depth, // NULL for opaque objects
-	PigeonWGIShader* fs,
-	const PigeonWGIPipelineConfig*, bool skinned, bool transparent);
+	PigeonWGIShader* fs, const PigeonWGIPipelineConfig*, bool skinned, bool transparent);
 
 void pigeon_wgi_destroy_pipeline(PigeonWGIPipeline*);

@@ -1,18 +1,17 @@
 #pragma once
 
+#include <pigeon/wgi/vulkan/image.h>
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
-#include <pigeon/wgi/vulkan/image.h>
 
-typedef struct SingletonData
-{
+typedef struct SingletonData {
 	VkInstance instance;
 
 	VkPhysicalDevice physical_device;
 	bool dedicated_allocation_supported;
 	VkSurfaceKHR surface;
 	VkPhysicalDeviceMemoryProperties memory_properties;
-	
+
 	unsigned int buffer_min_alignment;
 	bool depth_clamp_supported;
 	bool anisotropy_supported;
@@ -51,11 +50,10 @@ typedef struct SingletonData
 #ifndef VULKAN_C_
 extern
 #endif
-SingletonData pigeon_vulkan_singleton_data;
+	SingletonData pigeon_vulkan_singleton_data;
 
 #define singleton_data pigeon_vulkan_singleton_data
 #define vkdev singleton_data.device
-
 
 /* Functions used during device initialisation */
 

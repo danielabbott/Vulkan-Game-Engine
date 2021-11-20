@@ -7,105 +7,64 @@
 
 // untested
 
-typedef struct PigeonAtomicInt
-{
+typedef struct PigeonAtomicInt {
 	volatile int x;
 } PigeonAtomicInt;
 
-typedef struct PigeonAtomicPtr
-{
+typedef struct PigeonAtomicPtr {
 	volatile void* x;
 } PigeonAtomicPtr;
 
+static inline void pigeon_atomic_set_int(PigeonAtomicInt* atomic, int value) { atomic->x = value; }
 
-static inline void pigeon_atomic_set_int(PigeonAtomicInt * atomic, int value)
+static inline int pigeon_atomic_get_int(PigeonAtomicInt* atomic) { return atomic->x; }
+
+static inline void pigeon_atomic_set_ptr(PigeonAtomicPtr* atomic, void* value) { atomic->x = value; }
+
+static inline void* pigeon_atomic_get_ptr(PigeonAtomicPtr* atomic) { return atomic->x; }
+
+static inline int pigeon_atomic_inc_int(PigeonAtomicInt* atomic) { return InterlockedIncrement(&atomic->x); }
+
+static inline int pigeon_atomic_dev_int(PigeonAtomicInt* atomic) { return InterlockedDecrement(&atomic->x); }
+
+static inline void* pigeon_atomic_swap_ptr(PigeonAtomicPtr* atomic, void* value)
 {
-	atomic->x = value;
+	return InterlockedExchangePointer(&atomic->x, value);
 }
 
-static inline int pigeon_atomic_get_int(PigeonAtomicInt * atomic)
-{
-	return atomic->x;
-}
-
-static inline void pigeon_atomic_set_ptr(PigeonAtomicPtr * atomic, void* value)
-{
-	atomic->x = value;
-}
-
-static inline void* pigeon_atomic_get_ptr(PigeonAtomicPtr * atomic)
-{
-	return atomic->x;
-}
-
-static inline int pigeon_atomic_inc_int(PigeonAtomicInt * atomic)
-{
-	return InterlockedIncrement(&atomic->x);
-}
-
-static inline int pigeon_atomic_dev_int(PigeonAtomicInt * atomic)
-{
-	return InterlockedDecrement(&atomic->x);
-}
-
-static inline void* pigeon_atomic_swap_ptr(PigeonAtomicPtr * atomic, void* value)
-{
-    return InterlockedExchangePointer(&atomic->x, value);
-}
-
-void* pigeon_atomic_swap_ptr(PigeonAtomicPtr * atomic, void* value);
-
+void* pigeon_atomic_swap_ptr(PigeonAtomicPtr* atomic, void* value);
 
 #define thread_local __declspec(thread)
 
 #else
 #include <stdatomic.h>
 
-typedef struct PigeonAtomicInt
-{
+typedef struct PigeonAtomicInt {
 	atomic_int x;
 } PigeonAtomicInt;
 
-typedef struct PigeonAtomicPtr
-{
+typedef struct PigeonAtomicPtr {
 	atomic_uintptr_t x;
 } PigeonAtomicPtr;
 
+static inline void pigeon_atomic_set_int(PigeonAtomicInt* atomic, int value) { atomic_store(&atomic->x, value); }
 
+static inline int pigeon_atomic_get_int(PigeonAtomicInt* atomic) { return atomic_load(&atomic->x); }
 
-static inline void pigeon_atomic_set_int(PigeonAtomicInt * atomic, int value)
+static inline int pigeon_atomic_inc_int(PigeonAtomicInt* atomic) { return atomic_fetch_add(&atomic->x, 1); }
+
+static inline int pigeon_atomic_dec_int(PigeonAtomicInt* atomic) { return atomic_fetch_add(&atomic->x, -1); }
+
+static inline void pigeon_atomic_set_ptr(PigeonAtomicPtr* atomic, void* value)
 {
-	atomic_store(&atomic->x, value);
+	atomic_store(&atomic->x, (uintptr_t)value);
 }
 
-static inline int pigeon_atomic_get_int(PigeonAtomicInt * atomic)
-{
-	return atomic_load(&atomic->x);
-}
+static inline void* pigeon_atomic_get_ptr(PigeonAtomicPtr* atomic) { return (void*)atomic_load(&atomic->x); }
 
-static inline int pigeon_atomic_inc_int(PigeonAtomicInt * atomic)
+static inline void* pigeon_atomic_swap_ptr(PigeonAtomicPtr* atomic, void* value)
 {
-	return atomic_fetch_add(&atomic->x, 1);
-}
-
-static inline int pigeon_atomic_dec_int(PigeonAtomicInt * atomic)
-{
-	return atomic_fetch_add(&atomic->x, -1);
-}
-
-static inline void pigeon_atomic_set_ptr(PigeonAtomicPtr * atomic, void* value)
-{
-	atomic_store(&atomic->x, (uintptr_t) value);
-}
-
-static inline void* pigeon_atomic_get_ptr(PigeonAtomicPtr * atomic)
-{
-	return (void *) atomic_load(&atomic->x);
-}
-
-static inline void* pigeon_atomic_swap_ptr(PigeonAtomicPtr * atomic, void* value)
-{
-    return (void *) atomic_exchange(&atomic->x, (uintptr_t) value);
+	return (void*)atomic_exchange(&atomic->x, (uintptr_t)value);
 }
 
 #define thread_local __thread
@@ -117,15 +76,13 @@ typedef void* PigeonThread;
 typedef void (*PigeonThreadFunction)(void* arg0);
 
 // Start thread and run the given function with the given arguments
-PigeonThread pigeon_start_thread(PigeonThreadFunction, void * arg0);
+PigeonThread pigeon_start_thread(PigeonThreadFunction, void* arg0);
 
 // Wait for thread then destroy
 void pigeon_join_thread(PigeonThread);
 
 // Sleep current thread
 // void pigeon_thread_sleep(unsigned int milliseconds);
-
-
 
 typedef void* PigeonMutex;
 
@@ -138,9 +95,6 @@ void pigeon_release_mutex(PigeonMutex);
 
 // Mutex lock must be released before mutex destruction
 void pigeon_destroy_mutex(PigeonMutex);
-
-
-
 
 typedef void* PigeonConditionVariable;
 

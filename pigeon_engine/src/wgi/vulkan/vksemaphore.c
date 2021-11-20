@@ -1,12 +1,12 @@
-#include <pigeon/wgi/vulkan/semaphore.h>
 #include "singleton.h"
 #include <pigeon/assert.h>
+#include <pigeon/wgi/vulkan/semaphore.h>
 
 PIGEON_ERR_RET pigeon_vulkan_create_semaphore(PigeonVulkanSemaphore* semaphore)
 {
 	assert(semaphore);
-	
-    VkSemaphoreCreateInfo semaphore_create = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+	VkSemaphoreCreateInfo semaphore_create = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
 	ASSERT_LOG_R1(vkCreateSemaphore(vkdev, &semaphore_create, NULL, &semaphore->vk_semaphore) == VK_SUCCESS,
 		"vkCreateSemaphore error");

@@ -1,9 +1,8 @@
 #include "singleton.h"
+#include <pigeon/assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pigeon/assert.h>
-
 
 static bool is_device_swapchain_capable(VkPhysicalDevice physical_device)
 {
@@ -13,7 +12,8 @@ static bool is_device_swapchain_capable(VkPhysicalDevice physical_device)
 	vkEnumerateDeviceExtensionProperties(physical_device, NULL, &extension_count, NULL);
 
 	VkExtensionProperties* available_extensions = malloc(sizeof *available_extensions * extension_count);
-	if (!available_extensions) return false;
+	if (!available_extensions)
+		return false;
 
 	vkEnumerateDeviceExtensionProperties(physical_device, NULL, &extension_count, available_extensions);
 
@@ -24,20 +24,19 @@ static bool is_device_swapchain_capable(VkPhysicalDevice physical_device)
 		}
 	}
 
-
 	free(available_extensions);
 	return false;
 }
 
 // Returns true if found a general queue
-static bool find_general_queue(VkPhysicalDevice physical_device, 
-	VkQueueFamilyProperties* queue_properties, unsigned int queue_family_count,  bool compute)
+static bool find_general_queue(VkPhysicalDevice physical_device, VkQueueFamilyProperties* queue_properties,
+	unsigned int queue_family_count, bool compute)
 {
 	assert(physical_device && queue_properties);
 
 	for (unsigned int i = 0; i < queue_family_count; i++) {
-		if ((queue_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queue_properties[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-			 && queue_properties[i].queueCount) {
+		if ((queue_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			&& (queue_properties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && queue_properties[i].queueCount) {
 
 			if (!compute || (queue_properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
 				VkBool32 present = false;
@@ -53,8 +52,8 @@ static bool find_general_queue(VkPhysicalDevice physical_device,
 	return false;
 }
 
-static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated) 
-{	
+static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
+{
 	assert(physical_device);
 
 	if (!is_device_swapchain_capable(physical_device)) {
@@ -104,79 +103,77 @@ static bool is_device_suitable(VkPhysicalDevice physical_device, bool dedicated)
 
 	vkGetPhysicalDeviceFeatures(physical_device, &device_features);
 
-	if(!device_features.multiDrawIndirect) {
+	if (!device_features.multiDrawIndirect) {
 		fputs("Multidraw unsupported\n", stderr);
 		return false;
 	}
 
-	if(!device_features.drawIndirectFirstInstance) {
+	if (!device_features.drawIndirectFirstInstance) {
 		fputs("Draw Indirect First Instance unsupported\n", stderr);
 		return false;
 	}
 
 	singleton_data.depth_clamp_supported = device_features.depthClamp;
-	singleton_data.anisotropy_supported = device_features.samplerAnisotropy && device_properties.limits.maxSamplerAnisotropy >= 16;
-	
-
+	singleton_data.anisotropy_supported
+		= device_features.samplerAnisotropy && device_properties.limits.maxSamplerAnisotropy >= 16;
 
 	singleton_data.timer_multiplier = ((double)device_properties.limits.timestampPeriod / 1000.0) / 1000.0;
 
 	singleton_data.buffer_min_alignment = (unsigned)device_properties.limits.minUniformBufferOffsetAlignment;
-	
-	if((unsigned)device_properties.limits.minStorageBufferOffsetAlignment > singleton_data.buffer_min_alignment) {
+
+	if ((unsigned)device_properties.limits.minStorageBufferOffsetAlignment > singleton_data.buffer_min_alignment) {
 		singleton_data.buffer_min_alignment = (unsigned)device_properties.limits.minStorageBufferOffsetAlignment;
 	}
-	
-	vkGetPhysicalDeviceMemoryProperties(physical_device, &singleton_data.memory_properties);
 
+	vkGetPhysicalDeviceMemoryProperties(physical_device, &singleton_data.memory_properties);
 
 	VkFormatProperties format_properties;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_B10G11R11_UFLOAT_PACK32, &format_properties);
-	singleton_data.b10g11r11_ufloat_pack32_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT) != 0;
+	singleton_data.b10g11r11_ufloat_pack32_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC1_RGB_SRGB_BLOCK, &format_properties);
-	singleton_data.bc1_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.bc1_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC3_SRGB_BLOCK, &format_properties);
-	singleton_data.bc3_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.bc3_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC5_UNORM_BLOCK, &format_properties);
-	singleton_data.bc5_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.bc5_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_BC7_SRGB_BLOCK, &format_properties);
-	singleton_data.bc7_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.bc7_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK, &format_properties);
-	singleton_data.etc1_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.etc1_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK, &format_properties);
-	singleton_data.etc2_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.etc2_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
 	vkGetPhysicalDeviceFormatProperties(physical_device, VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK, &format_properties);
-	singleton_data.etc2_rgba_optimal_available = 
-		(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+	singleton_data.etc2_rgba_optimal_available
+		= (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
 
-
-	
 	printf("Using device: %s\n", device_properties.deviceName);
 
-	if (singleton_data.depth_clamp_supported) puts("Depth clamp supported");
-	if (singleton_data.anisotropy_supported) puts("Anisotropic filtering supported");
-	if (singleton_data.dedicated_allocation_supported) puts("Dedicated allocation supported");
-	if (singleton_data.b10g11r11_ufloat_pack32_optimal_available) puts("VK_FORMAT_B10G11R11_UFLOAT_PACK32 render+blend target supported");
-
+	if (singleton_data.depth_clamp_supported)
+		puts("Depth clamp supported");
+	if (singleton_data.anisotropy_supported)
+		puts("Anisotropic filtering supported");
+	if (singleton_data.dedicated_allocation_supported)
+		puts("Dedicated allocation supported");
+	if (singleton_data.b10g11r11_ufloat_pack32_optimal_available)
+		puts("VK_FORMAT_B10G11R11_UFLOAT_PACK32 render+blend target supported");
 
 	return true;
 }
-
 
 PIGEON_ERR_RET pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
 {
@@ -186,8 +183,8 @@ PIGEON_ERR_RET pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
 	ASSERT_LOG_R1(device_count != 0, "No GPUs");
 
 	VkPhysicalDevice* devices = malloc(sizeof *devices * device_count);
-	if (!devices) return 1;
-
+	if (!devices)
+		return 1;
 
 	vkEnumeratePhysicalDevices(singleton_data.instance, &device_count, devices);
 
@@ -213,8 +210,5 @@ PIGEON_ERR_RET pigeon_find_vulkan_device(bool prefer_dedicated_gpu)
 
 	ASSERT_LOG_R1(singleton_data.physical_device, "No suitable GPU found");
 
-
-
 	return 0;
-
 }

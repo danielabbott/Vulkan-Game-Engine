@@ -4,8 +4,6 @@
 
 #else
 
-
-
 #ifdef ENABLE_IO_URING
 #include "io_hub_uring.h"
 #endif

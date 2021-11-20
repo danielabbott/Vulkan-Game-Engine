@@ -6,8 +6,8 @@
 struct PigeonAsset;
 
 typedef struct PigeonWGIAnimationMeta {
-    char * name;
-    float fps;
-    bool loops;
-    unsigned int frame_count;    
+	char* name;
+	float fps;
+	bool loops;
+	unsigned int frame_count;
 } PigeonWGIAnimationMeta;

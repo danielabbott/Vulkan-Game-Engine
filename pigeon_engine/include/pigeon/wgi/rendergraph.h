@@ -1,12 +1,12 @@
 #pragma once
 
-
+#include <pigeon/util.h>
 
 typedef enum {
 	PIGEON_WGI_RENDER_STAGE_UPLOAD, // Required (resets timer queries)
 
-    // Shadow stage must be recorded if corresponding shadow is enabled in PigeonWGIShadowParameters
-	PIGEON_WGI_RENDER_STAGE_SHADOW0, 
+	// Shadow stage must be recorded if corresponding shadow is enabled in PigeonWGIShadowParameters
+	PIGEON_WGI_RENDER_STAGE_SHADOW0,
 	PIGEON_WGI_RENDER_STAGE_SHADOW1,
 	PIGEON_WGI_RENDER_STAGE_SHADOW2,
 	PIGEON_WGI_RENDER_STAGE_SHADOW3,
@@ -22,8 +22,6 @@ typedef enum {
 	PIGEON_WGI_RENDER_STAGE__COUNT = PIGEON_WGI_RENDER_STAGE__LAST - PIGEON_WGI_RENDER_STAGE__FIRST + 1
 } PigeonWGIRenderStage;
 
-
-
 // Scene renderer setup
 
 typedef struct PigeonWGIRenderConfig {
@@ -35,9 +33,7 @@ typedef struct PigeonWGIRenderConfig {
 // Call after pigeon_wgi_next_frame_* and before pigeon_wgi_start_frame
 void pigeon_wgi_set_active_render_config(PigeonWGIRenderConfig);
 
-
 // Command buffer recording
-
 
 // Check these to avoid creating unnecessary jobs
 bool pigeon_wgi_ssao_record_needed(void);

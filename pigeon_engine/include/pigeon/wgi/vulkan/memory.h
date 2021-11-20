@@ -1,9 +1,8 @@
 #pragma once
 
+#include <pigeon/util.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <pigeon/util.h>
-
 
 struct VkDeviceMemory_T;
 struct PigeonVulkanBuffer;
@@ -27,8 +26,7 @@ typedef struct PigeonVulkanMemoryTypePreferences {
 	PigeonVulkanMemoryTypePerference host_cached;
 } PigeonVulkanMemoryTypePreferences;
 
-typedef struct PigeonVulkanMemoryRequirements
-{
+typedef struct PigeonVulkanMemoryRequirements {
 	unsigned int alignment;
 	unsigned int memory_type_bits;
 	uint64_t size;
@@ -36,8 +34,7 @@ typedef struct PigeonVulkanMemoryRequirements
 	bool prefers_dedicated;
 } PigeonVulkanMemoryRequirements;
 
-typedef struct PigeonVulkanMemoryAllocation
-{
+typedef struct PigeonVulkanMemoryAllocation {
 	struct VkDeviceMemory_T* vk_device_memory;
 	bool device_local;
 	bool host_visible;
@@ -46,19 +43,18 @@ typedef struct PigeonVulkanMemoryAllocation
 	bool is_dedicated;
 } PigeonVulkanMemoryAllocation;
 
-bool pigeon_vulkan_memory_type_possible(PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePreferences preferences);
+bool pigeon_vulkan_memory_type_possible(
+	PigeonVulkanMemoryRequirements memory_req, PigeonVulkanMemoryTypePreferences preferences);
 
-int pigeon_vulkan_allocate_memory(PigeonVulkanMemoryAllocation*, 
-	PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePreferences);
-int pigeon_vulkan_allocate_memory_dedicated(PigeonVulkanMemoryAllocation*, 
-	PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePreferences,
+int pigeon_vulkan_allocate_memory(
+	PigeonVulkanMemoryAllocation*, PigeonVulkanMemoryRequirements, PigeonVulkanMemoryTypePreferences);
+int pigeon_vulkan_allocate_memory_dedicated(PigeonVulkanMemoryAllocation*, PigeonVulkanMemoryRequirements,
+	PigeonVulkanMemoryTypePreferences,
 	// One must be valid, the other NULL
-	struct PigeonVulkanImage* image, struct PigeonVulkanBuffer * buffer);
-
+	struct PigeonVulkanImage* image, struct PigeonVulkanBuffer* buffer);
 
 PIGEON_ERR_RET pigeon_vulkan_map_memory(PigeonVulkanMemoryAllocation*, void** data_ptr);
 PIGEON_ERR_RET pigeon_vulkan_flush_memory(PigeonVulkanMemoryAllocation*, uint64_t offset, uint64_t size);
 void pigeon_vulkan_unmap_memory(PigeonVulkanMemoryAllocation*);
-
 
 void pigeon_vulkan_free_memory(PigeonVulkanMemoryAllocation*);
