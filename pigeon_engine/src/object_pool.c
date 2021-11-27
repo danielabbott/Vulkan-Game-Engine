@@ -190,6 +190,40 @@ void pigeon_object_pool_for_each2(PigeonObjectPool* pool, void (*f)(void* e, voi
 	}
 }
 
+PIGEON_ERR_RET pigeon_object_pool_for_each3(
+	PigeonObjectPool* pool, PIGEON_ERR_RET (*f)(void* e), unsigned int limit, bool continue_if_error)
+{
+	unsigned int counter = 0, error = 0;
+	for (unsigned int i = 0; i < pool->group_bitmaps.size && counter <= limit; i++) {
+		uintptr_t group_addr = (uintptr_t)((GroupDataPointer*)pool->group_data_pointers.elements)[i];
+
+		for (unsigned int j = 0; j < PIGEON_GROUP_SIZE_DIV64 && counter <= limit; j++) {
+			uint64_t b = ((GroupBitmap*)pool->group_bitmaps.elements)[i].x[j];
+			if (!b)
+				continue;
+
+			for (unsigned int k = 0; k < 64 && counter <= limit; k++) {
+				if (b & (1ull << k)) {
+					void* element = (void*)(group_addr + pool->object_size * (j * 64 + k));
+
+					int err = f(element);
+					if (continue_if_error && err) {
+						if (!error)
+							error = err;
+						else if (error != err)
+							error = 1;
+					} else if (err) {
+						return err;
+					}
+
+					counter++;
+				}
+			}
+		}
+	}
+	return error;
+}
+
 void pigeon_destroy_object_pool(PigeonObjectPool* pool)
 {
 	for (unsigned int i = 0; i < pool->group_data_pointers.size; i++) {

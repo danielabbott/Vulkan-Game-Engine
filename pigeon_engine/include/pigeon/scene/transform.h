@@ -17,6 +17,8 @@ typedef enum {
 typedef struct PigeonTransform {
 	struct PigeonTransform* parent; // may be NULL
 
+	int users; // TODO
+
 	// call pigeon_invalidate_world_transform() after editing
 	PigeonTransformType transform_type;
 	union {
@@ -28,11 +30,11 @@ typedef struct PigeonTransform {
 		};
 	};
 
-	mat4 world_transform_cache;
-	bool world_transform_cached;
-
 	PigeonArrayList* children; // array of PigeonTransform*
 	PigeonArrayList* components; // array of PigeonComponent*
+
+	mat4 world_transform_cache;
+	bool world_transform_cached;
 } PigeonTransform;
 
 // ** Transform objects are allocated from pools, always use these functions for creation/destruction

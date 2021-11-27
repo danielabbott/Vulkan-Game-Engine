@@ -10,6 +10,7 @@ typedef enum {
 } PigeonComponentType;
 
 typedef struct PigeonComponent {
-	PigeonComponentType type;
 	struct PigeonArrayList* transforms; // array of PigeonTransform*
+	PigeonComponentType type;
+	int users; // TODO
 } PigeonComponent;

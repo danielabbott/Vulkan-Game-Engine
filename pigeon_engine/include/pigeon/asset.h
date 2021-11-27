@@ -6,6 +6,7 @@
 #include <pigeon/wgi/animation.h>
 #include <pigeon/audio/audio.h>
 #include <pigeon/util.h>
+#include <pigeon/object_pool.h>
 
 typedef enum {
     PIGEON_ASSET_TYPE_UNKNOWN,
@@ -38,6 +39,7 @@ typedef struct PigeonAssetSubresource {
 
 typedef struct PigeonAsset {
     PigeonAssetType type;
+	int users;
 
     char * name;
 
@@ -92,6 +94,11 @@ PIGEON_ERR_RET pigeon_decompress_asset(PigeonAsset *, void * buffer, unsigned in
 // PIGEON_ERR_RET pigeon_load_decompressed(PigeonAsset *, void * buffer);
 
 void pigeon_free_asset(PigeonAsset *);
+
+
+#ifndef _ASSET_C_
+extern PigeonObjectPool pigeon_asset_object_pool;
+#endif
 
 
 // TODO PigeonAssetPackage

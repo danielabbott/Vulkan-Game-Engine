@@ -33,3 +33,9 @@ void pigeon_destroy_object_pool(PigeonObjectPool*);
 //  x: custom parameter passed each time
 void pigeon_object_pool_for_each(PigeonObjectPool*, void (*)(void* e));
 void pigeon_object_pool_for_each2(PigeonObjectPool*, void (*)(void* e, void* x), void* x);
+
+// Stops after limit objects
+// If continue_if_error is true then the function will not stop if an error occurs, returned code will be 1 if multiple
+// different error codes are encountered
+PIGEON_ERR_RET pigeon_object_pool_for_each3(
+	PigeonObjectPool*, PIGEON_ERR_RET (*)(void* e), unsigned int limit, bool continue_if_error);

@@ -1,5 +1,7 @@
 #pragma once
 
+struct PigeonAsset;
+
 typedef struct PigeonWGIMaterialImport {
 	char* name;
 
@@ -12,4 +14,7 @@ typedef struct PigeonWGIMaterialImport {
 
 	char* texture;
 	char* normal_map_texture;
+
+	struct PigeonAsset* texture_asset;
+	struct PigeonAsset* normal_map_texture_asset;
 } PigeonWGIMaterialImport;

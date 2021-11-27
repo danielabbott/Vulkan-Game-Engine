@@ -1,9 +1,13 @@
+#define _ASSET_C_
 #include <pigeon/asset.h>
 #include <pigeon/assert.h>
 #include <pigeon/misc.h>
 #include <config_parser.h>
 #include <zstd.h>
 #include <stb_vorbis.c>
+
+
+
 
 enum {
     KEY_ASSET,
@@ -805,7 +809,7 @@ PIGEON_ERR_RET pigeon_decompress_asset(PigeonAsset * asset, void * buffer, unsig
 
 void pigeon_free_asset(PigeonAsset * asset)
 {
-    assert(asset);
+    assert(asset && asset->users < 1);
 
 
     free_if(asset->name);
@@ -858,3 +862,5 @@ void pigeon_free_asset(PigeonAsset * asset)
     }
 
 }
+
+PigeonObjectPool pigeon_asset_object_pool;
