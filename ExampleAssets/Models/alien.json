@@ -1,0 +1,43 @@
+{
+    "asset_type": "model",
+    "compression": "zstd",
+    "decompressed_size": 392120,
+    "vertex_count": 14762,
+    "bounds_minimum": [
+        -0.3156399726867676,
+        -0.011738999746739864,
+        -0.19645799696445465
+    ],
+    "bounds_range": [
+        0.6717579364776611,
+        1.7677689790725708,
+        0.5578280091285706
+    ],
+    "indices_type": "small",
+    "indices_data_offset": 236192,
+    "indices_data_size": 155928,
+    "indices_count": 77964,
+    "vertex_attributes": [
+        {
+            "attribute_type": "PositionNormalised",
+            "data_offset": 0,
+            "data_size": 59048
+        },
+        {
+            "attribute_type": "Normal",
+            "data_offset": 59048,
+            "data_size": 59048
+        },
+        {
+            "attribute_type": "Tangent",
+            "data_offset": 118096,
+            "data_size": 59048
+        },
+        {
+            "attribute_type": "Texture",
+            "data_offset": 177144,
+            "data_size": 59048
+        }
+    ],
+    "compression_ratio": 0.7985897174334388
+}

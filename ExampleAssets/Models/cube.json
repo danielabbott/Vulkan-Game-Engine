@@ -1,0 +1,43 @@
+{
+    "asset_type": "model",
+    "compression": "zstd",
+    "decompressed_size": 576,
+    "vertex_count": 36,
+    "bounds_minimum": [
+        -0.5,
+        -0.5,
+        -0.5
+    ],
+    "bounds_range": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "indices_type": "small",
+    "indices_data_offset": 576,
+    "indices_data_size": 0,
+    "indices_count": 0,
+    "vertex_attributes": [
+        {
+            "attribute_type": "PositionNormalised",
+            "data_offset": 0,
+            "data_size": 144
+        },
+        {
+            "attribute_type": "Normal",
+            "data_offset": 144,
+            "data_size": 144
+        },
+        {
+            "attribute_type": "Tangent",
+            "data_offset": 288,
+            "data_size": 144
+        },
+        {
+            "attribute_type": "Texture",
+            "data_offset": 432,
+            "data_size": 144
+        }
+    ],
+    "compression_ratio": 0.2534722222222222
+}

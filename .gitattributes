@@ -1,0 +1,2 @@
+ExampleAssets/Models/*.pigeon-data filter=lfs diff=lfs merge=lfs -text
+StandardAssets/Models/*.pigeon-data filter=lfs diff=lfs merge=lfs -text

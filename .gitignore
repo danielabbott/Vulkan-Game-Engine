@@ -1,0 +1,9 @@
+Pigeon/build
+Test1/build
+Test2/build
+*.spv
+TODO.txt
+.vscode
+null.d
+.vscode/*
+*.pigeon-data
